@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 
 import type { BindingUpdate, InboxBinding } from '@support-agent/shared';
 
@@ -99,6 +99,16 @@ export class BindingsService {
     const kbIds = row?.enabled ? row.kbIds : [];
     await this.cache.set(key, kbIds, BINDING_CACHE_TTL_SECONDS);
     return kbIds;
+  }
+
+  /** Guard for KB deletion: is this KB referenced by any inbox binding? */
+  async isKbBound(kbId: string): Promise<boolean> {
+    const [row] = await this.database.db
+      .select({ id: inboxBindings.id })
+      .from(inboxBindings)
+      .where(sql`${kbId}::uuid = any(${inboxBindings.kbIds})`)
+      .limit(1);
+    return row !== undefined;
   }
 }
 

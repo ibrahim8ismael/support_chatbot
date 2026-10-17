@@ -103,7 +103,7 @@ erDiagram
 | `source_type` | text | `upload \| url \| text` |
 | `filename` | text | original name |
 | `mime_type`, `size_bytes` | text / int | |
-| `storage_path` | text NULL | path on uploads volume (nullable for `text`) |
+| `storage_path` | text NULL | name relative to `UPLOAD_DIR` (nullable for `text`) |
 | `status` | text | `processing \| ready \| failed` |
 | `error` | text NULL | failure reason, shown in UI |
 | `chunk_count` | int | denormalized for the UI |

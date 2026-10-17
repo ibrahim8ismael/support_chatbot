@@ -67,6 +67,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   uuid-array validation, `display_name` preserved for the Chatwoot sync, and
   `getBoundKbIdsForInbox()` cached per inbox (`bind:v1:*`, 60 s + bust on write).
   Empty `kbIds` and `enabled=false` both read as "bot off here".
+- **Knowledge base module** (T-103): KB CRUD (`GET/POST/PATCH/DELETE /knowledge-bases`)
+  and the document lifecycle (`/knowledge-bases/:id/documents`, `/documents/:id`).
+  Summaries carry document counts + per-status totals; uploads are sniffed by content
+  (PDF magic, DOCX zip container, UTF-8 text), capped at 20 MB, deduplicated per KB
+  by sha256, stored in `UPLOAD_DIR` under generated names, and enqueued on
+  `ingest-document`. KB hard delete refuses while an inbox is bound; document delete
+  cascades chunks and bumps the `kb:{id}:version` counter. Closes D9 (local Docker
+  volume).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

@@ -28,20 +28,22 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 | PATCH | `/users/:id` | role, name, `is_active` |
 | POST | `/users/:id/password` | admin reset |
 
-## Knowledge bases (`knowledge-base`)
+## Knowledge bases (`knowledge-base`, editor/admin for writes)
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/knowledge-bases` | list + doc counts + status summary |
-| POST | `/knowledge-bases` | `{ name, description }` |
-| GET | `/knowledge-bases/:id` | detail |
-| PATCH | `/knowledge-bases/:id` | rename, archive |
-| DELETE | `/knowledge-bases/:id` | 409 if bound to an inbox |
-| GET | `/knowledge-bases/:id/documents` | list w/ status, error, chunk_count |
-| POST | `/knowledge-bases/:id/documents` | multipart `file` (PDF/DOCX/TXT/MD ≤ 20 MB) → `{ documentId, status: "processing" }` (P1: multiple files) |
-| POST | `/knowledge-bases/:id/search` | debug retrieval: `{ query, topK? }` → chunks + scores. No model generation |
-| POST | `/documents/:id/reprocess` | re-parse + re-embed |
-| DELETE | `/documents/:id` | removes document + chunks |
+| GET | `/knowledge-bases` | any signed-in role; summaries: KB + `documentCount` + `statusCounts` (`processing/ready/failed`), ordered by name |
+| POST | `/knowledge-bases` | editor/admin; strict `{ name, description? }` → 201 with the summary |
+| GET | `/knowledge-bases/:id` | any signed-in role; summary (same shape as list items) |
+| PATCH | `/knowledge-bases/:id` | editor/admin; `{ name?, description?, status? }` — at least one field; `status: "archived"` is the archive path |
+| DELETE | `/knowledge-bases/:id` | editor/admin; 409 if the KB is bound to an inbox. Hard delete: cascades documents + chunks and removes stored files |
+| GET | `/knowledge-bases/:id/documents` | any signed-in role; newest first, with `status`, `error`, `chunkCount` |
+| POST | `/knowledge-bases/:id/documents` | editor/admin; multipart `file` (PDF/DOCX/TXT/MD ≤ 20 MB) → 201 `{ documentId, status: "processing" }`. Content is sniffed, not trusted by extension (bad type → 400 with details, too large → 413, identical content already in the KB → 409). P1: multiple files |
+| POST | `/knowledge-bases/:id/search` | debug retrieval: `{ query, topK? }` → chunks + scores. No model generation (T-105) |
+| POST | `/documents/:id/reprocess` | editor/admin; resets to `processing` and re-runs parse → chunk → embed |
+| DELETE | `/documents/:id` | editor/admin; removes the document + its chunks + stored file, and bumps the KB version counter (retrieval caches miss) |
+
+Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documents.storage_path` stores only that relative name.
 
 ## Playground (`agent`, P1 — pull into MVP)
 

@@ -26,3 +26,11 @@ export const API_PREFIX = 'api';
  * embedding model means a new column + full re-embed.
  */
 export const EMBEDDING_DIMENSIONS = 1536;
+
+/** FR-2: default maximum size per uploaded document (20 MB). */
+export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+
+/** Retrieval-cache invalidation counter per KB (docs/architecture/caching.md). */
+export function kbVersionKey(kbId: string): string {
+  return `kb:${kbId}:version`;
+}
