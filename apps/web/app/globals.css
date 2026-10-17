@@ -1,0 +1,23 @@
+:root {
+  color-scheme: light dark;
+  --border: #d4d4d8;
+  --muted: #71717a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+}
