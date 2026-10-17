@@ -42,7 +42,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
 
 - [x] **T-000 · Monorepo scaffold** (done) — pnpm + Turborepo, api/web/shared/config,
       docker compose, module skeletons, `/health`, webhook secret edge.
-- [ ] **T-001 · CI pipeline** (S) — GitHub Actions on PR: frozen-lockfile install,
+- [x] **T-001 · CI pipeline** (S) — GitHub Actions on PR: frozen-lockfile install,
       `lint`, `typecheck`, `test`, `build`; Turbo cache; Node 22 (matches prod image).
       Done: red on a broken PR, green on main.
 - [ ] **T-002 · Chatwoot contract fixtures** (M) — capture anonymized real webhooks
