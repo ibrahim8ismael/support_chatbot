@@ -33,8 +33,8 @@ T-208 → T-405.
 
 | Decision | Gates | Recommendation |
 | --- | --- | --- |
-| D3 embedding model & dimensions | T-101 (`vector(N)`) | `text-embedding-3-small` (1536); mock provider mirrors the dimension |
-| D6 ORM | T-101 (entities) | Drizzle (as scaffolded) |
+| D3 embedding model & dimensions | T-101 (`vector(N)`) | **Closed 2026-10-18** — `text-embedding-3-small` (1536); mock provider mirrors the dimension |
+| D6 ORM | T-101 (entities) | **Closed 2026-10-18** — Drizzle (as scaffolded) |
 | D2 provider & residency | T-102 real providers, T-108 evals | Build mock-first; decide before evals |
 | D4 auth method | T-005 | Local email + password (proposed) |
 | D7 handoff mechanism | T-204 | Label + assignee detection (both) |
@@ -73,7 +73,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
 **Exit criteria (roadmap M1):** uploaded document answered correctly in the playground
 (no Chatwoot involved yet).
 
-- [ ] **T-101 · Entities + first migration** (M) — all tables from
+- [x] **T-101 · Entities + first migration** (M) — all tables from
       [data-model](../architecture/data-model.md) in their owning modules; `chunks`
       with `vector(N)`, HNSW + kb_id indexes; forward-only migration. Needs D3 + D6.
 - [ ] **T-102 · LLM module** (M) — Vercel AI SDK wiring; `embed()` / `generateReply()`

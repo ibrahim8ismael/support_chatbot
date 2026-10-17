@@ -3,8 +3,16 @@
  *
  * Each module owns its tables in `src/modules/<module>/entities/*` and
  * re-exports them here so migrations see the full schema (repo-structure.md).
- *
- * TODO(schema): add entities + the first migration once D3 (embedding
- * dimensions) and D6 (ORM) are closed — see docs/architecture/data-model.md.
+ * Table list and columns: docs/architecture/data-model.md.
  */
-export {};
+export * from '../modules/analytics/entities/answer-event.entity';
+export * from '../modules/analytics/entities/audit-log.entity';
+export * from '../modules/auth/entities/session.entity';
+export * from '../modules/auth/entities/user.entity';
+export * from '../modules/bindings/entities/inbox-binding.entity';
+export * from '../modules/conversations/entities/conversation.entity';
+export * from '../modules/conversations/entities/message.entity';
+export * from '../modules/ingestion/entities/chunk.entity';
+export * from '../modules/knowledge-base/entities/document.entity';
+export * from '../modules/knowledge-base/entities/knowledge-base.entity';
+export * from '../modules/settings/entities/setting.entity';
