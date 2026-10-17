@@ -2,6 +2,7 @@ import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 
 import type { HealthResponse } from '@support-agent/shared';
 
+import { Public } from '../auth/auth.decorators';
 import { HealthService } from './health.service';
 
 /**
@@ -12,6 +13,7 @@ import { HealthService } from './health.service';
 export class HealthController {
   constructor(private readonly health: HealthService) {}
 
+  @Public()
   @Get()
   async get(): Promise<HealthResponse> {
     const result = await this.health.check();

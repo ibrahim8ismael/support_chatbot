@@ -1,11 +1,13 @@
 import { Body, Controller, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 
+import { Public } from '../auth/auth.decorators';
 import { ChatwootService } from './chatwoot.service';
 
 /**
  * POST /api/webhooks/chatwoot/:secret — public endpoint (no session).
  * Verifies the path secret; 200 fast; queues work (docs/api/rest-api.md).
  */
+@Public()
 @Controller('webhooks/chatwoot')
 export class ChatwootWebhookController {
   constructor(private readonly chatwoot: ChatwootService) {}

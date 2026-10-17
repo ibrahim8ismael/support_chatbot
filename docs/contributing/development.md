@@ -19,6 +19,7 @@ pnpm install
 cp .env.example apps/api/.env.local          # fill in the values you need
 docker compose -f docker/docker-compose.yml up -d postgres redis
 pnpm db:migrate
+pnpm seed:admin -- --email admin@example.com   # creates the first admin, prints a password once
 pnpm dev                                     # turbo: api on :3001, web on :3000
 ```
 

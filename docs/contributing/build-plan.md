@@ -36,7 +36,7 @@ T-208 → T-405.
 | D3 embedding model & dimensions | T-101 (`vector(N)`) | **Closed 2026-10-18** — `text-embedding-3-small` (1536); mock provider mirrors the dimension |
 | D6 ORM | T-101 (entities) | **Closed 2026-10-18** — Drizzle (as scaffolded) |
 | D2 provider & residency | T-102 real providers, T-108 evals | Build mock-first; decide before evals |
-| D4 auth method | T-005 | Local email + password (proposed) |
+| D4 auth method | T-005 | **Closed 2026-10-18** — local email + password (argon2id, server-side sessions); OIDC remains a later option behind the same session layer |
 | D7 handoff mechanism | T-204 | Label + assignee detection (both) |
 | D9 file storage | T-103 | Docker volume behind the KB module |
 
@@ -64,7 +64,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       call asserted (mocked Chatwoot).
 - [ ] **T-004 · Conversations module** (M) — conversation/message upsert & lookup,
       `bot_state` transitions, lock helpers. (Extracted out of T-003's scope.)
-- [ ] **T-005 · Auth skeleton** (M) — argon2id users, `sessions` rows, login/logout/me
+- [x] **T-005 · Auth skeleton** (M) — argon2id users, `sessions` rows, login/logout/me
       endpoints (rate-limited login), `AuthGuard`/`RolesGuard`/`CurrentUser`, seed-admin
       CLI, login page wired to the API. Refs FR-1 P0, D4.
 
