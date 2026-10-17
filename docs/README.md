@@ -64,6 +64,7 @@ New to the project? Read in this order:
 | Doc | Description |
 | --- | --- |
 | [Development](contributing/development.md) | Local setup, scripts, testing, conventions |
+| [Build plan](contributing/build-plan.md) | Ticket-level execution list (M0–M4) with acceptance criteria |
 
 ### Decisions (ADRs)
 
