@@ -90,6 +90,16 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   deleting a document invalidates automatically; cache failures degrade to uncached
   searches. `POST /knowledge-bases/:id/search` (any signed-in role) exposes the path
   with a per-request trace (timings, best score, cache hit).
+- **Agent core / playground** (T-106): `AgentService.ask()` runs the answer path —
+  deterministic query build (message + recent customer turns while referential) →
+  retrieval → threshold gate (nothing grounded → fallback message, escalated, no
+  generation) → versioned prompt (`settings.system_prompt`, seeded from the
+  `answer.v1` file: grounding rules, language matching, chunks as delimited `<kb>`
+  data) → `generateReply` → output guard (length cap, internals/filename blocklist,
+  URLs must come from the knowledge; a violation escalates instead of answering).
+  Results carry grounded chunks + scores, token usage, latency split, model, and
+  prompt version. `POST /playground/ask` (any signed-in role) exposes it for
+  dashboard tuning; `COMPANY_NAME` env fills the prompt's `{{company_name}}`.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

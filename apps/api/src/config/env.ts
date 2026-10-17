@@ -34,6 +34,8 @@ export const envSchema = z
     SELF_HOSTED_BASE_URL: optional(z.url()),
     EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
     CHAT_MODEL: z.string().min(1).default('gpt-4.1-mini'),
+    /** Substituted into the answer prompt's `{{company_name}}`. */
+    COMPANY_NAME: z.string().min(1).max(120).default('Acme Support'),
 
     UPLOAD_DIR: z.string().min(1).default('./data/uploads'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),

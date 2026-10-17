@@ -44,7 +44,7 @@ Each module owns its controllers, services, and database access. Cross-module ca
 | `llm` | — | `embed(texts)`, `generateReply(ctx)`, `classify(ctx)`; model/provider config | Any prompt *policy* — prompts/templates live in the calling modules (see note) |
 | `conversations` | `conversations`, `messages` | conversation/message upsert & lookup; per-conversation lock | Chatwoot HTTP details |
 | `chatwoot` | — (stores channel ids on conversations) | `verifyWebhook()`, `sendMessage()`, `addPrivateNote()`, `addLabel()`; shared axios client | Deciding *what* to reply |
-| `agent` (orchestrator) | — | `handleIncomingMessage()` — the pipeline that glues chatwoot → retrieval → llm → chatwoot | Anything reused; it is the composition point |
+| `agent` (orchestrator) | — | `ask()` answer core (query build → retrieval → prompt → guard) + playground `POST /playground/ask`; `handleIncomingMessage()` gluing chatwoot → retrieval → llm → chatwoot lands with the live pipeline (T-203) | Anything reused; it is the composition point |
 | `bindings` | `inbox_bindings` | inbox ↔ KB mapping, `getBoundKbIdsForInbox()` | KB CRUD itself |
 | `analytics` | `answer_events`, `audit_logs` | aggregation queries for dashboard | Writing events (modules write via its service) |
 | `settings` | `settings` | typed get/set of runtime settings | Secrets (those are env-only) |
