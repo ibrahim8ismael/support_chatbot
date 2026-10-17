@@ -14,6 +14,7 @@ import { and, asc, count, desc, eq, ne } from 'drizzle-orm';
 import {
   QUEUES,
   kbVersionKey,
+  type DocumentSourceType,
   type DocumentStatus,
   type IngestDocumentJob,
   type KnowledgeBaseInput,
@@ -23,6 +24,7 @@ import {
 } from '@support-agent/shared';
 
 import { AppLogger } from '../../common/logger/app-logger.service';
+import { resolveUploadPath } from '../../common/storage/uploads';
 import { DatabaseService } from '../../db/database.service';
 import { BindingsService } from '../bindings/bindings.service';
 import { CacheService } from '../infra/cache.service';
@@ -53,6 +55,19 @@ export interface UploadedDocumentFile {
   mimetype: string;
   size: number;
   buffer: Buffer;
+}
+
+/** Minimal document projection the ingestion pipeline needs (T-104). */
+export interface IngestionDocument {
+  id: string;
+  kbId: string;
+  sourceType: DocumentSourceType;
+  filename: string;
+  mimeType: string;
+  storagePath: string | null;
+  status: DocumentStatus;
+  chunkCount: number;
+  contentHash: string;
 }
 
 /**
@@ -213,7 +228,7 @@ export class KnowledgeBaseService {
     }
 
     const storageName = `${randomUUID()}${extension}`;
-    const absolutePath = this.resolveStoragePath(storageName);
+    const absolutePath = resolveUploadPath(this.uploadDir, storageName);
     await mkdir(this.uploadDir, { recursive: true });
     await writeFile(absolutePath, file.buffer, { flag: 'wx' });
 
@@ -308,6 +323,42 @@ export class KnowledgeBaseService {
     await this.removeStoredFile(document.storagePath);
   }
 
+  /** Projection for the ingestion pipeline — null when the row is gone. */
+  async getIngestionDocument(id: string): Promise<IngestionDocument | null> {
+    const [row] = await this.database.db
+      .select({
+        id: documents.id,
+        kbId: documents.kbId,
+        sourceType: documents.sourceType,
+        filename: documents.filename,
+        mimeType: documents.mimeType,
+        storagePath: documents.storagePath,
+        status: documents.status,
+        chunkCount: documents.chunkCount,
+        contentHash: documents.contentHash,
+      })
+      .from(documents)
+      .where(eq(documents.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Called by ingestion once the chunk set is stored. */
+  async markDocumentReady(id: string, chunkCount: number): Promise<void> {
+    await this.database.db
+      .update(documents)
+      .set({ status: 'ready', error: null, chunkCount })
+      .where(eq(documents.id, id));
+  }
+
+  /** Called by ingestion when the final attempt fails; `error` shows in the UI. */
+  async markDocumentFailed(id: string, error: string): Promise<void> {
+    await this.database.db
+      .update(documents)
+      .set({ status: 'failed', error })
+      .where(eq(documents.id, id));
+  }
+
   private enqueueIngestion(documentId: string): Promise<string | undefined> {
     return this.queue.enqueue<IngestDocumentJob>(QUEUES.ingestDocument, 'ingest-document', {
       documentId,
@@ -356,21 +407,13 @@ export class KnowledgeBaseService {
     return counts;
   }
 
-  /** Storage paths are always under UPLOAD_DIR — reject anything else. */
-  private resolveStoragePath(storagePath: string): string {
-    const resolved = path.resolve(this.uploadDir, storagePath);
-    if (resolved !== this.uploadDir && !resolved.startsWith(`${this.uploadDir}${path.sep}`)) {
-      throw new Error(`stored path escapes UPLOAD_DIR: ${storagePath}`);
-    }
-    return resolved;
-  }
-
+  /** Best-effort file removal — a missing file is not an error. */
   private async removeStoredFile(storagePath: string | null): Promise<void> {
     if (!storagePath) {
       return;
     }
     try {
-      await unlink(this.resolveStoragePath(storagePath));
+      await unlink(resolveUploadPath(this.uploadDir, storagePath));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         this.logger.warn(

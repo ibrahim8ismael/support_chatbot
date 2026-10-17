@@ -14,6 +14,8 @@ import type {
 
 import { EMBEDDING_DIMENSIONS } from '@support-agent/shared';
 
+import { estimateTokens } from '../../../common/text/tokens';
+
 /**
  * Deterministic, network-free models behind `LLM_PROVIDER=mock`
  * (docs/contributing/development.md). Dev and CI run the whole pipeline with
@@ -26,10 +28,7 @@ export const MOCK_CHAT_MODEL_ID = 'mock-chat';
 /** Mirrors the batch limits real providers document (OpenAI: 2048, we use less). */
 const MOCK_MAX_EMBEDDINGS_PER_CALL = 100;
 
-/** Rough token estimate for accounting only — words, not BPE. */
-export function estimateTokens(text: string): number {
-  return text.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
-}
+export { estimateTokens };
 
 /**
  * Feature-hash embedding: every word sets one dimension, with a sign from its

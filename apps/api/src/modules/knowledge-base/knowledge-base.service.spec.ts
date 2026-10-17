@@ -523,4 +523,50 @@ describe('KnowledgeBaseService', () => {
       await rm(outside, { force: true });
     });
   });
+
+  describe('ingestion hand-off', () => {
+    it('returns the projection the pipeline needs', async () => {
+      const { service } = buildHarness({ documentRows: [docRow()] }, { uploadDir });
+
+      const document = await service.getIngestionDocument(DOC_ID);
+
+      expect(document).toMatchObject({
+        id: DOC_ID,
+        kbId: KB_ID,
+        mimeType: 'application/pdf',
+        storagePath: null,
+        status: 'ready',
+        chunkCount: 3,
+        contentHash: 'a'.repeat(64),
+      });
+    });
+
+    it('returns null when the row is gone', async () => {
+      const { service } = buildHarness({}, { uploadDir });
+
+      await expect(service.getIngestionDocument(DOC_ID)).resolves.toBeNull();
+    });
+
+    it('marks documents ready with the chunk count', async () => {
+      const { service, updated } = buildHarness({}, { uploadDir });
+
+      await service.markDocumentReady(DOC_ID, 5);
+
+      expect(updated).toContainEqual({
+        table: documents,
+        values: { status: 'ready', error: null, chunkCount: 5 },
+      });
+    });
+
+    it('marks documents failed with a readable error', async () => {
+      const { service, updated } = buildHarness({}, { uploadDir });
+
+      await service.markDocumentFailed(DOC_ID, 'parse blew up');
+
+      expect(updated).toContainEqual({
+        table: documents,
+        values: { status: 'failed', error: 'parse blew up' },
+      });
+    });
+  });
 });
