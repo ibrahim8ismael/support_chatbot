@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 const NAV = [
   { href: '/knowledge-bases', label: 'Knowledge bases' },
+  { href: '/playground', label: 'Playground' },
   { href: '/conversations', label: 'Conversations' },
   { href: '/bindings', label: 'Inbox bindings' },
   { href: '/analytics', label: 'Analytics' },

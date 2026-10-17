@@ -100,6 +100,15 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   Results carry grounded chunks + scores, token usage, latency split, model, and
   prompt version. `POST /playground/ask` (any signed-in role) exposes it for
   dashboard tuning; `COMPANY_NAME` env fills the prompt's `{{company_name}}`.
+- **Dashboard: KB management + playground** (T-107): `/knowledge-bases` lists and
+  creates KBs, shows per-document ingestion status (2.5 s polling while a job runs,
+  reprocess/delete actions, failure reasons) and uploads PDF/DOCX/TXT/MD files with
+  client-side pre-checks that mirror the API contract. `/playground` asks the real
+  answer path against selected KBs and shows the full trace: answer or escalation
+  (low_score / guard), grounded chunks with scores and source labels, latency,
+  tokens, model, and prompt version. Session cookies keep the two apps wired; 401s
+  bounce to `/login`. `apps/web` gains vitest with tests for the request-building
+  and upload-validation logic.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

@@ -125,8 +125,18 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       `POST /playground/ask` (any signed-in role; 404 for unknown KBs) exposes it;
       `answer_events` writes stay with the live pipeline (T-203), which owns
       conversation context. `COMPANY_NAME` env fills `{{company_name}}`.
-- [ ] **T-107 · KB + playground UI** (M) — KB list/create, upload with status, and
+- [x] **T-107 · KB + playground UI** (M) — KB list/create, upload with status, and
       playground (pick KBs → ask → exact chunks + scores + answer). Refs FR-8 P1.
+      **Done 2026-10-18**: `apps/web` — `/knowledge-bases`: KB list + create,
+      per-KB document table fed by the documents API, upload (client pre-checks
+      mirroring the API's PDF/DOCX/TXT/MD ≤ 20 MB contract) with 2.5 s status
+      polling while ingestion runs, reprocess + delete. `/playground`: multi-KB
+      picker, question box, request building validated against the shared
+      `playgroundAskSchema`, and the full trace per answer — grounded chunks with
+      scores + source labels, escalation banner (low_score/guard),
+      latency/tokens/model/prompt version; prior exchanges become the history sent
+      with the next ask (last 10). Nav gains Playground; 401s bounce to `/login`.
+      First web tests (vitest, 18) cover the pure request/validation logic.
 - [ ] **T-108 · Eval set + runner** (M) — 50–100 Q/A pairs for launch topics;
       `pnpm evals` runner printing groundedness + retrieval metrics; gates per
       [rag-pipeline](../architecture/rag-pipeline.md). Needs D2/D3 final. Done: a
