@@ -1,0 +1,94 @@
+# Development
+
+Local setup, scripts, tests, and conventions. Assumes macOS/Linux with Docker.
+
+## Prerequisites
+
+| Tool | Version |
+| --- | --- |
+| Node.js | 22 LTS+ |
+| pnpm | 9+ (`corepack enable`) |
+| Docker + Compose | current |
+| git | current |
+
+## Quick start
+
+```bash
+git clone <repo> && cd support-chatbot
+pnpm install
+cp .env.example apps/api/.env.local          # fill in the values you need
+docker compose -f docker/docker-compose.yml up -d postgres redis
+pnpm db:migrate
+pnpm dev                                     # turbo: api on :3001, web on :3000
+```
+
+With no Chatwoot and no provider keys you can still: log into the dashboard, create a KB, upload documents (ingestion uses a deterministic **fake embedding provider** when `LLM_PROVIDER=mock`), and post simulated webhooks with `pnpm simulate:webhook` (see below).
+
+## Scripts (root)
+
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | run api + web with hot reload (turbo) |
+| `pnpm build` | build all packages/apps |
+| `pnpm lint` / `pnpm typecheck` | eslint + tsc across the monorepo |
+| `pnpm test` | unit tests (all workspaces) |
+| `pnpm test:e2e` | api e2e (testcontainers Postgres & Redis + mocked providers) |
+| `pnpm db:migrate` / `pnpm db:generate` | apply / create migrations |
+| `pnpm db:studio` | inspect the local DB |
+| `pnpm evals` | run the RAG eval set against **real** configured models (costs money — manual use) |
+| `pnpm simulate:webhook` | send a captured Chatwoot payload to the local webhook |
+
+## Environment
+
+- `apps/api/.env.example` lists every variable ([reference](../operations/deployment.md#environment-variables)). Never commit real values.
+- Notebook of local profiles: `LLM_PROVIDER=mock` (no external calls), `LLM_PROVIDER=self-hosted` + local Ollama/vLLM for offline realism, external providers only when you have keys.
+- The web app talks to the API via `NEXT_PUBLIC_API_URL`.
+
+## Testing strategy
+
+| Layer | Tool | What it covers |
+| --- | --- | --- |
+| Unit | Vitest/Jest | chunking, filters (webhook matrix), threshold decisions, prompt assembly, metric calculations |
+| Integration | SuperTest + testcontainers Postgres & Redis | module APIs against a real DB incl. pgvector, queue and cache behavior; Chatwoot HTTP calls mocked (nock/msw) |
+| E2E (local) | webhook fixtures → queue → mocked models | full message flow: webhook in → decision → outbound call asserted |
+| Contract | captured Chatwoot fixtures (anonymized) | catches payload drift when Chatwoot is upgraded |
+| Evals (manual) | `pnpm evals` | retrieval/groundedness quality against real models ([gates](../architecture/rag-pipeline.md#quality-eval-set--gates)) |
+
+Rules of thumb: **no real model calls in CI** (mock provider); every bugfix that involved an answer decision adds a case to the eval set or a unit test — not just a Slack message.
+
+## Testing with a live Chatwoot
+
+1. Run your local Chatwoot (their official docker-compose) or use the shared staging one.
+2. Expose your local API: `cloudflared tunnel --url http://localhost:3001` (or ngrok).
+3. Create a dev Agent Bot with webhook URL `https://<tunnel>/api/webhooks/chatwoot/<dev-secret>` and assign it to a test inbox.
+4. Message the website widget; watch `pnpm dev` logs: webhook received → filters → retrieval → reply posted.
+
+Simulator (no Chatwoot at all): `pnpm simulate:webhook -- --fixture annual-plan --conversation 812` posts a real captured payload to your local endpoint and, when `CHATWOOT_BASE_URL` points at a mock server (`pnpm mock:chatwoot`, P1), lets you assert the outgoing reply.
+
+## Conventions
+
+- **Branches:** `feat/<topic>`, `fix/<topic>`, `docs/<topic>`; small PRs; squash merge.
+- **Commits:** conventional commits (`feat(agent): …`, `fix(chatwoot): …`) — used for changelogs later.
+- **TypeScript:** strict mode; no `any` in exported signatures; zod at every boundary (env, webhook, controller input, model output).
+- **Package manager:** pnpm only — `packageManager` pinned in the root `package.json` (corepack); no npm/yarn lockfiles; CI installs with `pnpm install --frozen-lockfile`.
+- **Outbound HTTP:** axios instances, one per integration, created in the owning module (timeout + retry + logging interceptors). Model provider calls go through the AI SDK — never axios.
+- **Tests next to code** (`*.spec.ts`); e2e in `apps/api/test`.
+- **Docs:** any PR that changes behavior updates the matching doc in `docs/` (README has the map). ADR for architectural decisions; [open-decisions.md](../open-decisions.md) status updated.
+
+## Adding a new API module (checklist)
+
+1. Create `apps/api/src/modules/<name>/` with `*.module.ts`, `*.service.ts`, controller (if it has endpoints), `dto/`.
+2. Register in `app.module.ts`.
+3. If it owns tables: add entities + migration; add a row to the module table in [repo-structure](../architecture/repo-structure.md).
+4. If it has endpoints: update [rest-api.md](../api/rest-api.md) + role requirements.
+5. Tests: 1 happy path + 1 failure per endpoint; unit tests for decision logic.
+6. If it calls models or Chatwoot: go through `llm` / `chatwoot` services — never directly.
+
+## Common tasks
+
+| Task | Where |
+| --- | --- |
+| Add a tuning knob | settings table + typed accessor + doc row in [rag-pipeline](../architecture/rag-pipeline.md#tuning-knobs-where-they-live) |
+| Change a prompt | edit the versioned file, run evals, note results in the PR, update prompt version constant |
+| Add a webhook filter | filter matrix in [chatwoot.md](../integrations/chatwoot.md) + fixture test |
+| Add an analytics metric | definition in [rest-api.md § definitions](../api/rest-api.md#metric-definitions-contract--do-not-silently-change) + calculation test |
