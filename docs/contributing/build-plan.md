@@ -86,11 +86,18 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       **Done 2026-10-18**: list/detail with counts, create/patch/delete (409 while bound),
       upload with content sniffing + per-KB content dedupe, reprocess/delete document
       (cascades chunks, bumps `kb:{id}:version`), files enqueued on `ingest-document`.
-- [ ] **T-104 · Ingestion pipeline** (L) — `ingest-document` worker: parse (pdfjs,
+- [x] **T-104 · Ingestion pipeline** (L) — `ingest-document` worker: parse (pdfjs,
       mammoth, text/md) → clean → chunk + metadata (`heading`, `page`) → batch embed →
       idempotent replace of chunks; 3 retries with backoff; `processing|ready|failed`
       + `error`, `chunk_count`. Refs FR-3 P0, pipeline doc. Done: e2e ingest of a PDF
       fixture with mock embeddings; re-run is a no-op by `content_hash`.
+      **Done 2026-10-18**: BullMQ worker runs in-process (concurrency 2); pdfjs v6
+      legacy / mammoth / TXT-MD parsers; repeated header/footer stripping and
+      de-hyphenation; ~700-token chunks with ~100-token overlap, page-boundary flushes,
+      and heading context for mid-section chunks; embeddings in batches of 100 with 3
+      retries; transactional replace guarded by an advisory lock; duplicate deliveries
+      are no-ops; the final failed attempt writes `failed` + a readable `error`.
+      Live-verified: PDF + DOCX fixtures, duplicate job, reprocess, unparseable file.
 - [ ] **T-105 · Retrieval module** (M) — `retrieve(query, kbIds, opts)` → chunks +
       scores (cosine, HNSW), top-k/threshold from settings, `retrieval_events` write,
       embedding+retrieval caches (fail-open, TTL). Refs FR-4 P0, NFR-1 (≤ 500 ms),

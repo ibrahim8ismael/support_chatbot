@@ -23,7 +23,7 @@ Steps:
 4. **Chunk** (see below). Each chunk keeps `metadata = { heading, page }` when known.
 5. **Embed** in batches of 100 texts with retries (3 attempts, exponential backoff); texts already in the Redis embedding cache (same sha256) skip the provider call — night-and-day difference when reprocessing a document. Abort the whole document on repeated failure → `status=failed` with a readable `error`.
 6. **Store**: delete previous chunks for this document (idempotent re-ingest), insert new chunks, set `chunk_count`, `status=ready`.
-7. **Skip work when unchanged**: `content_hash` equal → mark ready without re-embedding.
+7. **Skip unchanged work**: a delivered job for a document that is already `ready` with chunks is a no-op — stored files never change, so its `content_hash` (and therefore the chunk set) is still current. Intentional re-ingestion (reprocess) resets the status and always re-runs.
 
 ### Chunking rules
 

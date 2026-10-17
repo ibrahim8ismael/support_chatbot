@@ -1,0 +1,65 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 7 0 R >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 8 0 R >>
+endobj
+6 0 obj
+<< /Length 324 >>
+stream
+BT /F1 14 Tf 72 752 Td (ACME Support Handbook) Tj ET
+BT /F1 14 Tf 72 700 Td (How do I reset my password?) Tj ET
+BT /F1 11 Tf 72 678 Td (Open Settings, then Security, and choose Reset password.) Tj ET
+BT /F1 11 Tf 72 662 Td (You will receive a reset link by email.) Tj ET
+BT /F1 9 Tf 72 60 Td (Internal - do not share) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Length 331 >>
+stream
+BT /F1 14 Tf 72 752 Td (ACME Support Handbook) Tj ET
+BT /F1 14 Tf 72 700 Td (How long does delivery take?) Tj ET
+BT /F1 11 Tf 72 678 Td (Standard delivery takes three to five business days.) Tj ET
+BT /F1 11 Tf 72 662 Td (Express delivery arrives within one business day.) Tj ET
+BT /F1 9 Tf 72 60 Td (Internal - do not share) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Length 259 >>
+stream
+BT /F1 14 Tf 72 752 Td (ACME Support Handbook) Tj ET
+BT /F1 14 Tf 72 700 Td (How do I contact support?) Tj ET
+BT /F1 11 Tf 72 678 Td (Email support@acme.example and we reply within one business day.) Tj ET
+BT /F1 9 Tf 72 60 Td (Internal - do not share) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000000379 00000 n 
+0000000505 00000 n 
+0000000879 00000 n 
+0000001260 00000 n 
+0000001569 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1639
+%%EOF

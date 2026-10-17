@@ -75,6 +75,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   `ingest-document`. KB hard delete refuses while an inbox is bound; document delete
   cascades chunks and bumps the `kb:{id}:version` counter. Closes D9 (local Docker
   volume).
+- **Ingestion pipeline** (T-104): the `ingest-document` worker runs inside the API
+  process (BullMQ, concurrency 2): parse (pdfjs, mammoth, TXT/MD) → clean (repeated
+  header/footer stripping, de-hyphenation) → chunk (~700 tokens with ~100-token
+  overlap, `heading`/`page` metadata, heading context for mid-section chunks) →
+  embed in batches of 100 with 3 retries → transactional chunk replace under a
+  Postgres advisory lock. Documents flip to `ready` with `chunk_count`, or to
+  `failed` with a readable `error` after the final attempt; duplicate deliveries
+  are no-ops. Mock-embedding e2e runs on checked-in PDF/DOCX fixtures.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
