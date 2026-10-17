@@ -2,6 +2,8 @@
 
 Phases are ordered by dependency, not by calendar. Durations are rough estimates for one full-time engineer (adjust freely). The rule that does not bend: **no bot answers real customers until the evaluation set says answers are grounded** ([RAG pipeline § Quality](../architecture/rag-pipeline.md)).
 
+> Ticket-level execution list: [build plan](../contributing/build-plan.md) — one ticket per PR.
+
 ## Phase 0 — Foundations (≈ 1–2 weeks)
 
 **Goal:** skeleton that talks to Chatwoot and Postgres, deployable in Docker.

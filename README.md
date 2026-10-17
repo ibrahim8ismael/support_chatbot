@@ -36,3 +36,4 @@ pnpm dev                                     # api on :3001, web on :3000
 | `pnpm simulate:webhook`                                   | post a synthetic Chatwoot webhook to the local API |
 
 Full details: [docs/contributing/development.md](docs/contributing/development.md).
+Release notes: [CHANGELOG.md](CHANGELOG.md).
