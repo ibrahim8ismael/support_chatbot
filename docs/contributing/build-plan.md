@@ -180,4 +180,4 @@ CSAT correlation, KB versioning (FR-2 P2), CSV export (FR-7 P2).
 | FR-8 settings & playground (P0/P1) | T-205, T-107, T-208 |
 | FR-9 audit & ops (P0) | T-301, T-304, T-401–T-404 |
 | NFR-1/2/4 performance & reliability | T-104, T-201, T-202, T-203, T-402 |
-| NFR-9 caching | T-102, T-105, T-205, T-306 backlog |
+| NFR-9 caching | T-102, T-105, T-205 (+ reply-level cache in backlog) |
