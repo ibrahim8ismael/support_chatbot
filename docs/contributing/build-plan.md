@@ -122,9 +122,11 @@ escalation works; humans can pause/resume.
       & repeat detection; private note with intent/tried/why/chunk links; customer
       fallback message; `ai-paused` label + assignee detection (`conversation_updated`);
       resume flow. Refs FR-6 P0, D7.
-- [ ] **T-205 · Settings module** (M) — typed key/value table with defaults, 60 s cache
+- [x] **T-205 · Settings module** (M) — typed key/value table with defaults, 60 s cache
       + invalidation, admin endpoints; global kill switch + thresholds + prompts + model
-      names. Refs FR-8 P0, caching doc.
+      names. Refs FR-8 P0, caching doc. **Done 2026-10-18**: GET/PUT `/settings` +
+      `/settings/health-llm`, zod-validated partial writes, Redis snapshot cache;
+      `system_prompt` defaults to the versioned `agent/prompts/answer.v1.ts`.
 - [ ] **T-206 · Bindings module** (M) — inbox ↔ KB mapping CRUD, `enabled` per-inbox
       kill switch, `getBoundKbIdsForInbox()` cached, `display_name` cache from Chatwoot.
       Refs FR-5 P0.

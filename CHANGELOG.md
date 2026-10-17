@@ -54,6 +54,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   ("I received: …" for the M0 loop) so dev and CI need no keys; unwired providers fail
   fast at boot until D2 (provider & residency) closes. Shared `EMBEDDING_DIMENSIONS`
   constant now backs the `chunks.embedding` column type.
+- **Settings module** (T-205): typed runtime knobs (`bot_enabled` kill switch, prompt,
+  fallback message, retrieval thresholds/top-k/context, reply cap, model ids) stored as
+  overrides over documented defaults; reads merged and cached in Redis (`settings:v1`,
+  60 s, busted on write), writes are admin-only partial updates validated per key
+  (strict keys + ranges, 400 with field details). `GET /settings`, `PUT /settings`, and
+  an admin `GET /settings/health-llm` embed+generate smoke check (503 on provider
+  failure). The system prompt defaults to the versioned
+  `apps/api/src/modules/agent/prompts/answer.v1.ts`; audit writes land with T-301.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
