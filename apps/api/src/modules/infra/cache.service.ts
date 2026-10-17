@@ -33,6 +33,18 @@ export class CacheService {
     }
   }
 
+  /**
+   * Increment a counter. Used for KB version keys (docs/architecture/caching.md);
+   * counters intentionally have no TTL — they are tiny and must outlive entries.
+   */
+  async incr(key: string): Promise<void> {
+    try {
+      await this.redis.client.incr(key);
+    } catch (error) {
+      this.logger.warn(`cache incr failed for key ${key}: ${String(error)}`, CacheService.name);
+    }
+  }
+
   async del(key: string): Promise<void> {
     try {
       await this.redis.client.del(key);

@@ -38,14 +38,14 @@ Each module owns its controllers, services, and database access. Cross-module ca
 | --- | --- | --- | --- |
 | `auth` | `users`, `sessions` | `AuthGuard`, `CurrentUser`, `RolesGuard` | Business logic of other domains |
 | `users` | (uses `users`) | user CRUD, role management (admin) | Login/session handling |
-| `knowledge-base` | `knowledge_bases`, `documents` | KB/document CRUD, `getBoundKbIdsForInbox()` | Parsing/chunking/embedding |
+| `knowledge-base` | `knowledge_bases`, `documents` | KB/document CRUD, upload/file lifecycle (`UPLOAD_DIR`) | Parsing/chunking/embedding; Chatwoot |
 | `ingestion` | `chunks` (write) | `enqueueIngestion(documentId)`; job handlers | Retrieval |
 | `retrieval` | `chunks` (read), `retrieval_events` | `retrieve(query, kbIds, opts) → chunks + scores` | Talking to models directly (uses `llm`) |
 | `llm` | — | `embed(texts)`, `generateReply(ctx)`, `classify(ctx)`; model/provider config | Any prompt *policy* — prompts/templates live in the calling modules (see note) |
 | `conversations` | `conversations`, `messages` | conversation/message upsert & lookup; per-conversation lock | Chatwoot HTTP details |
 | `chatwoot` | — (stores channel ids on conversations) | `verifyWebhook()`, `sendMessage()`, `addPrivateNote()`, `addLabel()`; shared axios client | Deciding *what* to reply |
 | `agent` (orchestrator) | — | `handleIncomingMessage()` — the pipeline that glues chatwoot → retrieval → llm → chatwoot | Anything reused; it is the composition point |
-| `bindings` | `inbox_bindings` | inbox ↔ KB mapping | KB CRUD itself |
+| `bindings` | `inbox_bindings` | inbox ↔ KB mapping, `getBoundKbIdsForInbox()` | KB CRUD itself |
 | `analytics` | `answer_events`, `audit_logs` | aggregation queries for dashboard | Writing events (modules write via its service) |
 | `settings` | `settings` | typed get/set of runtime settings | Secrets (those are env-only) |
 | `infra` | — (Redis) | BullMQ `QueueService`, Redis `CacheService`, worker registration, per-conversation locks | Domain logic; job business logic (lives in the owning modules) |
