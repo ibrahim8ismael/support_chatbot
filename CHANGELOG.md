@@ -46,6 +46,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   `last_message_at` bumps, oldest→newest context reads (private notes excluded by
   default), and `bot_state` transitions. `infra` gains `LockService` (`SET NX PX` +
   watchdog renewal, token-checked release) for per-conversation serialization.
+- **LLM module** (T-102): one model-access layer behind ADR-0005 — `embed()` (batched,
+  order-preserving, Redis embedding cache `emb:v1:{model}:sha256(text)` with a 30-day
+  TTL per [caching](docs/architecture/caching.md)), `generateReply()` (non-streamed),
+  and `classify()` (typed zod output). `LLM_PROVIDER=mock` ships a deterministic
+  feature-hash embedding model (1536 dims, unit-length) and an echo chat model
+  ("I received: …" for the M0 loop) so dev and CI need no keys; unwired providers fail
+  fast at boot until D2 (provider & residency) closes. Shared `EMBEDDING_DIMENSIONS`
+  constant now backs the `chunks.embedding` column type.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
