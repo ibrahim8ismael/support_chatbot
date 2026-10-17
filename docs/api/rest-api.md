@@ -90,9 +90,11 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/settings` | all settings (typed) |
-| PUT | `/settings` | partial update; validated per key |
-| GET | `/settings/health-llm` | provider smoke check (embed + generate) for the admin UI |
+| GET | `/settings` | typed snapshot, defaults merged in; any signed-in role; cached 60 s |
+| PUT | `/settings` | admin; partial update, validated per key (unknown keys and out-of-range values → 400 with field details); returns the updated snapshot and busts the cache |
+| GET | `/settings/health-llm` | admin; provider smoke check (embed + generate) for the admin UI — `{ status: "ok", embedding: { model, dimensions, latencyMs }, chat: { model, latencyMs }, totalLatencyMs }`; provider failure → 503 `{ status: "error", message }` |
+
+Keys and defaults: [data-model](../architecture/data-model.md#settings-owner-settings). Secrets (API keys, Chatwoot tokens) are never settings — environment only.
 
 ## Audit log (`analytics`, admin)
 

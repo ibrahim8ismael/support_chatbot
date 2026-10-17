@@ -5,4 +5,5 @@
 export * from './constants';
 export * from './schemas/auth.schema';
 export * from './schemas/health.schema';
+export * from './schemas/settings.schema';
 export * from './types/domain';
