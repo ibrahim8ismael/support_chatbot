@@ -4,12 +4,20 @@
 # Node
 node_modules/
 dist/
+.next/
 .turbo/
+*.tsbuildinfo
+
+# Testing
+coverage/
 
 # Environment
 .env
 .env.*
 !.env.example
+
+# Local uploads volume (UPLOAD_DIR)
+data/
 
 # Logs
 *.log

@@ -1,0 +1,8 @@
+{
+  "extends": "../../packages/config/tsconfig/cjs.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  },
+  "include": ["src", "test", "scripts", "drizzle.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}
