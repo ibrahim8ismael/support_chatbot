@@ -40,7 +40,7 @@ Each module owns its controllers, services, and database access. Cross-module ca
 | `users` | (uses `users`) | user CRUD, role management (admin) | Login/session handling |
 | `knowledge-base` | `knowledge_bases`, `documents` | KB/document CRUD, upload/file lifecycle (`UPLOAD_DIR`) | Parsing/chunking/embedding; Chatwoot |
 | `ingestion` | `chunks` (write) | `enqueueIngestion(documentId)`; job handlers | Retrieval |
-| `retrieval` | `chunks` (read), `retrieval_events` | `retrieve(query, kbIds, opts) → chunks + scores` | Talking to models directly (uses `llm`) |
+| `retrieval` | `chunks` (read) | `retrieve(query, kbIds, opts) → chunks + scores + trace` | Talking to models directly (uses `llm`); event writes — the agent folds the trace into `answer_events` |
 | `llm` | — | `embed(texts)`, `generateReply(ctx)`, `classify(ctx)`; model/provider config | Any prompt *policy* — prompts/templates live in the calling modules (see note) |
 | `conversations` | `conversations`, `messages` | conversation/message upsert & lookup; per-conversation lock | Chatwoot HTTP details |
 | `chatwoot` | — (stores channel ids on conversations) | `verifyWebhook()`, `sendMessage()`, `addPrivateNote()`, `addLabel()`; shared axios client | Deciding *what* to reply |
