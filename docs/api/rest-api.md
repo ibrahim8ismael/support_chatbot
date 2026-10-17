@@ -15,9 +15,9 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 
 | Method | Path | Body / notes |
 | --- | --- | --- |
-| POST | `/auth/login` | `{ email, password }` → sets session cookie. 401 on bad creds; rate-limited |
-| POST | `/auth/logout` | clears session |
-| GET | `/auth/me` | current user + role |
+| POST | `/auth/login` | `{ email, password }` → `{ user }` + sets the session cookie (httpOnly, sameSite=lax, sliding 7d). 401 on bad creds; 429 from per-IP / per-account throttling |
+| POST | `/auth/logout` | kills the session row and clears the cookie (idempotent) |
+| GET | `/auth/me` | `{ user }` for the session cookie holder |
 
 ## Users (`users`, admin only except /me)
 

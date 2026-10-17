@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 
 import { API_PREFIX } from '@support-agent/shared';
 
@@ -12,6 +13,9 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const logger = app.get(AppLogger);
   app.useLogger(logger);
+
+  // Session cookie parsing for AuthGuard (docs/operations/security.md § 1).
+  app.use(cookieParser());
 
   // /health stays outside the prefix — Docker/compose healthchecks use it.
   app.setGlobalPrefix(API_PREFIX, { exclude: ['health'] });

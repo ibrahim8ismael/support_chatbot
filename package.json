@@ -17,6 +17,7 @@
     "db:generate": "pnpm --filter api db:generate",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:studio": "pnpm --filter api db:studio",
+    "seed:admin": "pnpm --filter api seed:admin",
     "evals": "pnpm --filter api evals",
     "simulate:webhook": "pnpm --filter api simulate:webhook",
     "format": "prettier --write .",

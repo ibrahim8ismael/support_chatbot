@@ -34,6 +34,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   (`vector_cosine_ops`, m=16, ef_construction=64) index, case-insensitive
   `citext` emails, and the `chatwoot_message_id` dedupe key. Closes D3
   (`text-embedding-3-small`, 1536) and D6 (Drizzle).
+- **Auth skeleton** (T-005): argon2id logins (`@node-rs/argon2`), server-side `sessions`
+  with an httpOnly/sameSite=lax sliding 7-day cookie, `POST /auth/login`,
+  `POST /auth/logout`, `GET /auth/me`, global `AuthGuard` + `RolesGuard` (default
+  admin; `@Public()` on health/webhook/login/logout), per-IP (10/60 s) + per-account
+  (exponential delay, 15-min lock after 8 failures) throttling counters in Redis,
+  `pnpm seed:admin` CLI, zod body validation pipe (`ZodBodyPipe`), and a login page
+  wired to the API. Closes D4 (local email + password).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
