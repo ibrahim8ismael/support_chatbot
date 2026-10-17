@@ -26,12 +26,22 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   repo-wide `lint` / `typecheck` / `test` / `build` via Turborepo.
 - **Testing**: Vitest + SWC setup for `apps/api` (Nest 12 is ESM-only) with unit tests
   for env validation and the health contract.
+- **Database schema** (T-101): all 11 tables from
+  [data-model](docs/architecture/data-model.md) in their owning modules (users,
+  sessions, knowledge_bases, documents, chunks, inbox_bindings, conversations,
+  messages, answer_events, audit_logs, settings) with the first forward-only
+  migration; `chunks.embedding vector(1536)` with an HNSW
+  (`vector_cosine_ops`, m=16, ef_construction=64) index, case-insensitive
+  `citext` emails, and the `chatwoot_message_id` dedupe key. Closes D3
+  (`text-embedding-3-small`, 1536) and D6 (Drizzle).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
 ### Fixed
 
-- Prettier now ignores the Next.js-generated `apps/web/next-env.d.ts`.
+- Prettier now ignores the Next.js-generated `apps/web/next-env.d.ts` and the
+  drizzle-kit-generated `apps/api/src/db/migrations/meta` JSON (both are rewritten by
+  tooling).
 
 <!--
 Sections: Added, Changed, Deprecated, Removed, Fixed, Security.
