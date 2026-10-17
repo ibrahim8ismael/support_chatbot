@@ -21,8 +21,9 @@ export interface LlmHealthCheck {
 
 /**
  * /api/settings — runtime knobs (docs/api/rest-api.md). Reads are open to every
- * signed-in role; writes are admin-only (security.md § 2). `health-llm` runs a
- * cheap embedding + chat round-trip for the admin screen.
+ * signed-in role; writes follow the security matrix (editor/admin,
+ * docs/operations/security.md § 2). `health-llm` runs a cheap embedding + chat
+ * round-trip for the admin screen.
  *
  * TODO(T-301): audit settings changes via the analytics audit writer.
  */
@@ -39,7 +40,7 @@ export class SettingsController {
     return this.settings.get();
   }
 
-  @Roles('admin')
+  @Roles('editor', 'admin')
   @Put()
   update(@Body(new ZodBodyPipe(settingsUpdateSchema)) body: SettingsPatch): Promise<Settings> {
     return this.settings.update(body);

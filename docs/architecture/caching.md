@@ -9,17 +9,19 @@ Redis has two jobs in this system: the **BullMQ job queue** ([ADR-0006](../decis
 | **Embedding** | `emb:v1:{model}:sha256(text)` | vector (float array) | 30 days | Model change (new namespace) or text change (new hash). No explicit deletion needed |
 | **Retrieval** | `ret:v1:{kb_versions}:sha256(normalized query)` | chunk ids + scores | 15 min | KB version bump (see below) |
 | **Settings** | `settings:v1` | settings snapshot | 60 s + explicit bust on write | Any settings update |
+| **Bindings** | `bind:v1:{chatwoot_inbox_id}` | kb ids for the inbox (`[]` = bot off) | 60 s + explicit bust on write | Binding upsert |
 | **Rate limits** | `rl:{scope}:{id}` | counter | window (e.g. 15 min) | Expiry |
 
 ### KB version counters
 
 Each KB has a counter `kb:{id}:version` in Redis, incremented on any ingestion change (document added/reprocessed/deleted). The retrieval cache key includes the sorted `(kb_id → version)` pairs, so re-ingesting a KB **auto-invalidates** every retrieval cache entry that used it — no `SCAN`/pattern deletes, no stale answers.
 
-### Why these four pay off here
+### Why these pay off here
 
 - Support traffic is heavily repetitive — the same questions arrive hourly. Embedding the same text again is pure latency + cost.
 - Retrieval results only change when the KB or the query changes; both are captured in the key.
 - Settings are read on every job; a 60 s cache plus explicit invalidation removes a row read from the hot path.
+- Bindings are read on every incoming message (inbox filter); the webhook path needs only the KB list, cached per inbox with an explicit bust on write.
 - Login throttling and webhook rate limits need fast shared counters — Redis is the standard fit.
 
 ## Where it lives in the code
