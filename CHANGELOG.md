@@ -83,6 +83,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   Postgres advisory lock. Documents flip to `ready` with `chunk_count`, or to
   `failed` with a readable `error` after the final attempt; duplicate deliveries
   are no-ops. Mock-embedding e2e runs on checked-in PDF/DOCX fixtures.
+- **Retrieval module** (T-105): `retrieve(query, kbIds, opts)` — embed (via `llm`,
+  embedding cache) → pgvector cosine top-k over `chunks` (HNSW) → threshold + top-k
+  resolved from settings with per-call overrides. Results are cached as
+  `ret:v1:{kbId=version,…}:sha256(query)` for 15 minutes, so re-ingesting or
+  deleting a document invalidates automatically; cache failures degrade to uncached
+  searches. `POST /knowledge-bases/:id/search` (any signed-in role) exposes the path
+  with a per-request trace (timings, best score, cache hit).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

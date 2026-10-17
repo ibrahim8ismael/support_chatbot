@@ -7,6 +7,8 @@ export * from './schemas/auth.schema';
 export * from './schemas/bindings.schema';
 export * from './schemas/health.schema';
 export * from './schemas/knowledge-base.schema';
+export * from './schemas/retrieval.schema';
 export * from './schemas/settings.schema';
 export * from './types/domain';
 export * from './types/jobs';
+export * from './types/retrieval';

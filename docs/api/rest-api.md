@@ -39,7 +39,7 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 | DELETE | `/knowledge-bases/:id` | editor/admin; 409 if the KB is bound to an inbox. Hard delete: cascades documents + chunks and removes stored files |
 | GET | `/knowledge-bases/:id/documents` | any signed-in role; newest first, with `status`, `error`, `chunkCount` |
 | POST | `/knowledge-bases/:id/documents` | editor/admin; multipart `file` (PDF/DOCX/TXT/MD ≤ 20 MB) → 201 `{ documentId, status: "processing" }`. Content is sniffed, not trusted by extension (bad type → 400 with details, too large → 413, identical content already in the KB → 409). P1: multiple files |
-| POST | `/knowledge-bases/:id/search` | debug retrieval: `{ query, topK? }` → chunks + scores. No model generation (T-105) |
+| POST | `/knowledge-bases/:id/search` | any signed-in role; debug retrieval (T-105): strict `{ query, topK? }`, real embed + cosine search, no generation → `{ chunks: [{ chunkId, documentId, kbId, filename, score, metadata, content }], trace: { normalizedQuery, kbIds, topK, threshold, bestScore, returnedChunks, cacheHit, embeddingMs, searchMs, totalMs } }`; 404 for unknown KBs |
 | POST | `/documents/:id/reprocess` | editor/admin; resets to `processing` and re-runs parse → chunk → embed |
 | DELETE | `/documents/:id` | editor/admin; removes the document + its chunks + stored file, and bumps the KB version counter (retrieval caches miss) |
 

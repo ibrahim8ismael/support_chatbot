@@ -7,7 +7,7 @@ Redis has two jobs in this system: the **BullMQ job queue** ([ADR-0006](../decis
 | Cache | Key | Value | TTL | Invalidated by |
 | --- | --- | --- | --- | --- |
 | **Embedding** | `emb:v1:{model}:sha256(text)` | vector (float array) | 30 days | Model change (new namespace) or text change (new hash). No explicit deletion needed |
-| **Retrieval** | `ret:v1:{kb_versions}:sha256(normalized query)` | chunk ids + scores | 15 min | KB version bump (see below) |
+| **Retrieval** | `ret:v1:{kb_versions}:sha256(normalized query)` | scored chunks (content + metadata included, ready for prompting) | 15 min | KB version bump (see below) |
 | **Settings** | `settings:v1` | settings snapshot | 60 s + explicit bust on write | Any settings update |
 | **Bindings** | `bind:v1:{chatwoot_inbox_id}` | kb ids for the inbox (`[]` = bot off) | 60 s + explicit bust on write | Binding upsert |
 | **Rate limits** | `rl:{scope}:{id}` | counter | window (e.g. 15 min) | Expiry |
@@ -30,9 +30,10 @@ Each KB has a counter `kb:{id}:version` in Redis, incremented on any ingestion c
 
 ```ts
 interface CacheService {
-  getOrSet<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T>;
+  get<T>(key: string): Promise<T | undefined>;  // errors logged, treated as misses
+  set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
+  incr(key: string): Promise<void>;  // KB version counters (no TTL)
   del(key: string): Promise<void>;
-  incrBump(key: string): Promise<number>;  // for KB version counters
 }
 ```
 

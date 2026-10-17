@@ -98,10 +98,19 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       retries; transactional replace guarded by an advisory lock; duplicate deliveries
       are no-ops; the final failed attempt writes `failed` + a readable `error`.
       Live-verified: PDF + DOCX fixtures, duplicate job, reprocess, unparseable file.
-- [ ] **T-105 · Retrieval module** (M) — `retrieve(query, kbIds, opts)` → chunks +
+- [x] **T-105 · Retrieval module** (M) — `retrieve(query, kbIds, opts)` → chunks +
       scores (cosine, HNSW), top-k/threshold from settings, `retrieval_events` write,
       embedding+retrieval caches (fail-open, TTL). Refs FR-4 P0, NFR-1 (≤ 500 ms),
       NFR-9.
+      **Done 2026-10-18**: pgvector cosine search with threshold + top-k resolved from
+      settings (per-call overrides), versioned `ret:v1:` cache (15 min, keys include
+      the `kb:{id}:version` counters, so re-ingestion auto-invalidates), embedding
+      cache reused from `llm`; per-request trace (timings, bestScore, cacheHit)
+      returned by the debug endpoint `POST /knowledge-bases/:id/search` (any
+      signed-in role).
+      Event writing lands with the agent (T-106): `answer_events` needs
+      conversation/message context and is owned by analytics — retrieval produces the
+      trace only.
 - [ ] **T-106 · Agent core (playground path)** (M) — query build (recent context),
       versioned prompt templates, groundedness rules, fallback text, max reply chars,
       language matching; returns answer + trace (chunks, scores, tokens, latencies).
