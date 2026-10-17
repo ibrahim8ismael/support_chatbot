@@ -23,7 +23,7 @@ pnpm seed:admin -- --email admin@example.com   # creates the first admin, prints
 pnpm dev                                     # turbo: api on :3001, web on :3000
 ```
 
-With no Chatwoot and no provider keys you can still: log into the dashboard, create a KB, upload documents (ingestion uses a deterministic **fake embedding provider** when `LLM_PROVIDER=mock`), and post simulated webhooks with `pnpm simulate:webhook` (see below).
+With no Chatwoot and no provider keys you can still: log into the dashboard, create a KB, upload documents (ingestion uses a deterministic **fake embedding provider** when `LLM_PROVIDER=mock`), ask questions (mock replies echo `I received: …`), and post simulated webhooks with `pnpm simulate:webhook` (see below).
 
 ## Scripts (root)
 

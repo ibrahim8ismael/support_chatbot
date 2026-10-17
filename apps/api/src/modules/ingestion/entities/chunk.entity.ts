@@ -1,13 +1,11 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core';
+
+import { EMBEDDING_DIMENSIONS } from '@support-agent/shared';
+
 import { documents } from '../../knowledge-base/entities/document.entity';
 import { knowledgeBases } from '../../knowledge-base/entities/knowledge-base.entity';
 
-/**
- * Embedding dimensions are locked at migration time (decision D3):
- * `text-embedding-3-small` → 1536. Changing the model later = new column +
- * full re-embed (docs/architecture/data-model.md).
- */
-export const EMBEDDING_DIMENSIONS = 1536;
+/** Dimensions come from shared constants — locked by D3 and the migration. */
 
 export interface ChunkMetadata {
   heading?: string;

@@ -19,3 +19,10 @@ export const SESSION_COOKIE_NAME = 'support_agent_session';
 
 /** Global API route prefix. `/health` deliberately lives outside it. */
 export const API_PREFIX = 'api';
+
+/**
+ * Embedding dimensions locked by decision D3 (`text-embedding-3-small` →
+ * 1536) and by the `chunks.embedding vector(1536)` migration — changing the
+ * embedding model means a new column + full re-embed.
+ */
+export const EMBEDDING_DIMENSIONS = 1536;

@@ -76,10 +76,11 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
 - [x] **T-101 · Entities + first migration** (M) — all tables from
       [data-model](../architecture/data-model.md) in their owning modules; `chunks`
       with `vector(N)`, HNSW + kb_id indexes; forward-only migration. Needs D3 + D6.
-- [ ] **T-102 · LLM module** (M) — Vercel AI SDK wiring; `embed()` / `generateReply()`
+- [x] **T-102 · LLM module** (M) — Vercel AI SDK wiring; `embed()` / `generateReply()`
       / `classify()`; deterministic **mock provider** (`LLM_PROVIDER=mock`) used by dev
       and CI. Refs ADR-0005, NFR-9 (embedding cache via CacheService). Real providers
-      per D2.
+      per D2. **Done 2026-10-18**: mock (feature-hash embeddings + echo replies) and the
+      embedding cache are live; openai/anthropic/self-hosted fail fast at boot until D2.
 - [ ] **T-103 · KB + documents API** (M) — CRUD, upload (PDF/DOCX/TXT/MD ≤ 20 MB) to
       `UPLOAD_DIR`, `content_hash`, status fields, reprocess + delete. Refs FR-2 P0, D9.
 - [ ] **T-104 · Ingestion pipeline** (L) — `ingest-document` worker: parse (pdfjs,
