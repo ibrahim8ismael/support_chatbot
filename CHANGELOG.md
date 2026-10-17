@@ -41,6 +41,11 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   (exponential delay, 15-min lock after 8 failures) throttling counters in Redis,
   `pnpm seed:admin` CLI, zod body validation pipe (`ZodBodyPipe`), and a login page
   wired to the API. Closes D4 (local email + password).
+- **Conversations module** (T-004): idempotent conversation upsert by Chatwoot ids,
+  message dedupe (`ON CONFLICT DO NOTHING` on `chatwoot_message_id`) with
+  `last_message_at` bumps, oldest→newest context reads (private notes excluded by
+  default), and `bot_state` transitions. `infra` gains `LockService` (`SET NX PX` +
+  watchdog renewal, token-checked release) for per-conversation serialization.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

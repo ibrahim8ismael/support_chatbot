@@ -62,7 +62,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       Plus `pnpm mock:chatwoot` (mock server) to assert the loop without a live
       instance. Refs FR-5 P0, NFR-2/4. Done: e2e test proves webhook in → outbound
       call asserted (mocked Chatwoot).
-- [ ] **T-004 · Conversations module** (M) — conversation/message upsert & lookup,
+- [x] **T-004 · Conversations module** (M) — conversation/message upsert & lookup,
       `bot_state` transitions, lock helpers. (Extracted out of T-003's scope.)
 - [x] **T-005 · Auth skeleton** (M) — argon2id users, `sessions` rows, login/logout/me
       endpoints (rate-limited login), `AuthGuard`/`RolesGuard`/`CurrentUser`, seed-admin
