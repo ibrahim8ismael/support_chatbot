@@ -63,6 +63,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `SELF_HOSTED_BASE_URL` | — | whichever provider D2 selects |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
+| `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt |
 | `UPLOAD_DIR` | `/data/uploads` | mounted volume |
 | `LOG_LEVEL` | `info` | |
 | `WORKER_CONCURRENCY` | `4` | reply job pool size |

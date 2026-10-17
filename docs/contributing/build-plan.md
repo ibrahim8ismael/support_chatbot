@@ -111,10 +111,20 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       Event writing lands with the agent (T-106): `answer_events` needs
       conversation/message context and is owned by analytics — retrieval produces the
       trace only.
-- [ ] **T-106 · Agent core (playground path)** (M) — query build (recent context),
+- [x] **T-106 · Agent core (playground path)** (M) — query build (recent context),
       versioned prompt templates, groundedness rules, fallback text, max reply chars,
       language matching; returns answer + trace (chunks, scores, tokens, latencies).
       Refs FR-4 P0, security doc (no prompt/retrieval leakage).
+      **Done 2026-10-18**: `agent` module — `ask()` = query build (message + recent
+      customer turns while referential) → retrieval → threshold gate (below → fallback
+      message, escalated `low_score`, no generation) → versioned prompt (settings
+      `system_prompt`, seeded from `answer.v1`: grounding rules, language matching,
+      knowledge as `<kb>` data blocks) → `generateReply` → output guard (length cap,
+      internals blocklist, filenames, non-KB URLs → escalate `guard`). Trace returned:
+      grounded chunks + scores, token usage, latency split, model, prompt version.
+      `POST /playground/ask` (any signed-in role; 404 for unknown KBs) exposes it;
+      `answer_events` writes stay with the live pipeline (T-203), which owns
+      conversation context. `COMPANY_NAME` env fills `{{company_name}}`.
 - [ ] **T-107 · KB + playground UI** (M) — KB list/create, upload with status, and
       playground (pick KBs → ask → exact chunks + scores + answer). Refs FR-8 P1.
 - [ ] **T-108 · Eval set + runner** (M) — 50–100 Q/A pairs for launch topics;

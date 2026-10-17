@@ -49,7 +49,7 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/playground/ask` | `{ question, kbIds, history? }` → full pipeline result: `{ answer, escalated, chunks: [{ id, score, content, document }], latency, tokens }` |
+| POST | `/playground/ask` | any signed-in role (T-106): strict `{ question, kbIds (1–10), history? (≤ 20 turns) }` → the answer path with no Chatwoot: `{ answer, escalated, escalationReason, chunks: [{ id, score, content, document, metadata }], latency: { retrievalMs, generationMs, totalMs }, tokens: { input, output }, model, promptVersion }`; 404 for unknown KBs |
 
 ## Bindings (`bindings`, editor/admin)
 
