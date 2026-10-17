@@ -49,13 +49,13 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 | --- | --- | --- |
 | POST | `/playground/ask` | `{ question, kbIds, history? }` → full pipeline result: `{ answer, escalated, chunks: [{ id, score, content, document }], latency, tokens }` |
 
-## Bindings (`bindings`)
+## Bindings (`bindings`, editor/admin)
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/bindings` | all inbox bindings (joined with cached inbox names) |
-| PUT | `/bindings/:chatwootInboxId` | `{ kbIds: [...], enabled: bool }` — upsert |
-| GET | `/bindings/chatwoot-inboxes` | list of inboxes fetched live from Chatwoot (to configure ones we haven't seen) |
+| GET | `/bindings` | all bindings ordered by inbox id; `displayName` is the name cached from Chatwoot |
+| PUT | `/bindings/:chatwootInboxId` | full state `{ kbIds: [...], enabled: bool }` — upsert (strict body: known keys only, unique uuids); returns the saved binding and invalidates its `bind:v1:{inbox}` cache entry |
+| GET | `/bindings/chatwoot-inboxes` | list of inboxes fetched live from Chatwoot (to configure ones we haven't seen) — lands with the Chatwoot client (T-003); the bindings module never calls Chatwoot itself |
 
 ## Conversations (`conversations`)
 
@@ -86,12 +86,12 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 | `avgLatencyMs` | mean of `answer_events.total_ms` for `answered` rows |
 | `estimatedCostUsd` | Σ `estimated_cost_usd` over the range |
 
-## Settings (`settings`, admin for writes)
+## Settings (`settings`, editor/admin for writes)
 
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/settings` | typed snapshot, defaults merged in; any signed-in role; cached 60 s |
-| PUT | `/settings` | admin; partial update, validated per key (unknown keys and out-of-range values → 400 with field details); returns the updated snapshot and busts the cache |
+| PUT | `/settings` | editor/admin; partial update, validated per key (unknown keys and out-of-range values → 400 with field details); returns the updated snapshot and busts the cache |
 | GET | `/settings/health-llm` | admin; provider smoke check (embed + generate) for the admin UI — `{ status: "ok", embedding: { model, dimensions, latencyMs }, chat: { model, latencyMs }, totalLatencyMs }`; provider failure → 503 `{ status: "error", message }` |
 
 Keys and defaults: [data-model](../architecture/data-model.md#settings-owner-settings). Secrets (API keys, Chatwoot tokens) are never settings — environment only.

@@ -127,9 +127,11 @@ escalation works; humans can pause/resume.
       names. Refs FR-8 P0, caching doc. **Done 2026-10-18**: GET/PUT `/settings` +
       `/settings/health-llm`, zod-validated partial writes, Redis snapshot cache;
       `system_prompt` defaults to the versioned `agent/prompts/answer.v1.ts`.
-- [ ] **T-206 · Bindings module** (M) — inbox ↔ KB mapping CRUD, `enabled` per-inbox
+- [x] **T-206 · Bindings module** (M) — inbox ↔ KB mapping CRUD, `enabled` per-inbox
       kill switch, `getBoundKbIdsForInbox()` cached, `display_name` cache from Chatwoot.
-      Refs FR-5 P0.
+      Refs FR-5 P0. **Done 2026-10-18**: list/upsert API (editor/admin), per-inbox
+      `bind:v1:*` cache (60 s + bust on write), `display_name` preserved for the
+      Chatwoot sync; live inbox discovery lands with T-003.
 - [ ] **T-207 · P1 niceties** (S) — attachments → escalate (D8), typing indicator if
       our Chatwoot version supports it, `conversation_status_changed` events.
 - [ ] **T-208 · Rollout drill** (S, ops) — evals pass → enable one real inbox (website

@@ -57,16 +57,24 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Settings module** (T-205): typed runtime knobs (`bot_enabled` kill switch, prompt,
   fallback message, retrieval thresholds/top-k/context, reply cap, model ids) stored as
   overrides over documented defaults; reads merged and cached in Redis (`settings:v1`,
-  60 s, busted on write), writes are admin-only partial updates validated per key
+  60 s, busted on write), writes are editor/admin partial updates validated per key
   (strict keys + ranges, 400 with field details). `GET /settings`, `PUT /settings`, and
   an admin `GET /settings/health-llm` embed+generate smoke check (503 on provider
   failure). The system prompt defaults to the versioned
   `apps/api/src/modules/agent/prompts/answer.v1.ts`; audit writes land with T-301.
+- **Bindings module** (T-206): `GET /bindings` + full-state
+  `PUT /bindings/:chatwootInboxId` (editor/admin) over `inbox_bindings`, with strict
+  uuid-array validation, `display_name` preserved for the Chatwoot sync, and
+  `getBoundKbIdsForInbox()` cached per inbox (`bind:v1:*`, 60 s + bust on write).
+  Empty `kbIds` and `enabled=false` both read as "bot off here".
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
 ### Fixed
 
+- Settings writes now allow editor/admin per the capability matrix in
+  [security](docs/operations/security.md) (T-205 shipped admin-only, contradicting the
+  documented roles).
 - Prettier now ignores the Next.js-generated `apps/web/next-env.d.ts` and the
   drizzle-kit-generated `apps/api/src/db/migrations/meta` JSON (both are rewritten by
   tooling).
