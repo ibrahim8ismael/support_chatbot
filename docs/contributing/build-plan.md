@@ -22,6 +22,13 @@ requirement refs ([requirements](../product/requirements.md) FR-1…FR-9, NFR-1�
 - Never call Chatwoot outside the `chatwoot` module, models outside `llm` — see
   [repo-structure](../architecture/repo-structure.md).
 
+**Execution order (decided 2026-10-18):** all non-Chatwoot tickets run first; the
+Chatwoot integration is deliberately **last**. Order:
+T-101 → T-005 → T-004 → T-102 → T-205 → T-206 → T-103 → T-104 → T-105 → T-106 →
+T-107 → T-108 → T-301 → T-302 → T-303 → T-304 → T-305 → T-401 → T-402 → T-403 →
+T-404 → **then Chatwoot:** T-002 → T-003 → T-201 → T-202 → T-203 → T-204 → T-207 →
+T-208 → T-405.
+
 ## Decisions gating tickets
 
 | Decision | Gates | Recommendation |
@@ -42,7 +49,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
 
 - [x] **T-000 · Monorepo scaffold** (done) — pnpm + Turborepo, api/web/shared/config,
       docker compose, module skeletons, `/health`, webhook secret edge.
-- [ ] **T-001 · CI pipeline** (S) — GitHub Actions on PR: frozen-lockfile install,
+- [x] **T-001 · CI pipeline** (S) — GitHub Actions on PR: frozen-lockfile install,
       `lint`, `typecheck`, `test`, `build`; Turbo cache; Node 22 (matches prod image).
       Done: red on a broken PR, green on main.
 - [ ] **T-002 · Chatwoot contract fixtures** (M) — capture anonymized real webhooks
@@ -180,4 +187,4 @@ CSAT correlation, KB versioning (FR-2 P2), CSV export (FR-7 P2).
 | FR-8 settings & playground (P0/P1) | T-205, T-107, T-208 |
 | FR-9 audit & ops (P0) | T-301, T-304, T-401–T-404 |
 | NFR-1/2/4 performance & reliability | T-104, T-201, T-202, T-203, T-402 |
-| NFR-9 caching | T-102, T-105, T-205, T-306 backlog |
+| NFR-9 caching | T-102, T-105, T-205 (+ reply-level cache in backlog) |
