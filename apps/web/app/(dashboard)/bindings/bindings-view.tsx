@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, Checkbox, Chip, Input, Label, Spinner, Switch } from '@heroui/react';
+import { Plus, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { InboxBinding, KnowledgeBaseSummary } from '@support-agent/shared';
 
@@ -143,134 +145,177 @@ export function BindingsView() {
   }
 
   return (
-    <>
-      <h1>Inbox bindings</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Map Chatwoot inboxes to knowledge bases and toggle the per-inbox kill switch. An inbox with
-        no knowledge bases or the switch off is ignored by the bot.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-semibold tracking-tight">Inbox bindings</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Map Chatwoot inboxes to knowledge bases and toggle the per-inbox kill switch. An inbox
+          with no knowledge bases or the switch off is ignored by the bot.
+        </p>
+      </div>
 
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
       {forbidden ? (
-        <p style={{ color: 'var(--legacy-muted)' }}>
-          Bindings are managed by editors and admins — ask an admin for a role if you need to change
-          them.
-        </p>
+        <Alert status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Read-only for your role</Alert.Title>
+            <Alert.Description>
+              Bindings are managed by editors and admins — ask an admin for a role if you need to
+              change them.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : loading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
       ) : (
         <>
-          {loading ? <p style={{ color: 'var(--legacy-muted)' }}>Loading…</p> : null}
-          {!loading && bindings.length === 0 ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>
-              No bindings yet — add an inbox below once its webhook has been seen.
-            </p>
-          ) : null}
-          {bindings.map((binding) => {
-            const draft = draftFor(binding);
-            const dirty = isDirty(binding);
-            const busy = busyInbox === binding.chatwootInboxId;
-            return (
-              <div
-                key={binding.chatwootInboxId}
-                style={{
-                  border: '1px solid var(--legacy-border)',
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 12,
+          {bindings.length === 0 ? (
+            <Card>
+              <Card.Content className="flex flex-col items-center gap-1 py-12 text-center">
+                <p className="text-sm font-medium">No bindings yet</p>
+                <p className="text-xs text-muted">
+                  Add an inbox below once its webhook has been seen.
+                </p>
+              </Card.Content>
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {bindings.map((binding) => {
+                const draft = draftFor(binding);
+                const dirty = isDirty(binding);
+                const busy = busyInbox === binding.chatwootInboxId;
+                return (
+                  <Card key={binding.chatwootInboxId}>
+                    <Card.Header className="flex flex-row flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Card.Title className="text-base">
+                          {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                        </Card.Title>
+                        <Card.Description>
+                          #{binding.chatwootInboxId} · account {binding.chatwootAccountId}
+                        </Card.Description>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <Switch
+                          size="sm"
+                          isSelected={draft.enabled}
+                          onChange={(enabled) =>
+                            setDraft(binding.chatwootInboxId, { ...draft, enabled })
+                          }
+                        >
+                          <Switch.Control>
+                            <Switch.Thumb />
+                          </Switch.Control>
+                          <Switch.Content>
+                            <Label>Bot enabled</Label>
+                          </Switch.Content>
+                        </Switch>
+                        <Button
+                          size="sm"
+                          isDisabled={!dirty || busy}
+                          isPending={busy}
+                          onPress={() => void save(binding)}
+                        >
+                          <Save className="size-4" aria-hidden />
+                          Save
+                        </Button>
+                      </div>
+                    </Card.Header>
+
+                    <Card.Content className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium tracking-wider text-muted uppercase">
+                          Knowledge bases
+                        </p>
+                        {dirty ? (
+                          <Chip size="sm" variant="soft" color="warning">
+                            Unsaved changes
+                          </Chip>
+                        ) : null}
+                      </div>
+
+                      {kbs.length === 0 ? (
+                        <p className="text-sm text-muted">No knowledge bases exist yet.</p>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                          {kbs.map((kb) => (
+                            <Checkbox
+                              key={kb.id}
+                              variant="secondary"
+                              isSelected={draft.kbIds.includes(kb.id)}
+                              onChange={() =>
+                                setDraft(binding.chatwootInboxId, {
+                                  ...draft,
+                                  kbIds: toggleKb(draft.kbIds, kb.id),
+                                })
+                              }
+                            >
+                              <Checkbox.Content>
+                                <Checkbox.Control>
+                                  <Checkbox.Indicator />
+                                </Checkbox.Control>
+                                <span className="truncate text-sm">{kb.name}</span>
+                              </Checkbox.Content>
+                            </Checkbox>
+                          ))}
+                        </div>
+                      )}
+                    </Card.Content>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          <Card>
+            <Card.Header>
+              <Card.Title className="text-base">Add an inbox</Card.Title>
+              <Card.Description>
+                Bindings seen from webhooks appear here automatically.
+              </Card.Description>
+            </Card.Header>
+            <Card.Content>
+              <form
+                className="flex flex-wrap items-end gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void addInbox();
                 }}
               >
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 12,
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                  }}
+                <Input
+                  type="number"
+                  min={1}
+                  aria-label="Chatwoot inbox id"
+                  placeholder="Chatwoot inbox id"
+                  className="w-52"
+                  value={newInboxId}
+                  onChange={(event) => setNewInboxId(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  isDisabled={newInboxId.trim() === '' || busyInbox !== null}
                 >
-                  <div>
-                    <strong>{binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}</strong>
-                    <div style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
-                      #{binding.chatwootInboxId} · account {binding.chatwootAccountId}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <label style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
-                      <input
-                        type="checkbox"
-                        checked={draft.enabled}
-                        onChange={(event) =>
-                          setDraft(binding.chatwootInboxId, {
-                            ...draft,
-                            enabled: event.target.checked,
-                          })
-                        }
-                      />{' '}
-                      Bot enabled
-                    </label>
-                    <button
-                      type="button"
-                      disabled={!dirty || busy}
-                      onClick={() => void save(binding)}
-                    >
-                      {busy ? 'Saving…' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ color: 'var(--legacy-muted)', fontSize: 12, marginBottom: 4 }}>
-                    Knowledge bases
-                  </div>
-                  {kbs.length === 0 ? (
-                    <p style={{ color: 'var(--legacy-muted)', margin: 0 }}>
-                      No knowledge bases exist yet.
-                    </p>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      {kbs.map((kb) => (
-                        <label key={kb.id} style={{ fontSize: 13 }}>
-                          <input
-                            type="checkbox"
-                            checked={draft.kbIds.includes(kb.id)}
-                            onChange={() =>
-                              setDraft(binding.chatwootInboxId, {
-                                ...draft,
-                                kbIds: toggleKb(draft.kbIds, kb.id),
-                              })
-                            }
-                          />{' '}
-                          {kb.name}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
-            <input
-              type="number"
-              min={1}
-              placeholder="Chatwoot inbox id"
-              value={newInboxId}
-              onChange={(event) => setNewInboxId(event.target.value)}
-            />
-            <button
-              type="button"
-              disabled={newInboxId.trim() === '' || busyInbox !== null}
-              onClick={() => void addInbox()}
-            >
-              Add inbox
-            </button>
-            <span style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
-              Bindings seen from webhooks appear here automatically.
-            </span>
-          </div>
+                  <Plus className="size-4" aria-hidden />
+                  Add inbox
+                </Button>
+              </form>
+            </Card.Content>
+          </Card>
         </>
       )}
-    </>
+    </div>
   );
 }
