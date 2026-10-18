@@ -6,8 +6,8 @@ All model access goes through the [Vercel AI SDK](https://ai-sdk.dev) (`ai` pack
 
 | Role | Setting | Used for | Example models |
 | --- | --- | --- | --- |
-| **Embedding model** | `EMBEDDING_MODEL` | Embedding KB chunks (ingest) + queries (retrieve) | `text-embedding-3-small` (1536 dim), self-hosted `bge-m3` (1024 dim) |
-| **Chat model** | `CHAT_MODEL` | Final customer reply; classification (P1 can split) | `gpt-4.1-mini`, `claude-*`, self-hosted Qwen/Llama via vLLM |
+| **Embedding model** | `EMBEDDING_MODEL` | Embedding KB chunks (ingest) + queries (retrieve) | `text-embedding-3-small` (1536 dim) — always OpenAI (D3); a self-hosted `bge-m3` (1024 dim) would re-bake the schema |
+| **Chat model** | `CHAT_MODEL` | Final customer reply; classification (P1 can split) | `gpt-4.1-mini` (OpenAI) or any OpenRouter id, e.g. `openai/gpt-4.1-mini`, `anthropic/claude-…` |
 | Optional small model (P1) | `CHAT_MODEL_SMALL` | Query rewrite, classification | cheapest capable model |
 
 Hard rule: **the embedding model must be identical for ingestion and retrieval**, and its dimensions are baked into the schema ([D3](../open-decisions.md)). Changing it = re-embed everything (runbook in [deployment](../operations/deployment.md)).
@@ -15,30 +15,40 @@ Hard rule: **the embedding model must be identical for ingestion and retrieval**
 ## Provider configuration (env-driven)
 
 ```ts
-// apps/api/src/modules/llm/providers.ts (sketch)
-import { createOpenAI } from '@ai-sdk/openai';
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { createAnthropic } from '@ai-sdk/anthropic';
-
-export function chatProvider() {
-  switch (process.env.LLM_PROVIDER) {
-    case 'openai':
-      return createOpenAI({ apiKey: env.OPENAI_API_KEY });
-    case 'anthropic':
-      return createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    case 'self-hosted': // vLLM, Ollama, TGI, LM Studio — anything OpenAI-compatible
-      return createOpenAICompatible({
-        name: 'self-hosted',
-        baseURL: env.SELF_HOSTED_BASE_URL, // e.g. http://vllm.internal:8000/v1
-        apiKey: env.SELF_HOSTED_API_KEY ?? 'none',
-      });
-    default:
-      throw new Error(`Unknown LLM_PROVIDER: ${process.env.LLM_PROVIDER}`);
-  }
+// apps/api/src/modules/llm/providers/provider.factory.ts (as built — T-102)
+case 'openai': {
+  const openai = createOpenAI({ apiKey: requireKey('OPENAI_API_KEY') });
+  return {
+    embedding: openai.embedding(embeddingModel),   // text-embedding-3-small (D3)
+    chat: openai(chatModel),                       // gpt-4.1-mini
+    embeddingModelId: `openai:${embeddingModel}`,
+    chatModelId: `openai:${chatModel}`,
+  };
+}
+case 'openrouter': {
+  // OpenRouter speaks the OpenAI API — chat only; embeddings stay with OpenAI.
+  const openrouter = createOpenAICompatible({
+    name: 'openrouter',
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: requireKey('OPENROUTER_API_KEY'),
+  });
+  const openai = createOpenAI({ apiKey: requireKey('OPENAI_API_KEY') });
+  return {
+    embedding: openai.embedding(embeddingModel),
+    chat: openrouter.chatModel(chatModel),         // e.g. openai/gpt-4.1-mini
+    embeddingModelId: `openai:${embeddingModel}`,
+    chatModelId: `openrouter:${chatModel}`,
+  };
 }
 ```
 
-Why this shape: swapping provider or flipping to fully self-hosted is **env config, not code** — this is what makes decision [D2](../open-decisions.md) reversible, and it future-proofs the "data must not leave our network" scenario.
+Model ids are **provider-qualified** (`openai:…` / `openrouter:…`) so the
+embedding cache namespace and `answer_events` never mix models. Missing keys or
+an unknown provider fail at boot, not on the first customer message.
+
+Why this shape: swapping model or carrier is **env config, not code**. Adding a
+future provider — or going fully self-hosted if the residency policy ever
+requires it — stays a new `case` in one file.
 
 ## What the module exposes
 
@@ -93,9 +103,9 @@ const { object } = await generateObject({ model, schema, prompt });
 
 ## Data privacy
 
-- [D2](../open-decisions.md) decides **whether** customer messages and KB content may leave the company network. The code supports both answers without refactoring: external providers or self-hosted endpoints (same AI SDK interface).
-- Until D2 is decided: development and staging use mock/self-hosted models; no production KB content is sent to any external API.
-- If external APIs are approved: send the minimum needed (retrieved chunks, recent turns, no internal file names); log the provider-bound payload only at debug level and redacted (P1: PII redaction pass before provider calls).
+- [D2](../open-decisions.md) is **Decided (2026-10-18): (a) external APIs — OpenAI + OpenRouter.** Customer messages and retrieved KB content may reach these providers; embeddings always go to OpenAI (D3).
+- Dev and CI keep `LLM_PROVIDER=mock` — nothing external is called without keys.
+- Keep the payload minimal: retrieved chunks, recent turns, the customer message — no internal file names; log the provider-bound payload only at debug level and redacted (P1: PII redaction pass before provider calls). A policy reversal stays possible: a self-hosted carrier is a new factory `case`, no pipeline refactor.
 
 ## Failure handling
 

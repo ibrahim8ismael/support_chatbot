@@ -19,7 +19,8 @@ import { estimateTokens } from '../../../common/text/tokens';
 /**
  * Deterministic, network-free models behind `LLM_PROVIDER=mock`
  * (docs/contributing/development.md). Dev and CI run the whole pipeline with
- * these; real providers are wired when decision D2 closes.
+ * these; real providers (openai/openrouter — D2 closed) live behind the same
+ * factory switch, so nothing downstream changes when they are selected.
  */
 
 export const MOCK_EMBEDDING_MODEL_ID = 'mock-embedding-1536';

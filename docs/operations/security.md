@@ -44,9 +44,9 @@ Outbound credentials: Chatwoot bot token and provider API keys are env-only, lea
 
 | Question | Answer |
 | --- | --- |
-| What leaves our network? | Retrieved chunks + recent conversation turns + the customer message. **Only when [D2](../open-decisions.md) approves external providers** |
-| Until D2 decided | Staging/dev use mock or self-hosted models; production KB content is never sent externally |
-| If self-hosted (vLLM/Ollama) | Nothing leaves; same AI SDK interface |
+| What leaves our network? | Retrieved chunks + recent conversation turns + the customer message — sent to the selected model provider. [D2](../open-decisions.md) is **Decided (2026-10-18): external APIs — OpenAI + OpenRouter** |
+| With external providers | OpenAI: chat + embeddings (`text-embedding-3-small`); OpenRouter: chat only. Dev/CI keep `LLM_PROVIDER=mock` — nothing leaves |
+| If the policy changes | A self-hosted (vLLM/Ollama) carrier is a new factory `case` behind the same AI SDK interface; no pipeline refactor |
 | PII minimization | Send only what retrieval needs; no user emails/ids in prompts; (P1) redaction pass for obvious PII before provider calls |
 | Logs | Prompt content logged at debug only, with email/phone regex redaction (P1); `answer_events` stores query text (needed for analytics) with access limited to admins |
 | Caching | Redis holds hashed inputs + derived data (vectors, chunk ids); queue payloads carry **ids, not message text** — workers re-read content from Postgres |

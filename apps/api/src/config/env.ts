@@ -28,10 +28,10 @@ export const envSchema = z
     CHATWOOT_BOT_TOKEN: optional(z.string().min(1)),
     CHATWOOT_WEBHOOK_SECRET: optional(z.string().min(8)),
 
-    LLM_PROVIDER: z.enum(['openai', 'anthropic', 'self-hosted', 'mock']).default('mock'),
+    LLM_PROVIDER: z.enum(['openai', 'openrouter', 'mock']).default('mock'),
     OPENAI_API_KEY: optional(z.string().min(1)),
-    ANTHROPIC_API_KEY: optional(z.string().min(1)),
-    SELF_HOSTED_BASE_URL: optional(z.url()),
+    /** Chat via OpenRouter; embeddings stay with OpenAI (D3). */
+    OPENROUTER_API_KEY: optional(z.string().min(1)),
     EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
     CHAT_MODEL: z.string().min(1).default('gpt-4.1-mini'),
     /** Substituted into the answer prompt's `{{company_name}}`. */
@@ -42,19 +42,22 @@ export const envSchema = z
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
   })
   .superRefine((env, ctx) => {
-    const requiredKey = {
-      openai: 'OPENAI_API_KEY',
-      anthropic: 'ANTHROPIC_API_KEY',
-      'self-hosted': 'SELF_HOSTED_BASE_URL',
-      mock: undefined,
-    }[env.LLM_PROVIDER];
+    // Which keys each provider needs. openrouter needs OpenAI too: embeddings
+    // are always `text-embedding-3-small` (D3) — OpenRouter serves chat only.
+    const requiredKeys: Record<string, string[]> = {
+      openai: ['OPENAI_API_KEY'],
+      openrouter: ['OPENROUTER_API_KEY', 'OPENAI_API_KEY'],
+      mock: [],
+    };
 
-    if (requiredKey && !env[requiredKey as keyof typeof env]) {
-      ctx.addIssue({
-        code: 'custom',
-        path: [requiredKey],
-        message: `required when LLM_PROVIDER=${env.LLM_PROVIDER}`,
-      });
+    for (const key of requiredKeys[env.LLM_PROVIDER] ?? []) {
+      if (!env[key as keyof typeof env]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `required when LLM_PROVIDER=${env.LLM_PROVIDER}`,
+        });
+      }
     }
   });
 

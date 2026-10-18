@@ -16,8 +16,8 @@ Every choice below links to a decision record when one exists. Version numbers a
 | RAG | **In-house thin pipeline** on pgvector (proposed, [ADR-0004](../decisions/0004-rag-pipeline.md)) | Fewest moving parts; we control chunking/prompts/evals | LlamaIndex.TS, RAGFlow/AnythingLLM (extra service) |
 | Model access | **Vercel AI SDK** (`ai` + provider packages) | One interface for embeddings, text, structured output; swap providers incl. self-hosted via OpenAI-compatible ([ADR-0005](../decisions/0005-vercel-ai-sdk.md)) | Raw provider SDKs (lock-in), LangChain (heavy) |
 | Outbound HTTP | **axios** | One instance per integration with timeout/retry/logging interceptors (Chatwoot API first); model calls stay inside the AI SDK | native fetch, got, undici |
-| Embedding model | TBD — D3: `text-embedding-3-small` (1536 dims) or self-hosted `bge-m3` (1024) | Dimensions are baked into schema; pick once per deployment | — |
-| Chat model | TBD — D2: e.g. `gpt-4.1-mini`, `claude-*`, or self-hosted Qwen/Llama via vLLM | Depends on data-residency decision | — |
+| Embedding model | `text-embedding-3-small` (1536 dims) — OpenAI (D3, closed) | Dimensions are baked into the schema; changing it = re-embed everything | — |
+| Chat model | `gpt-4.1-mini` via OpenAI, or any OpenRouter id (D2, closed) | External APIs approved: OpenAI + OpenRouter | — |
 | Parsing | `pdfjs`/`pdf-parse` (PDF), `mammoth` (DOCX), plain text/MD readers | Mature, no service needed | Unstructured.io (service), cloud parsers |
 | Auth | Session cookie + argon2 (proposed, D4) | Internal app; simple and safe | NextAuth (dashboard-only, splits auth), SSO later |
 | ORM | Drizzle preferred (proposed, D6) | Typed SQL + built-in pgvector helpers (`cosineDistance`) | Prisma (great DX, weaker vector story), TypeORM |
