@@ -210,6 +210,9 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Login screen**: rebuilt with HeroUI — centered auth block, accessible
   TextField/Form/Alert primitives, pending spinner and the same session-cookie
   flow.
+- **Dashboard shell**: HeroUI sidebar/header with grouped navigation, a responsive
+  drawer, a light/dark/system theme toggle (`next-themes`) and an account menu
+  backed by `/auth/me` with sign-out.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
