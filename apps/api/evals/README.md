@@ -44,7 +44,8 @@ free of the forbidden payload.
 ## Running
 
 Prerequisites: Postgres + Redis up (`docker compose -f docker/docker-compose.yml up -d
-postgres redis`), migrations applied, and at least one seeded user (`pnpm seed:admin`).
+postgres redis`), migrations applied, and at least one seeded user
+(`pnpm seed:admin -- --email admin@example.com`).
 `LLM_PROVIDER` and keys come from `apps/api/.env.local` as usual.
 
 ```bash

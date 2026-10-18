@@ -54,7 +54,7 @@ path, asks every case through `AgentService.ask()`, and prints per-topic + overa
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d postgres redis
-pnpm db:migrate && pnpm seed:admin
+pnpm db:migrate && pnpm seed:admin -- --email admin@example.com
 pnpm evals                              # provider from apps/api/.env.local
 pnpm evals -- --topic=password-reset
 pnpm evals -- --keep --verbose
@@ -86,7 +86,7 @@ Rules of thumb: **no real model calls in CI** (mock provider); every bugfix that
 3. Create a dev Agent Bot with webhook URL `https://<tunnel>/api/webhooks/chatwoot/<dev-secret>` and assign it to a test inbox.
 4. Message the website widget; watch `pnpm dev` logs: webhook received → filters → retrieval → reply posted.
 
-Simulator (no Chatwoot at all): `pnpm simulate:webhook -- --fixture annual-plan --conversation 812` posts a real captured payload to your local endpoint and, when `CHATWOOT_BASE_URL` points at a mock server (`pnpm mock:chatwoot`, P1), lets you assert the outgoing reply.
+Simulator (no Chatwoot at all): `pnpm simulate:webhook -- --conversation 812` posts a sample `message_created` payload to your local endpoint and checks that the secret gate accepts it. Until the pipeline lands (T-201+) the endpoint only acknowledges events; asserting the outgoing reply needs a mock Chatwoot server (P1, not built yet).
 
 ## Dashboard UI (HeroUI)
 

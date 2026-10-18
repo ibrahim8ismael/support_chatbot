@@ -239,6 +239,11 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Production guards**: the API refuses to boot in production with the mock LLM
+  provider (unless `ALLOW_MOCK_LLM=true`), known placeholder secrets, the default
+  `Acme Support` company name or default database credentials; the active model set
+  is logged at boot. Eval runs refuse to target `NODE_ENV=production` without
+  `--allow-production` and write artifacts next to the script.
 - Settings writes now allow editor/admin per the capability matrix in
   [security](docs/operations/security.md) (T-205 shipped admin-only, contradicting the
   documented roles).

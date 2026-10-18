@@ -47,7 +47,7 @@ Dev compose (`docker/docker-compose.yml`) is the same minus proxy/TLS/migrate, p
 
 ## Environment variables
 
-Validated at boot with zod — the API refuses to start with a bad/missing env (fail fast, not at 3 AM).
+Validated at boot with zod — the API refuses to start with a bad/missing env (fail fast, not at 3 AM). In production it additionally rejects the mock LLM provider, known placeholder secrets, the default company name and default database credentials.
 
 | Variable | Example | Notes |
 | --- | --- | --- |
@@ -55,17 +55,18 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `APP_URL` | `https://support-agent.internal.company` | used in cookies/CORS |
 | `DATABASE_URL` | `postgres://sa:…@postgres:5432/support_agent` | |
 | `REDIS_URL` | `redis://redis:6379` | BullMQ queue (db 0) + cache (db 1) — see [caching](../architecture/caching.md) |
-| `AUTH_SESSION_SECRET` | 64-char random | session cookie signing |
+| `AUTH_SESSION_SECRET` | 64-char random | required at boot (≥32 chars); placeholder values rejected in production |
 | `CHATWOOT_BASE_URL` | `https://chatwoot.internal.company` | |
 | `CHATWOOT_ACCOUNT_ID` | `1` | |
 | `CHATWOOT_BOT_TOKEN` | `xxxxx` | Agent Bot token |
-| `CHATWOOT_WEBHOOK_SECRET` | 48-char random | path segment of our webhook URL |
-| `LLM_PROVIDER` | `mock \| openai \| openrouter` | [LLM doc](../integrations/llm-and-vercel-ai-sdk.md) |
+| `CHATWOOT_WEBHOOK_SECRET` | 48-char random | path segment of our webhook URL; ≥32 chars in production, unset → webhooks 404 |
+| `LLM_PROVIDER` | `openai \| openrouter` | `mock` is **dev-only** — production refuses to boot with it unless `ALLOW_MOCK_LLM=true` |
+| `ALLOW_MOCK_LLM` | `false` | explicit escape hatch for deliberate offline demos; never for customer traffic |
 | `OPENAI_API_KEY` | — | chat + embeddings (`openai`); embeddings only under `openrouter` (D3) |
 | `OPENROUTER_API_KEY` | — | chat when `LLM_PROVIDER=openrouter` |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
-| `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt |
+| `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt; required in production (the default is rejected) |
 | `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |
 | `RETENTION_DAYS` | `365` | messages/events retention window in days (NFR-7); documents/KBs are never purged |
 | `ALERT_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | ops channel for threshold alerts (see below); Slack-compatible `{"text": …}`; unset → `warn` log lines |
@@ -75,7 +76,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `LOG_LEVEL` | `info` | |
 | `WORKER_CONCURRENCY` | `4` | reply job pool size |
 
-Secrets live in `.env` **only on the host** (or docker secrets) — never in the repo, never in the settings table. `.env.example` in the repo documents names without values.
+Secrets live in `.env` **only on the host** (or docker secrets) — never in the repo, never in the settings table. The `.env.example` files carry development-only placeholders (dev webhook secret, `mock` provider, `Acme Support`); production rejects known placeholder values at boot.
 
 Compose-level values live in the same repo-root `.env` (template: `docker/.env.prod.example`): `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`, `SITE_ADDRESS` (the Caddy site address + TLS certificate name) and `NEXT_PUBLIC_API_URL` (public dashboard origin, baked into the web build — rebuilding `web` is required when it changes).
 
