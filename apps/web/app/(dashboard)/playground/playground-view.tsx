@@ -1,5 +1,17 @@
 'use client';
 
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Chip,
+  Label,
+  Spinner,
+  TextArea,
+  TextField,
+} from '@heroui/react';
+import { Send, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
@@ -21,6 +33,7 @@ import {
 export function PlaygroundView() {
   const router = useRouter();
   const [kbs, setKbs] = useState<KnowledgeBaseSummary[]>([]);
+  const [loadingKbs, setLoadingKbs] = useState(true);
   const [selectedKbIds, setSelectedKbIds] = useState<string[]>([]);
   const [question, setQuestion] = useState('');
   const [exchanges, setExchanges] = useState<PlaygroundExchange[]>([]);
@@ -43,6 +56,10 @@ export function PlaygroundView() {
           router.push('/login');
         } else {
           setError(cause instanceof Error ? cause.message : 'Something went wrong');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingKbs(false);
         }
       }
     })();
@@ -86,80 +103,127 @@ export function PlaygroundView() {
   }
 
   return (
-    <>
-      <h1>Playground</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Ask a question against selected knowledge bases — the exact answer path (retrieval +
-        grounding + output guard) with no Chatwoot involvement.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-semibold tracking-tight">Playground</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Ask a question against selected knowledge bases — the exact answer path (retrieval +
+          grounding + output guard) with no Chatwoot involvement.
+        </p>
+      </div>
 
-      <section
-        style={{
-          display: 'grid',
-          gap: 24,
-          gridTemplateColumns: 'minmax(240px, 320px) 1fr',
-          marginTop: 16,
-        }}
-      >
-        <div>
-          <h2 style={{ fontSize: 16 }}>Knowledge bases</h2>
-          {kbs.length === 0 ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>
-              Nothing to ask yet — <Link href="/knowledge-bases">create a knowledge base</Link> and
-              upload documents.
-            </p>
-          ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-              {kbs.map((kb) => (
-                <li key={kb.id}>
-                  <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedKbIds.includes(kb.id)}
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card>
+            <Card.Header>
+              <Card.Title className="text-base">Knowledge bases</Card.Title>
+              <Card.Description>
+                Select up to {MAX_KB_SELECTION} sources to search.
+              </Card.Description>
+            </Card.Header>
+            <Card.Content className="flex flex-col gap-3">
+              {loadingKbs ? (
+                <div className="flex justify-center py-4">
+                  <Spinner size="sm" />
+                </div>
+              ) : kbs.length === 0 ? (
+                <p className="text-sm text-muted">
+                  Nothing to ask yet —{' '}
+                  <Link href="/knowledge-bases" className="font-medium text-accent hover:underline">
+                    create a knowledge base
+                  </Link>{' '}
+                  and upload documents.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {kbs.map((kb) => (
+                    <Checkbox
+                      key={kb.id}
+                      variant="secondary"
+                      isSelected={selectedKbIds.includes(kb.id)}
                       onChange={() => toggleKb(kb.id)}
-                    />
-                    <span>
-                      {kb.name}
-                      {kb.status === 'archived' ? ' (archived)' : ''}
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
-            {selectedKbIds.length}/{MAX_KB_SELECTION} selected
-          </p>
+                    >
+                      <Checkbox.Content>
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm">{kb.name}</span>
+                          {kb.status === 'archived' ? (
+                            <Chip size="sm" variant="soft">
+                              Archived
+                            </Chip>
+                          ) : null}
+                        </span>
+                      </Checkbox.Content>
+                    </Checkbox>
+                  ))}
+                </div>
+              )}
 
-          <form onSubmit={onAsk} style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-            <label>
-              Question
-              <textarea
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                rows={3}
-                maxLength={2000}
-                style={{ width: '100%' }}
-              />
-            </label>
-            <button type="submit" disabled={asking}>
-              {asking ? 'Asking…' : 'Ask'}
-            </button>
-          </form>
-          {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+              <p className="text-xs text-muted">
+                {selectedKbIds.length}/{MAX_KB_SELECTION} selected
+              </p>
+            </Card.Content>
+          </Card>
+
+          <Card>
+            <Card.Content>
+              <form onSubmit={onAsk} className="flex flex-col gap-3">
+                <TextField value={question} onChange={setQuestion} isRequired>
+                  <Label>Question</Label>
+                  <TextArea rows={4} maxLength={2000} placeholder="How do I reset my password?" />
+                </TextField>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-muted">{question.length}/2000</span>
+                  <Button
+                    type="submit"
+                    isPending={asking}
+                    isDisabled={
+                      asking ||
+                      selectedKbIds.length === 0 ||
+                      selectedKbIds.length > MAX_KB_SELECTION ||
+                      question.trim().length === 0
+                    }
+                  >
+                    <Send className="size-4" aria-hidden />
+                    Ask
+                  </Button>
+                </div>
+              </form>
+            </Card.Content>
+          </Card>
         </div>
 
-        <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
+        <div className="flex min-w-0 flex-col gap-4">
           {exchanges.length === 0 ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>
-              Answers, grounded chunks, and scores appear here.
-            </p>
+            <Card className="h-full">
+              <Card.Content className="flex min-h-64 flex-col items-center justify-center gap-3 text-center">
+                <Sparkles className="size-8 text-muted" aria-hidden />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">No answers yet</p>
+                  <p className="text-xs text-muted">
+                    Answers, grounded chunks and scores appear here.
+                  </p>
+                </div>
+              </Card.Content>
+            </Card>
           ) : (
             exchanges.map((exchange, index) => <ExchangeCard key={index} exchange={exchange} />)
           )}
         </div>
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -167,63 +231,64 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
   const { question, answer } = exchange;
 
   return (
-    <article
-      style={{ border: '1px solid var(--legacy-border)', padding: 12, display: 'grid', gap: 8 }}
-    >
-      <p style={{ margin: 0 }}>
-        <strong>Q:</strong> {question}
-      </p>
-      <div
-        style={{
-          padding: 10,
-          background: answer.escalated ? 'rgba(220, 38, 38, 0.08)' : 'rgba(21, 128, 61, 0.08)',
-        }}
-      >
-        <p style={{ margin: 0 }}>{answer.answer}</p>
-        {answer.escalated ? (
-          <p style={{ margin: '6px 0 0', color: 'crimson', fontSize: 13 }}>
-            Escalated — {escalationLabel(answer.escalationReason)}
-          </p>
-        ) : null}
-      </div>
-
-      {answer.chunks.length > 0 ? (
-        <div>
-          <h3 style={{ fontSize: 14, margin: '4px 0' }}>Grounded chunks</h3>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-            {answer.chunks.map((chunk) => (
-              <li key={chunk.id} style={{ border: '1px solid var(--legacy-border)', padding: 8 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    fontSize: 13,
-                  }}
-                >
-                  <span style={{ color: 'var(--legacy-muted)' }}>{chunkSource(chunk)}</span>
-                  <span style={{ fontFamily: 'monospace' }}>{formatScore(chunk.score)}</span>
-                </div>
-                <pre
-                  style={{
-                    whiteSpace: 'pre-wrap',
-                    margin: '6px 0 0',
-                    fontSize: 13,
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {chunk.content}
-                </pre>
-              </li>
-            ))}
-          </ul>
+    <Card>
+      <Card.Content className="flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent">
+            Q
+          </span>
+          <p className="min-w-0 whitespace-pre-wrap text-sm font-medium">{question}</p>
         </div>
-      ) : null}
 
-      <p style={{ margin: 0, color: 'var(--legacy-muted)', fontSize: 13 }}>
-        {answer.model ?? 'no model call'} · {answer.promptVersion} · {formatLatency(answer.latency)}{' '}
-        · {formatTokens(answer.tokens)}
-      </p>
-    </article>
+        <div
+          className={`rounded-xl border p-4 ${
+            answer.escalated ? 'border-danger/30 bg-danger/5' : 'border-success/30 bg-success/5'
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip size="sm" variant="soft" color={answer.escalated ? 'danger' : 'success'}>
+              {answer.escalated ? 'Escalated' : 'Answered'}
+            </Chip>
+            {answer.escalated ? (
+              <span className="text-xs text-muted">{escalationLabel(answer.escalationReason)}</span>
+            ) : null}
+          </div>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{answer.answer}</p>
+        </div>
+
+        {answer.chunks.length > 0 ? (
+          <div>
+            <h4 className="mb-2 text-[11px] font-semibold tracking-wider text-muted uppercase">
+              Grounded chunks
+            </h4>
+            <ul className="flex flex-col gap-2">
+              {answer.chunks.map((chunk) => (
+                <li key={chunk.id} className="rounded-xl border border-border bg-background/60 p-3">
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted">
+                    <span className="truncate">{chunkSource(chunk)}</span>
+                    <Chip size="sm" variant="soft">
+                      {formatScore(chunk.score)}
+                    </Chip>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/80">
+                    {chunk.content}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <span>{answer.model ?? 'no model call'}</span>
+          <span aria-hidden>·</span>
+          <span>{answer.promptVersion}</span>
+          <span aria-hidden>·</span>
+          <span>{formatLatency(answer.latency)}</span>
+          <span aria-hidden>·</span>
+          <span>{formatTokens(answer.tokens)}</span>
+        </p>
+      </Card.Content>
+    </Card>
   );
 }
