@@ -29,6 +29,14 @@ export const envSchema = z
     CHATWOOT_WEBHOOK_SECRET: optional(z.string().min(8)),
 
     LLM_PROVIDER: z.enum(['openai', 'openrouter', 'mock']).default('mock'),
+    /**
+     * Escape hatch for deliberate offline demos. The mock provider echoes input
+     * and embeds lexically, so production refuses it unless this is `true`.
+     */
+    ALLOW_MOCK_LLM: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
     OPENAI_API_KEY: optional(z.string().min(1)),
     /** Chat via OpenRouter; embeddings stay with OpenAI (D3). */
     OPENROUTER_API_KEY: optional(z.string().min(1)),
@@ -70,6 +78,56 @@ export const envSchema = z
           message: `required when LLM_PROVIDER=${env.LLM_PROVIDER}`,
         });
       }
+    }
+
+    if (env.NODE_ENV !== 'production') {
+      return;
+    }
+
+    // Production is for real models and real secrets — never copied templates.
+    if (env.LLM_PROVIDER === 'mock' && !env.ALLOW_MOCK_LLM) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['LLM_PROVIDER'],
+        message:
+          'mock is not allowed in production — set openai/openrouter, or ALLOW_MOCK_LLM=true for a deliberate offline demo',
+      });
+    }
+
+    const placeholder = /change[-_]?me|dev-only|dev-webhook|placeholder|example/i;
+    for (const key of ['AUTH_SESSION_SECRET', 'CHATWOOT_WEBHOOK_SECRET'] as const) {
+      const value = env[key];
+      if (typeof value === 'string' && placeholder.test(value)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'placeholder value — generate a real secret (openssl rand -hex 32)',
+        });
+      }
+    }
+
+    if (env.CHATWOOT_WEBHOOK_SECRET && env.CHATWOOT_WEBHOOK_SECRET.length < 32) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CHATWOOT_WEBHOOK_SECRET'],
+        message: 'must be at least 32 characters in production',
+      });
+    }
+
+    if (env.COMPANY_NAME === 'Acme Support') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['COMPANY_NAME'],
+        message: 'set your product/company name (the default is a development placeholder)',
+      });
+    }
+
+    if (/sa:sa@/.test(env.DATABASE_URL)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DATABASE_URL'],
+        message: 'default development credentials are not allowed in production',
+      });
     }
   });
 

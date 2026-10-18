@@ -8,6 +8,12 @@ node_modules
 docs
 .DS_Store
 *.log
+*.dump
+*.tgz
+*.tar.gz
+backups
+**/evals/.results
+**/test/fixtures
 .env
 .env.*
 !.env.example

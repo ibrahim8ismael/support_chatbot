@@ -151,8 +151,11 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       metrics and a results JSON, and exits non-zero on a gate failure (retrieval
       ≥ 0.90, groundedness ≥ 0.95, escalation ≥ 0.90, injection = 1.00, case errors =
       0). Dataset/constraints and gate math have CI specs; `mock-scores.ts` prints the
-      offline score table used to tune corpus questions. Live mock run: all gates pass
-      (60/60 cases); real groundedness numbers need an OpenAI/OpenRouter key.
+      offline score table used to tune corpus questions. Mock plumbing runs pass the
+      gates on the later full runs, but the judge is fake (groundedness is
+      tautological) and the two earliest runs failed the injection gate — see
+      `apps/api/evals/README.md`. Real numbers need an OpenAI/OpenRouter key, and the
+      mock provider is refused in production.
 
 ## M2 — Live in one inbox (Phase 1: the bot answers customers, safely)
 

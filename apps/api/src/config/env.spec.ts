@@ -71,4 +71,33 @@ describe('validateEnv', () => {
     expect(openrouter.LLM_PROVIDER).toBe('openrouter');
     expect(openrouter.OPENROUTER_API_KEY).toBe('sk-or-test');
   });
+
+  it('rejects mock models, placeholders and dev defaults in production', () => {
+    const base = {
+      NODE_ENV: 'production',
+      AUTH_SESSION_SECRET: SECRET,
+      LLM_PROVIDER: 'openai',
+      OPENAI_API_KEY: 'sk-test',
+      DATABASE_URL: 'postgres://user:secret@db:5432/support_agent',
+      COMPANY_NAME: 'Support Agent',
+    };
+
+    expect(() => validateEnv({ ...base, LLM_PROVIDER: 'mock' })).toThrow(/mock is not allowed/);
+    expect(() =>
+      validateEnv({
+        ...base,
+        AUTH_SESSION_SECRET: 'dev-only-change-me-0123456789abcdef0123456789abcdef',
+      }),
+    ).toThrow(/placeholder/);
+    expect(() => validateEnv({ ...base, COMPANY_NAME: 'Acme Support' })).toThrow(/company name/);
+    expect(() =>
+      validateEnv({ ...base, DATABASE_URL: 'postgres://sa:sa@localhost:5432/support_agent' }),
+    ).toThrow(/default development credentials/);
+    expect(() => validateEnv({ ...base, CHATWOOT_WEBHOOK_SECRET: 'short' })).toThrow(/at least 32/);
+
+    // Explicit offline demos remain possible.
+    expect(() =>
+      validateEnv({ ...base, LLM_PROVIDER: 'mock', ALLOW_MOCK_LLM: 'true' }),
+    ).not.toThrow();
+  });
 });

@@ -12,7 +12,13 @@ dist/
 coverage/
 
 # Eval run artifacts (pnpm evals)
-apps/api/evals/.results/
+**/evals/.results/
+
+# Backups from the deployment runbook (dumps may contain customer data)
+backups/
+*.dump
+*.tgz
+*.tar.gz
 
 # Environment
 .env

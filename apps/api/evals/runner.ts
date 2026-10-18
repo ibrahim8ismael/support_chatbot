@@ -33,7 +33,7 @@ import {
 } from './metrics';
 
 /**
- * RAG eval runner (T-108) — `pnpm evals [-- --topic=<slug>] [--keep] [--verbose]`.
+ * RAG eval runner (T-108) — `pnpm evals [-- --topic=<slug>] [--keep] [--verbose] [--allow-production]`.
  *
  * Creates a scratch knowledge base (`__eval__ …`), ingests `evals/corpus/`
  * through the real pipeline (upload → queue → worker → chunks), runs every
@@ -49,16 +49,17 @@ import {
 const INGEST_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 250;
 const KB_NAME_PREFIX = '__eval__';
-const RESULTS_DIR = path.join(process.cwd(), 'evals', '.results');
+const RESULTS_DIR = path.join(__dirname, '.results');
 
 interface Flags {
   topic?: string;
   keep: boolean;
   verbose: boolean;
+  allowProduction: boolean;
 }
 
 function parseFlags(argv: string[]): Flags {
-  const flags: Flags = { keep: false, verbose: false };
+  const flags: Flags = { keep: false, verbose: false, allowProduction: false };
   for (const arg of argv) {
     if (arg === '--') {
       // pnpm forwards the separator itself in some versions.
@@ -67,14 +68,17 @@ function parseFlags(argv: string[]): Flags {
       flags.keep = true;
     } else if (arg === '--verbose') {
       flags.verbose = true;
+    } else if (arg === '--allow-production') {
+      flags.allowProduction = true;
     } else if (arg.startsWith('--topic=')) {
       flags.topic = arg.slice('--topic='.length);
     } else if (arg === '--help' || arg === '-h') {
       console.log(
-        'usage: pnpm evals [-- --topic=<slug>] [--keep] [--verbose]\n' +
-          '  --topic=<slug>  only run one dataset topic\n' +
-          '  --keep          keep the scratch knowledge base for inspection\n' +
-          '  --verbose       print every case, not just failures',
+        'usage: pnpm evals [-- --topic=<slug>] [--keep] [--verbose] [--allow-production]\n' +
+          '  --topic=<slug>       only run one dataset topic\n' +
+          '  --keep               keep the scratch knowledge base for inspection\n' +
+          '  --verbose            print every case, not just failures\n' +
+          '  --allow-production   permit a run when NODE_ENV=production (writes real rows)',
       );
       process.exit(0);
     } else {
@@ -93,6 +97,11 @@ interface RunContext {
 
 async function main(): Promise<number> {
   const flags = parseFlags(process.argv.slice(2));
+  if (process.env.NODE_ENV === 'production' && !flags.allowProduction) {
+    throw new Error(
+      'refusing to run evals with NODE_ENV=production (pass --allow-production to override)',
+    );
+  }
   const startedAt = new Date().toISOString();
 
   const datasets = await loadDatasets();
