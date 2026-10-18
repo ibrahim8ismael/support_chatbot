@@ -1,7 +1,13 @@
+@import 'tailwindcss';
+@import '@heroui/styles';
+
+/*
+ * Legacy tokens for screens that still use inline styles (pre-HeroUI).
+ * Remove each pair as its screen migrates to HeroUI components.
+ */
 :root {
-  color-scheme: light dark;
-  --border: #d4d4d8;
-  --muted: #71717a;
+  --legacy-border: #d4d4d8;
+  --legacy-muted: #71717a;
 }
 
 * {
@@ -10,11 +16,6 @@
 
 body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
   line-height: 1.5;
 }
 

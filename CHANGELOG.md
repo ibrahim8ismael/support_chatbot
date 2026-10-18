@@ -203,6 +203,10 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   or Redis memory nears its cap — with per-condition cooldown and BullMQ retries
   on delivery failure (unset webhook → warn logs) —
   [deployment](docs/operations/deployment.md#observability--alerting).
+- **Dashboard UI foundation**: HeroUI v3 + Tailwind CSS v4 wired into `apps/web`
+  (PostCSS pipeline, layered theme tokens, dark-mode ready); existing screens keep
+  their interim styles until each is migrated —
+  [development](docs/contributing/development.md#dashboard-ui-heroui).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

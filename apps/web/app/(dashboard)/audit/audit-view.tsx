@@ -97,7 +97,7 @@ export function AuditView() {
   return (
     <>
       <h1>Audit log</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Who changed what, when: logins, knowledge-base and document changes, bindings, settings and
         user management.
       </p>
@@ -105,7 +105,7 @@ export function AuditView() {
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
 
       {forbidden ? (
-        <p style={{ color: 'var(--muted)' }}>The audit log is admin-only.</p>
+        <p style={{ color: 'var(--legacy-muted)' }}>The audit log is admin-only.</p>
       ) : (
         <>
           <div
@@ -128,7 +128,7 @@ export function AuditView() {
                 }}
                 style={{
                   padding: '4px 10px',
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--legacy-border)',
                   borderRadius: 999,
                   background: rangeId === preset.id ? '#2563eb' : 'transparent',
                   color: rangeId === preset.id ? 'white' : 'inherit',
@@ -138,7 +138,7 @@ export function AuditView() {
                 {preset.label}
               </button>
             ))}
-            <label style={{ color: 'var(--muted)' }}>
+            <label style={{ color: 'var(--legacy-muted)' }}>
               Action{' '}
               <input
                 placeholder="exact, e.g. users.update"
@@ -149,7 +149,7 @@ export function AuditView() {
                 }}
               />
             </label>
-            <label style={{ color: 'var(--muted)' }}>
+            <label style={{ color: 'var(--legacy-muted)' }}>
               User id{' '}
               <input
                 placeholder="uuid"
@@ -160,17 +160,17 @@ export function AuditView() {
                 }}
               />
             </label>
-            {loading ? <span style={{ color: 'var(--muted)' }}>Loading…</span> : null}
+            {loading ? <span style={{ color: 'var(--legacy-muted)' }}>Loading…</span> : null}
           </div>
 
           {list && list.items.length === 0 && !loading ? (
-            <p style={{ color: 'var(--muted)' }}>No audit rows match these filters.</p>
+            <p style={{ color: 'var(--legacy-muted)' }}>No audit rows match these filters.</p>
           ) : null}
 
           {list && list.items.length > 0 ? (
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
               <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 12 }}>
+                <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
                   <th style={{ padding: '4px 8px 4px 0' }}>Time</th>
                   <th style={{ padding: '4px 8px' }}>User</th>
                   <th style={{ padding: '4px 8px' }}>Action</th>
@@ -179,7 +179,7 @@ export function AuditView() {
               </thead>
               <tbody>
                 {list.items.map((entry) => (
-                  <tr key={entry.id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <tr key={entry.id} style={{ borderTop: '1px solid var(--legacy-border)' }}>
                     <td style={{ padding: '6px 8px 6px 0', whiteSpace: 'nowrap' }}>
                       {formatTimestamp(entry.createdAt)}
                     </td>
@@ -191,11 +191,13 @@ export function AuditView() {
                       <div>
                         {entry.entity}
                         {entry.entityId ? (
-                          <span style={{ color: 'var(--muted)' }}> · {entry.entityId}</span>
+                          <span style={{ color: 'var(--legacy-muted)' }}> · {entry.entityId}</span>
                         ) : null}
                       </div>
                       <details style={{ marginTop: 2 }}>
-                        <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 12 }}>
+                        <summary
+                          style={{ cursor: 'pointer', color: 'var(--legacy-muted)', fontSize: 12 }}
+                        >
                           {describeAuditData(entry.data)}
                         </summary>
                         <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>
@@ -224,7 +226,7 @@ export function AuditView() {
             >
               Next
             </button>
-            <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+            <span style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
               {total === 0 ? 'No rows' : `Rows ${offset + 1}–${offset + shown} of ${total}`}
             </span>
           </div>

@@ -166,7 +166,7 @@ export function ConversationsView() {
   return (
     <>
       <h1>Conversations</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Read-only explorer: messages, bot state, and per-attempt diagnostics. Ranges filter on the
         last message time.
       </p>
@@ -191,7 +191,7 @@ export function ConversationsView() {
             }}
             style={{
               padding: '4px 10px',
-              border: '1px solid var(--border)',
+              border: '1px solid var(--legacy-border)',
               borderRadius: 999,
               background: rangeId === preset.id ? '#2563eb' : 'transparent',
               color: rangeId === preset.id ? 'white' : 'inherit',
@@ -201,7 +201,7 @@ export function ConversationsView() {
             {preset.label}
           </button>
         ))}
-        <label style={{ color: 'var(--muted)' }}>
+        <label style={{ color: 'var(--legacy-muted)' }}>
           Bot state{' '}
           <select
             value={botState}
@@ -218,7 +218,7 @@ export function ConversationsView() {
             ))}
           </select>
         </label>
-        <label style={{ color: 'var(--muted)' }}>
+        <label style={{ color: 'var(--legacy-muted)' }}>
           Inbox{' '}
           <select
             value={inboxId}
@@ -240,7 +240,7 @@ export function ConversationsView() {
           onClick={() => setReloadToken((token) => token + 1)}
           style={{
             padding: '4px 10px',
-            border: '1px solid var(--border)',
+            border: '1px solid var(--legacy-border)',
             borderRadius: 999,
             background: 'transparent',
             color: 'inherit',
@@ -249,7 +249,7 @@ export function ConversationsView() {
         >
           Refresh
         </button>
-        {loading ? <span style={{ color: 'var(--muted)' }}>Loading…</span> : null}
+        {loading ? <span style={{ color: 'var(--legacy-muted)' }}>Loading…</span> : null}
       </div>
 
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
@@ -257,12 +257,12 @@ export function ConversationsView() {
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 380px', minWidth: 320 }}>
           {list && list.items.length === 0 && !loading ? (
-            <p style={{ color: 'var(--muted)' }}>No conversations match these filters.</p>
+            <p style={{ color: 'var(--legacy-muted)' }}>No conversations match these filters.</p>
           ) : null}
           {list && list.items.length > 0 ? (
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
               <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 12 }}>
+                <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
                   <th style={{ padding: '4px 8px 4px 0' }}>Contact</th>
                   <th style={{ padding: '4px 8px' }}>State</th>
                   <th style={{ padding: '4px 0 4px 8px' }}>Last message</th>
@@ -275,13 +275,13 @@ export function ConversationsView() {
                     onClick={() => setSelectedId(item.id)}
                     style={{
                       cursor: 'pointer',
-                      borderTop: '1px solid var(--border)',
+                      borderTop: '1px solid var(--legacy-border)',
                       background: selectedId === item.id ? 'rgba(37, 99, 235, 0.08)' : undefined,
                     }}
                   >
                     <td style={{ padding: '6px 8px 6px 0' }}>
                       <div>{item.contactName ?? 'Unknown contact'}</div>
-                      <div style={{ color: 'var(--muted)', fontSize: 11 }}>
+                      <div style={{ color: 'var(--legacy-muted)', fontSize: 11 }}>
                         #{item.chatwootConversationId} · inbox {item.chatwootInboxId}
                       </div>
                     </td>
@@ -311,7 +311,7 @@ export function ConversationsView() {
             >
               Next
             </button>
-            <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+            <span style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
               {pageRangeLabel(offset, shown, total)}
             </span>
           </div>
@@ -319,11 +319,11 @@ export function ConversationsView() {
 
         <div style={{ flex: '2 1 520px', minWidth: 320 }}>
           {detailLoading && !detail ? (
-            <p style={{ color: 'var(--muted)' }}>Loading conversation…</p>
+            <p style={{ color: 'var(--legacy-muted)' }}>Loading conversation…</p>
           ) : detail ? (
             <DetailPanel detail={detail} />
           ) : (
-            <p style={{ color: 'var(--muted)' }}>Select a conversation to see its thread.</p>
+            <p style={{ color: 'var(--legacy-muted)' }}>Select a conversation to see its thread.</p>
           )}
         </div>
       </div>
@@ -335,9 +335,9 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
   const { conversation } = detail;
 
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
+    <div style={{ border: '1px solid var(--legacy-border)', borderRadius: 8, padding: 16 }}>
       <h2 style={{ margin: 0, fontSize: 16 }}>{conversation.contactName ?? 'Unknown contact'}</h2>
-      <div style={{ color: 'var(--muted)', fontSize: 12, margin: '4px 0 12px' }}>
+      <div style={{ color: 'var(--legacy-muted)', fontSize: 12, margin: '4px 0 12px' }}>
         Inbox {conversation.chatwootInboxId} · conversation #{conversation.chatwootConversationId} ·{' '}
         {BOT_STATE_LABELS[conversation.botState]} · last message{' '}
         {conversation.lastMessageAt ? formatTimestamp(conversation.lastMessageAt) : '—'}
@@ -345,20 +345,20 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
 
       <h3 style={{ fontSize: 14, margin: '12px 0 8px' }}>Messages</h3>
       {detail.messages.length === 0 ? (
-        <p style={{ color: 'var(--muted)' }}>No messages stored for this conversation.</p>
+        <p style={{ color: 'var(--legacy-muted)' }}>No messages stored for this conversation.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {detail.messages.map((message) => (
             <div
               key={message.id}
               style={{
-                border: '1px solid var(--border)',
+                border: '1px solid var(--legacy-border)',
                 borderLeft: `3px solid ${
                   message.isPrivate
                     ? '#b45309'
                     : message.senderType === 'bot'
                       ? '#2563eb'
-                      : 'var(--muted)'
+                      : 'var(--legacy-muted)'
                 }`,
                 borderRadius: 6,
                 padding: '8px 10px',
@@ -371,7 +371,7 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
                   justifyContent: 'space-between',
                   gap: 8,
                   fontSize: 11,
-                  color: 'var(--muted)',
+                  color: 'var(--legacy-muted)',
                 }}
               >
                 <span>
@@ -388,15 +388,17 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
 
       <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>Bot answer attempts</h3>
       {detail.answerEventsRestricted ? (
-        <p style={{ color: 'var(--muted)' }}>
+        <p style={{ color: 'var(--legacy-muted)' }}>
           Answer events (query text, retrieved chunks) are visible to admins only.
         </p>
       ) : detail.answerEvents.length === 0 ? (
-        <p style={{ color: 'var(--muted)' }}>No bot attempts recorded for this conversation.</p>
+        <p style={{ color: 'var(--legacy-muted)' }}>
+          No bot attempts recorded for this conversation.
+        </p>
       ) : (
         <table style={{ borderCollapse: 'collapse', width: '100%' }}>
           <thead>
-            <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 12 }}>
+            <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
               <th style={{ padding: '4px 8px 4px 0' }}>Time</th>
               <th style={{ padding: '4px 8px' }}>Outcome</th>
               <th style={{ padding: '4px 8px', textAlign: 'right' }}>Score</th>
@@ -408,7 +410,7 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
           <tbody>
             {detail.answerEvents.map((event) => (
               <Fragment key={event.id}>
-                <tr style={{ borderTop: '1px solid var(--border)' }}>
+                <tr style={{ borderTop: '1px solid var(--legacy-border)' }}>
                   <td style={{ padding: '6px 8px 6px 0', whiteSpace: 'nowrap' }}>
                     {formatTimestamp(event.createdAt)}
                   </td>
@@ -435,7 +437,9 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
                 <tr>
                   <td colSpan={6} style={{ padding: '0 0 6px' }}>
                     <details>
-                      <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 12 }}>
+                      <summary
+                        style={{ cursor: 'pointer', color: 'var(--legacy-muted)', fontSize: 12 }}
+                      >
                         “{event.queryText}” — {event.retrievedChunks.length} retrieved chunks · topK{' '}
                         {event.topK ?? '—'} · {event.chatModel ?? 'model unknown'}
                       </summary>
@@ -451,13 +455,13 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
                           <div
                             key={chunk.id}
                             style={{
-                              border: '1px solid var(--border)',
+                              border: '1px solid var(--legacy-border)',
                               borderRadius: 6,
                               padding: '6px 8px',
                               fontSize: 12,
                             }}
                           >
-                            <div style={{ color: 'var(--muted)', marginBottom: 2 }}>
+                            <div style={{ color: 'var(--legacy-muted)', marginBottom: 2 }}>
                               {chunk.documentFilename ?? 'document'} · chunk {chunk.chunkIndex}
                             </div>
                             <div style={{ whiteSpace: 'pre-wrap' }}>{chunk.content}</div>

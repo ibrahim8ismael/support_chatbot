@@ -88,7 +88,7 @@ export function PlaygroundView() {
   return (
     <>
       <h1>Playground</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Ask a question against selected knowledge bases — the exact answer path (retrieval +
         grounding + output guard) with no Chatwoot involvement.
       </p>
@@ -104,7 +104,7 @@ export function PlaygroundView() {
         <div>
           <h2 style={{ fontSize: 16 }}>Knowledge bases</h2>
           {kbs.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>
+            <p style={{ color: 'var(--legacy-muted)' }}>
               Nothing to ask yet — <Link href="/knowledge-bases">create a knowledge base</Link> and
               upload documents.
             </p>
@@ -127,7 +127,7 @@ export function PlaygroundView() {
               ))}
             </ul>
           )}
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>
+          <p style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
             {selectedKbIds.length}/{MAX_KB_SELECTION} selected
           </p>
 
@@ -151,7 +151,7 @@ export function PlaygroundView() {
 
         <div style={{ display: 'grid', gap: 12, alignContent: 'start' }}>
           {exchanges.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>
+            <p style={{ color: 'var(--legacy-muted)' }}>
               Answers, grounded chunks, and scores appear here.
             </p>
           ) : (
@@ -167,7 +167,9 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
   const { question, answer } = exchange;
 
   return (
-    <article style={{ border: '1px solid var(--border)', padding: 12, display: 'grid', gap: 8 }}>
+    <article
+      style={{ border: '1px solid var(--legacy-border)', padding: 12, display: 'grid', gap: 8 }}
+    >
       <p style={{ margin: 0 }}>
         <strong>Q:</strong> {question}
       </p>
@@ -190,7 +192,7 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
           <h3 style={{ fontSize: 14, margin: '4px 0' }}>Grounded chunks</h3>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {answer.chunks.map((chunk) => (
-              <li key={chunk.id} style={{ border: '1px solid var(--border)', padding: 8 }}>
+              <li key={chunk.id} style={{ border: '1px solid var(--legacy-border)', padding: 8 }}>
                 <div
                   style={{
                     display: 'flex',
@@ -199,7 +201,7 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ color: 'var(--muted)' }}>{chunkSource(chunk)}</span>
+                  <span style={{ color: 'var(--legacy-muted)' }}>{chunkSource(chunk)}</span>
                   <span style={{ fontFamily: 'monospace' }}>{formatScore(chunk.score)}</span>
                 </div>
                 <pre
@@ -218,7 +220,7 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
         </div>
       ) : null}
 
-      <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>
+      <p style={{ margin: 0, color: 'var(--legacy-muted)', fontSize: 13 }}>
         {answer.model ?? 'no model call'} · {answer.promptVersion} · {formatLatency(answer.latency)}{' '}
         · {formatTokens(answer.tokens)}
       </p>

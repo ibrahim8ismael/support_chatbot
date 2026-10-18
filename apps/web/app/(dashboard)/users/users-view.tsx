@@ -207,26 +207,26 @@ export function UsersView() {
   return (
     <>
       <h1>Users</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Accounts and roles. Deactivated users keep their history; sessions are revoked on
         deactivation and on password change.
       </p>
 
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-      {notice ? <p style={{ color: 'var(--muted)' }}>{notice}</p> : null}
+      {notice ? <p style={{ color: 'var(--legacy-muted)' }}>{notice}</p> : null}
 
       {forbidden ? (
-        <p style={{ color: 'var(--muted)' }}>
+        <p style={{ color: 'var(--legacy-muted)' }}>
           User management is admin-only — ask an admin if you need access.
         </p>
       ) : (
         <>
-          {loading ? <p style={{ color: 'var(--muted)' }}>Loading…</p> : null}
+          {loading ? <p style={{ color: 'var(--legacy-muted)' }}>Loading…</p> : null}
 
           {!loading ? (
             <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 900 }}>
               <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 12 }}>
+                <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
                   <th style={{ padding: '4px 8px 4px 0' }}>User</th>
                   <th style={{ padding: '4px 8px' }}>Name</th>
                   <th style={{ padding: '4px 8px' }}>Role</th>
@@ -240,10 +240,10 @@ export function UsersView() {
                   const dirty = Object.keys(changedPatch(user, draft)).length > 0;
                   const busyRow = busy === user.id;
                   return (
-                    <tr key={user.id} style={{ borderTop: '1px solid var(--border)' }}>
+                    <tr key={user.id} style={{ borderTop: '1px solid var(--legacy-border)' }}>
                       <td style={{ padding: '6px 8px 6px 0' }}>
                         <div>{user.email}</div>
-                        <div style={{ color: 'var(--muted)', fontSize: 11 }}>
+                        <div style={{ color: 'var(--legacy-muted)', fontSize: 11 }}>
                           joined {new Date(user.createdAt).toISOString().slice(0, 10)}
                         </div>
                       </td>

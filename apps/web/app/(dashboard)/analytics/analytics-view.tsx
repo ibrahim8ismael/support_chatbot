@@ -137,7 +137,7 @@ export function AnalyticsView() {
   return (
     <>
       <h1>Analytics</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Answer and deflection metrics from answer_events — definitions in docs/api/rest-api.md.
         Times are UTC.
       </p>
@@ -159,7 +159,7 @@ export function AnalyticsView() {
             onClick={() => setRangeId(preset.id)}
             style={{
               padding: '4px 10px',
-              border: '1px solid var(--border)',
+              border: '1px solid var(--legacy-border)',
               borderRadius: 999,
               background: rangeId === preset.id ? '#2563eb' : 'transparent',
               color: rangeId === preset.id ? 'white' : 'inherit',
@@ -169,7 +169,7 @@ export function AnalyticsView() {
             {preset.label}
           </button>
         ))}
-        <label style={{ color: 'var(--muted)' }}>
+        <label style={{ color: 'var(--legacy-muted)' }}>
           Interval{' '}
           <select
             value={interval}
@@ -182,7 +182,7 @@ export function AnalyticsView() {
             ))}
           </select>
         </label>
-        <label style={{ color: 'var(--muted)' }}>
+        <label style={{ color: 'var(--legacy-muted)' }}>
           Inbox{' '}
           <select value={inboxId} onChange={(event) => setInboxId(event.target.value)}>
             <option value="">All inboxes</option>
@@ -193,7 +193,7 @@ export function AnalyticsView() {
             ))}
           </select>
         </label>
-        {loading ? <span style={{ color: 'var(--muted)' }}>Loading…</span> : null}
+        {loading ? <span style={{ color: 'var(--legacy-muted)' }}>Loading…</span> : null}
       </div>
 
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
@@ -234,9 +234,9 @@ function OverviewCards({ overview }: { overview: AnalyticsOverview }) {
       {cards.map((card) => (
         <div
           key={card.label}
-          style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}
+          style={{ border: '1px solid var(--legacy-border)', borderRadius: 8, padding: 12 }}
         >
-          <div style={{ color: 'var(--muted)', fontSize: 12 }}>{card.label}</div>
+          <div style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>{card.label}</div>
           <div style={{ fontSize: 22, marginTop: 4 }}>{card.value}</div>
         </div>
       ))}
@@ -255,14 +255,25 @@ function TimeseriesChart({
 
   return (
     <div
-      style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, margin: '16px 0' }}
+      style={{
+        border: '1px solid var(--legacy-border)',
+        borderRadius: 8,
+        padding: 16,
+        margin: '16px 0',
+      }}
     >
       <h2 style={{ margin: 0, fontSize: 16 }}>Conversations vs bot answers</h2>
       <div
-        style={{ display: 'flex', gap: 12, color: 'var(--muted)', fontSize: 12, margin: '8px 0' }}
+        style={{
+          display: 'flex',
+          gap: 12,
+          color: 'var(--legacy-muted)',
+          fontSize: 12,
+          margin: '8px 0',
+        }}
       >
         <span>
-          <span style={swatch('var(--muted)')} /> Conversations
+          <span style={swatch('var(--legacy-muted)')} /> Conversations
         </span>
         <span>
           <span style={swatch('#2563eb')} /> Bot-answered
@@ -297,7 +308,7 @@ function TimeseriesChart({
                 style={{
                   width: 9,
                   height: `${(point.conversations / max) * 120}px`,
-                  background: 'var(--muted)',
+                  background: 'var(--legacy-muted)',
                 }}
               />
               <div
@@ -308,7 +319,7 @@ function TimeseriesChart({
                 }}
               />
             </div>
-            <span style={{ fontSize: 10, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10, color: 'var(--legacy-muted)', whiteSpace: 'nowrap' }}>
               {bucketLabel(point.bucket, interval)}
             </span>
           </div>
@@ -327,17 +338,24 @@ function UnansweredPanel({
 }) {
   return (
     <div
-      style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, margin: '16px 0' }}
+      style={{
+        border: '1px solid var(--legacy-border)',
+        borderRadius: 8,
+        padding: 16,
+        margin: '16px 0',
+      }}
     >
       <h2 style={{ margin: 0, fontSize: 16 }}>Top unanswered questions</h2>
       {forbidden ? (
-        <p style={{ color: 'var(--muted)' }}>Customer question text is visible to admins only.</p>
+        <p style={{ color: 'var(--legacy-muted)' }}>
+          Customer question text is visible to admins only.
+        </p>
       ) : questions.length === 0 ? (
-        <p style={{ color: 'var(--muted)' }}>No unanswered questions in this range.</p>
+        <p style={{ color: 'var(--legacy-muted)' }}>No unanswered questions in this range.</p>
       ) : (
         <table style={{ borderCollapse: 'collapse', width: '100%', marginTop: 8 }}>
           <thead>
-            <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 12 }}>
+            <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
               <th style={{ padding: '4px 8px 4px 0' }}>Question</th>
               <th style={{ padding: '4px 8px', textAlign: 'right' }}>Times</th>
               <th style={{ padding: '4px 0 4px 8px' }}>Last seen</th>
@@ -345,7 +363,7 @@ function UnansweredPanel({
           </thead>
           <tbody>
             {questions.map((question) => (
-              <tr key={question.query} style={{ borderTop: '1px solid var(--border)' }}>
+              <tr key={question.query} style={{ borderTop: '1px solid var(--legacy-border)' }}>
                 <td style={{ padding: '6px 8px 6px 0' }}>{question.query}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>{question.count}</td>
                 <td style={{ padding: '6px 0 6px 8px', whiteSpace: 'nowrap' }}>
