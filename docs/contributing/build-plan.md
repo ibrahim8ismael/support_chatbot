@@ -289,8 +289,18 @@ engineering; dashboard admin flows used by the team.
       internal CA. Verified: three consecutive local runs green (ack p95 107–213 ms,
       e2e p95 157–476 ms under `LLM_PROVIDER=mock`, 50/50 jobs recovered across three
       Redis restarts) plus the failure path (wrong secret → 10/10 rejected, exit 1).
-- [ ] **T-403 · Retention job** (S) — configurable 12-month cleanup of messages/events
+- [x] **T-403 · Retention job** (S) — configurable 12-month cleanup of messages/events
       (never documents/KBs). Refs NFR-7.
+      **Done 2026-10-18**: new `retention` module + `maintenance` queue. A daily BullMQ
+      job (`retention-cleanup`, 03:00 UTC, upserted every boot like the digest) deletes
+      `answer_events` → `messages` → `conversations` (`coalesce(last_message_at,
+      created_at)` as age key) → `audit_logs` older than `RETENTION_DAYS` (default 365,
+      validated ≥ 1) in 1,000-row primary-key batches; documents/chunks/KBs/users/
+      settings are never touched. FK-safe order; failures propagate to BullMQ retry
+      (3 attempts, backoff). Verified live on the dev stack: seeded 400-day-old
+      conversation + message + event + audit rows were purged while fresh rows and a KB
+      with its document/chunks survived; an immediate re-run deleted 0 (idempotent).
+      15 new unit tests (batching/order/cutoff/summary/worker/scheduler) — api suite 340.
 - [ ] **T-404 · Alerting** (S) — webhook error rate, queue depth/age, LLM error rate,
       Redis full; wire to the ops channel. Refs NFR-4.
 - [ ] **T-405 · Rollout to remaining inboxes** (S, ops) — activate inboxes one by one
