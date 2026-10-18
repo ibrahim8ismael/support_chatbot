@@ -207,6 +207,9 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   (PostCSS pipeline, layered theme tokens, dark-mode ready); existing screens keep
   their interim styles until each is migrated —
   [development](docs/contributing/development.md#dashboard-ui-heroui).
+- **Login screen**: rebuilt with HeroUI — centered auth block, accessible
+  TextField/Form/Alert primitives, pending spinner and the same session-cookie
+  flow.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
