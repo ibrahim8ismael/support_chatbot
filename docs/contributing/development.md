@@ -88,6 +88,22 @@ Rules of thumb: **no real model calls in CI** (mock provider); every bugfix that
 
 Simulator (no Chatwoot at all): `pnpm simulate:webhook -- --fixture annual-plan --conversation 812` posts a real captured payload to your local endpoint and, when `CHATWOOT_BASE_URL` points at a mock server (`pnpm mock:chatwoot`, P1), lets you assert the outgoing reply.
 
+## Dashboard UI (HeroUI)
+
+The dashboard uses [HeroUI v3](https://heroui.com) on Tailwind CSS v4.
+`@heroui/styles` is imported by `apps/web/app/globals.css`, `@tailwindcss/postcss`
+compiles it, and components come from `@heroui/react`:
+
+```tsx
+import { Button, Card } from '@heroui/react';
+```
+
+HeroUI v3 needs no provider. Use Tailwind utilities for layout and HeroUI's
+semantic tokens (`bg-surface`, `text-muted`, `border-border`) instead of raw hex
+values; dark mode is the `.dark` class on `<html>`. Screens that still use inline
+styles read the temporary `--legacy-border` / `--legacy-muted` tokens — delete a
+pair once its last screen migrates.
+
 ## Conventions
 
 - **Branches:** `feat/<topic>`, `fix/<topic>`, `docs/<topic>`; small PRs; squash merge.

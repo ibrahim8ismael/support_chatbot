@@ -145,7 +145,7 @@ export function BindingsView() {
   return (
     <>
       <h1>Inbox bindings</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Map Chatwoot inboxes to knowledge bases and toggle the per-inbox kill switch. An inbox with
         no knowledge bases or the switch off is ignored by the bot.
       </p>
@@ -153,15 +153,15 @@ export function BindingsView() {
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
 
       {forbidden ? (
-        <p style={{ color: 'var(--muted)' }}>
+        <p style={{ color: 'var(--legacy-muted)' }}>
           Bindings are managed by editors and admins — ask an admin for a role if you need to change
           them.
         </p>
       ) : (
         <>
-          {loading ? <p style={{ color: 'var(--muted)' }}>Loading…</p> : null}
+          {loading ? <p style={{ color: 'var(--legacy-muted)' }}>Loading…</p> : null}
           {!loading && bindings.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>
+            <p style={{ color: 'var(--legacy-muted)' }}>
               No bindings yet — add an inbox below once its webhook has been seen.
             </p>
           ) : null}
@@ -173,7 +173,7 @@ export function BindingsView() {
               <div
                 key={binding.chatwootInboxId}
                 style={{
-                  border: '1px solid var(--border)',
+                  border: '1px solid var(--legacy-border)',
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 12,
@@ -190,12 +190,12 @@ export function BindingsView() {
                 >
                   <div>
                     <strong>{binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}</strong>
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>
+                    <div style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
                       #{binding.chatwootInboxId} · account {binding.chatwootAccountId}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <label style={{ color: 'var(--muted)', fontSize: 13 }}>
+                    <label style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
                       <input
                         type="checkbox"
                         checked={draft.enabled}
@@ -219,11 +219,11 @@ export function BindingsView() {
                 </div>
 
                 <div style={{ marginTop: 8 }}>
-                  <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>
+                  <div style={{ color: 'var(--legacy-muted)', fontSize: 12, marginBottom: 4 }}>
                     Knowledge bases
                   </div>
                   {kbs.length === 0 ? (
-                    <p style={{ color: 'var(--muted)', margin: 0 }}>
+                    <p style={{ color: 'var(--legacy-muted)', margin: 0 }}>
                       No knowledge bases exist yet.
                     </p>
                   ) : (
@@ -265,7 +265,7 @@ export function BindingsView() {
             >
               Add inbox
             </button>
-            <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+            <span style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
               Bindings seen from webhooks appear here automatically.
             </span>
           </div>

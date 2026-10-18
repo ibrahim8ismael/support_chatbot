@@ -188,7 +188,7 @@ export function KnowledgeBasesView() {
   return (
     <>
       <h1>Knowledge bases</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Upload PDF/DOCX/TXT/MD files and follow ingestion status. Retrieval and the playground
         answer from the chunks produced here.
       </p>
@@ -207,7 +207,12 @@ export function KnowledgeBasesView() {
           <h2 style={{ fontSize: 16 }}>Create</h2>
           <form
             onSubmit={onCreate}
-            style={{ display: 'grid', gap: 8, border: '1px solid var(--border)', padding: 12 }}
+            style={{
+              display: 'grid',
+              gap: 8,
+              border: '1px solid var(--legacy-border)',
+              padding: 12,
+            }}
           >
             <label>
               Name
@@ -224,7 +229,9 @@ export function KnowledgeBasesView() {
 
           <h2 style={{ fontSize: 16, marginTop: 24 }}>All knowledge bases</h2>
           {kbs.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No knowledge bases yet — create the first one.</p>
+            <p style={{ color: 'var(--legacy-muted)' }}>
+              No knowledge bases yet — create the first one.
+            </p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
               {kbs.map((kb) => (
@@ -239,12 +246,14 @@ export function KnowledgeBasesView() {
                       cursor: 'pointer',
                       background: 'transparent',
                       border:
-                        kb.id === selectedKbId ? '2px solid #2563eb' : '1px solid var(--border)',
+                        kb.id === selectedKbId
+                          ? '2px solid #2563eb'
+                          : '1px solid var(--legacy-border)',
                     }}
                   >
                     <strong>{kb.name}</strong>
                     {kb.status === 'archived' ? <em> · archived</em> : null}
-                    <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                    <div style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
                       {kb.documentCount} document{kb.documentCount === 1 ? '' : 's'}
                       {kb.statusCounts.processing > 0
                         ? ` · ${kb.statusCounts.processing} processing`
@@ -263,7 +272,7 @@ export function KnowledgeBasesView() {
             {selectedKb ? `Documents — ${selectedKb.name}` : 'Documents'}
           </h2>
           {!selectedKb ? (
-            <p style={{ color: 'var(--muted)' }}>
+            <p style={{ color: 'var(--legacy-muted)' }}>
               Select a knowledge base to manage its documents.
             </p>
           ) : (
@@ -278,14 +287,14 @@ export function KnowledgeBasesView() {
                 {uploadError ? <p style={{ color: 'crimson', margin: 0 }}>{uploadError}</p> : null}
               </div>
               {documents.length === 0 ? (
-                <p style={{ color: 'var(--muted)' }}>No documents yet — upload one above.</p>
+                <p style={{ color: 'var(--legacy-muted)' }}>No documents yet — upload one above.</p>
               ) : (
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
                   {documents.map((document) => (
                     <li
                       key={document.id}
                       style={{
-                        border: '1px solid var(--border)',
+                        border: '1px solid var(--legacy-border)',
                         padding: 10,
                         display: 'grid',
                         gap: 4,
@@ -304,7 +313,7 @@ export function KnowledgeBasesView() {
                           {DOCUMENT_STATUS_LABELS[document.status]}
                         </span>
                       </div>
-                      <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                      <div style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
                         {formatBytes(document.sizeBytes)}
                         {document.status === 'ready'
                           ? ` · ${document.chunkCount} chunk${document.chunkCount === 1 ? '' : 's'}`
@@ -352,6 +361,6 @@ function statusColor(status: DocumentStatus): string {
     case 'failed':
       return 'crimson';
     default:
-      return 'var(--muted)';
+      return 'var(--legacy-muted)';
   }
 }

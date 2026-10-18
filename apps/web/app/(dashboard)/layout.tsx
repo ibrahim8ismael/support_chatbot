@@ -15,7 +15,7 @@ const NAV = [
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside style={{ width: 220, borderRight: '1px solid var(--border)', padding: 16 }}>
+      <aside style={{ width: 220, borderRight: '1px solid var(--legacy-border)', padding: 16 }}>
         <Link href="/knowledge-bases" style={{ fontWeight: 600 }}>
           Support Agent
         </Link>

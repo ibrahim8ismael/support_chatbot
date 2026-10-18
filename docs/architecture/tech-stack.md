@@ -8,6 +8,7 @@ Every choice below links to a decision record when one exists. Version numbers a
 | --- | --- | --- | --- |
 | Language | TypeScript (strict) everywhere | One language across api/web/shared; AI SDK is TS-first | Python for RAG (rejected: second language, no need yet) |
 | Dashboard | **Next.js** (App Router) | Team knows React; SSR for protected pages; simple Docker deploy as Node server | Remix, plain Vite SPA (weaker server story) |
+| Dashboard UI | **HeroUI v3** + Tailwind CSS v4 | Accessible React Aria components (Table, Dialog, Select…), theme tokens + dark mode, fast composition from ready blocks | shadcn/ui (copy-in Radix), MUI (heavy), plain CSS modules |
 | API | **NestJS** | DI + modules map 1:1 to our modular monolith; first-class validation, guards, testing | Fastify raw (more boilerplate), Express (too loose), tRPC-only (no webhooks story) |
 | Database | **Postgres 16+** | Relational data + vectors in one place ([ADR-0002](../decisions/0002-postgres-pgvector.md)) | Separate vector DB (Qdrant etc. — extra ops), Mongo (no vectors story) |
 | Vectors | **pgvector** (HNSW, cosine) | Same DB, good enough to millions of vectors | Pinecone/Qdrant/Weaviate |

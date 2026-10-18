@@ -134,14 +134,14 @@ export function SettingsView() {
   return (
     <>
       <h1>Settings</h1>
-      <p style={{ color: 'var(--muted)' }}>
+      <p style={{ color: 'var(--legacy-muted)' }}>
         Runtime tuning: kill switch, retrieval thresholds, prompts and models. Secrets (API keys,
         Chatwoot tokens) are environment-only and never appear here.
       </p>
 
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-      {notice ? <p style={{ color: 'var(--muted)' }}>{notice}</p> : null}
-      {loading ? <p style={{ color: 'var(--muted)' }}>Loading…</p> : null}
+      {notice ? <p style={{ color: 'var(--legacy-muted)' }}>{notice}</p> : null}
+      {loading ? <p style={{ color: 'var(--legacy-muted)' }}>Loading…</p> : null}
 
       {settings && form ? (
         <>
@@ -151,7 +151,7 @@ export function SettingsView() {
                 <span style={{ fontSize: 13 }}>
                   {field.label}
                   {field.hint ? (
-                    <span style={{ color: 'var(--muted)' }}> — {field.hint}</span>
+                    <span style={{ color: 'var(--legacy-muted)' }}> — {field.hint}</span>
                   ) : null}
                 </span>
                 {field.kind === 'boolean' ? (
@@ -193,7 +193,7 @@ export function SettingsView() {
           </div>
 
           {health ? (
-            <p style={{ color: 'var(--muted)' }}>
+            <p style={{ color: 'var(--legacy-muted)' }}>
               LLM ok: {health.embedding.model} ({health.embedding.dimensions}d,{' '}
               {health.embedding.latencyMs} ms) + {health.chat.model} ({health.chat.latencyMs} ms) —{' '}
               {health.totalLatencyMs} ms total
