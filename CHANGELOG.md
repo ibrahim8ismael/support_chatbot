@@ -51,8 +51,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   TTL per [caching](docs/architecture/caching.md)), `generateReply()` (non-streamed),
   and `classify()` (typed zod output). `LLM_PROVIDER=mock` ships a deterministic
   feature-hash embedding model (1536 dims, unit-length) and an echo chat model
-  ("I received: …" for the M0 loop) so dev and CI need no keys; unwired providers fail
-  fast at boot until D2 (provider & residency) closes. Shared `EMBEDDING_DIMENSIONS`
+  ("I received: …" for the M0 loop) so dev and CI need no keys; real providers landed
+  with D2 (see the real-provider entry below). Shared `EMBEDDING_DIMENSIONS`
   constant now backs the `chunks.embedding` column type.
 - **Settings module** (T-205): typed runtime knobs (`bot_enabled` kill switch, prompt,
   fallback message, retrieval thresholds/top-k/context, reply cap, model ids) stored as
@@ -109,6 +109,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   tokens, model, and prompt version. Session cookies keep the two apps wired; 401s
   bounce to `/login`. `apps/web` gains vitest with tests for the request-building
   and upload-validation logic.
+- **Real LLM providers** (T-102, D2 closed): `LLM_PROVIDER=openai` wires OpenAI chat
+  (`CHAT_MODEL`, default `gpt-4.1-mini`) + embeddings (`text-embedding-3-small`);
+  `LLM_PROVIDER=openrouter` routes chat through OpenRouter (`@ai-sdk/openai-compatible`,
+  any `vendor/model` id) while embeddings stay with OpenAI (D3). Model ids are
+  provider-qualified (`openai:…` / `openrouter:…`) so the embedding cache and
+  `answer_events` never mix models; missing keys and unknown providers fail fast at
+  boot (`ANTHROPIC_API_KEY` / `SELF_HOSTED_BASE_URL` are gone — a third carrier would
+  be a new factory case, not an env var).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

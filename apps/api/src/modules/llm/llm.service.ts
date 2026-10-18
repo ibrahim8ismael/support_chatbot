@@ -46,7 +46,7 @@ export class LlmService {
     private readonly cache: CacheService,
     private readonly logger: AppLogger,
   ) {
-    // Fails fast at boot when env selects a provider that is not wired yet (D2).
+    // Fails fast at boot on a broken provider config (missing key / unknown provider).
     this.models = createLlmModels(config);
   }
 

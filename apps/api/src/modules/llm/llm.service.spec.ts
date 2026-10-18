@@ -153,8 +153,10 @@ describe('LlmService', () => {
     });
   });
 
-  it('fails fast at boot for providers that are not wired yet (D2)', () => {
+  it('fails fast at boot for misconfigured providers', () => {
+    // Real providers are wired (D2 closed), but this harness carries no keys.
     expect(() => buildHarness('openai')).toThrow(LlmProviderNotConfiguredError);
-    expect(() => buildHarness('openai')).toThrow(/D2/);
+    expect(() => buildHarness('openai')).toThrow(/OPENAI_API_KEY/);
+    expect(() => buildHarness('grok')).toThrow(/not a known provider/);
   });
 });

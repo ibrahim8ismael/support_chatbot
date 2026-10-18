@@ -21,8 +21,8 @@ Two model roles:
 
 | Role | Job | Example |
 | --- | --- | --- |
-| **Embedding model** | Vectorize KB chunks and incoming questions for search | `text-embedding-3-small` / `bge-m3` |
-| **Chat model** | Write the final reply in a friendly tone, based only on retrieved KB content | GPT-4.1-mini / Claude / self-hosted Llama |
+| **Embedding model** | Vectorize KB chunks and incoming questions for search | `text-embedding-3-small` (OpenAI, 1536 dims) |
+| **Chat model** | Write the final reply in a friendly tone, based only on retrieved KB content | `gpt-4.1-mini` (OpenAI) or any OpenRouter model |
 
 Models are accessed through the **Vercel AI SDK**, so providers can be swapped by config ([details](../integrations/llm-and-vercel-ai-sdk.md)).
 

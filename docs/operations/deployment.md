@@ -59,8 +59,9 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `CHATWOOT_ACCOUNT_ID` | `1` | |
 | `CHATWOOT_BOT_TOKEN` | `xxxxx` | Agent Bot token |
 | `CHATWOOT_WEBHOOK_SECRET` | 48-char random | path segment of our webhook URL |
-| `LLM_PROVIDER` | `openai \| anthropic \| self-hosted` | [LLM doc](../integrations/llm-and-vercel-ai-sdk.md) |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `SELF_HOSTED_BASE_URL` | — | whichever provider D2 selects |
+| `LLM_PROVIDER` | `mock \| openai \| openrouter` | [LLM doc](../integrations/llm-and-vercel-ai-sdk.md) |
+| `OPENAI_API_KEY` | — | chat + embeddings (`openai`); embeddings only under `openrouter` (D3) |
+| `OPENROUTER_API_KEY` | — | chat when `LLM_PROVIDER=openrouter` |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt |

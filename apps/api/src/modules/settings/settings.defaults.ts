@@ -6,8 +6,8 @@ import { ANSWER_PROMPT_V1 } from '../agent/prompts/answer.v1';
 
 /**
  * Defaults from docs/architecture/data-model.md § settings. Model ids follow
- * env until D2 wires real providers (the settings keys are the future runtime
- * override; the mock ignores them).
+ * env (D2 closed: `LLM_PROVIDER=mock|openai|openrouter`); the settings keys are
+ * the future runtime override, which the mock ignores for now.
  */
 export function buildSettingsDefaults(config: ConfigService): Settings {
   return {
