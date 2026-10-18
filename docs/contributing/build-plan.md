@@ -241,8 +241,16 @@ engineering; dashboard admin flows used by the team.
       kill switch; typed settings form with `PUT /settings` and the admin LLM smoke
       check), plus new `/users` and `/audit` admin screens with 403 notes for other
       roles. Screen and API share the users/audit schemas.
-- [ ] **T-305 · Weekly digest cron** (S) — repeatable BullMQ job posting “top unanswered”
+- [x] **T-305 · Weekly digest cron** (S) — repeatable BullMQ job posting “top unanswered”
       to the support channel; reviews cadence per roadmap.
+      **Done 2026-10-18**: `DigestScheduler` upserts a BullMQ job scheduler
+      (`weekly-digest`, `0 9 * * 1` UTC) on the `analytics-followup` queue at every
+      boot — idempotent, so restarts never duplicate the schedule. `DigestWorker`
+      (concurrency 1) runs `DigestService`: clusters the trailing 7 days with the
+      `/analytics/unanswered` contract and posts a Slack-compatible `{"text": …}`
+      payload to `DIGEST_WEBHOOK_URL` (unset → logged instead; non-2xx → BullMQ
+      retry with backoff). Env validated + documented in deployment.md § Scheduled
+      jobs; specs cover formatting, posting, retries and boot safety.
 
 ## M4 — All inboxes & operations (Phase 3)
 
