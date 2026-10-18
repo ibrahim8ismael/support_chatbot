@@ -51,7 +51,10 @@ export class AuthController {
     @Req() request: AuthenticatedRequest,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ status: 'ok' }> {
-    await this.auth.logout(getSessionCookie(request));
+    await this.auth.logout(getSessionCookie(request), {
+      ip: request.ip,
+      userAgent: request.get('user-agent'),
+    });
     const cookie = sessionCookieOptions(this.secure());
     response.clearCookie(SESSION_COOKIE_NAME, { ...cookie, maxAge: undefined });
     return { status: 'ok' };

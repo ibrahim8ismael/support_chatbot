@@ -1,8 +1,8 @@
 import { Controller, Delete, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 
-import type { KnowledgeDocument } from '@support-agent/shared';
+import type { KnowledgeDocument, SessionUser } from '@support-agent/shared';
 
-import { Roles } from '../auth/auth.decorators';
+import { CurrentUser, Roles } from '../auth/auth.decorators';
 import { KnowledgeBaseService } from './knowledge-base.service';
 
 /**
@@ -16,15 +16,21 @@ export class DocumentsController {
   /** Reset status and re-run parse → chunk → embed (idempotent replace). */
   @Roles('editor', 'admin')
   @Post(':id/reprocess')
-  reprocess(@Param('id', ParseUUIDPipe) id: string): Promise<KnowledgeDocument> {
-    return this.knowledgeBase.reprocessDocument(id);
+  reprocess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<KnowledgeDocument> {
+    return this.knowledgeBase.reprocessDocument(id, user.id);
   }
 
   /** Hard delete: row, chunks (cascade), stored file. */
   @Roles('editor', 'admin')
   @Delete(':id')
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<{ status: 'ok' }> {
-    await this.knowledgeBase.removeDocument(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ status: 'ok' }> {
+    await this.knowledgeBase.removeDocument(id, user.id);
     return { status: 'ok' };
   }
 }

@@ -26,6 +26,7 @@ import {
 import { AppLogger } from '../../common/logger/app-logger.service';
 import { resolveUploadPath } from '../../common/storage/uploads';
 import { DatabaseService } from '../../db/database.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { BindingsService } from '../bindings/bindings.service';
 import { CacheService } from '../infra/cache.service';
 import { QueueService } from '../infra/queue.service';
@@ -75,6 +76,7 @@ export interface IngestionDocument {
  * Exposes to other modules: KB/document CRUD and metadata; ingestion reads the
  * stored file + `content_hash` from `documents`.
  * Does NOT do: parsing/chunking/embedding (that is `ingestion`), or Chatwoot.
+ * KB and document changes are audited through the analytics writer (T-301).
  *
  * Uploads land in `UPLOAD_DIR` under a generated name; the user-supplied
  * filename is only kept for display. Deleting a document cascades its chunks
@@ -89,6 +91,7 @@ export class KnowledgeBaseService {
     private readonly database: DatabaseService,
     private readonly queue: QueueService,
     private readonly bindings: BindingsService,
+    private readonly analytics: AnalyticsService,
     private readonly cache: CacheService,
     private readonly logger: AppLogger,
     config: ConfigService,
@@ -124,11 +127,22 @@ export class KnowledgeBaseService {
     if (!row) {
       throw new Error('failed to create knowledge base');
     }
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'knowledge_base.create',
+      entity: 'knowledge_base',
+      entityId: row.id,
+      data: { name: row.name },
+    });
     return toSummary(row);
   }
 
   /** Rename / re-describe / archive (PATCH semantics). */
-  async update(id: string, patch: KnowledgeBaseUpdate): Promise<KnowledgeBaseSummary> {
+  async update(
+    id: string,
+    patch: KnowledgeBaseUpdate,
+    userId: string,
+  ): Promise<KnowledgeBaseSummary> {
     const values: Partial<typeof knowledgeBases.$inferInsert> = {};
     if (patch.name !== undefined) {
       values.name = patch.name;
@@ -150,6 +164,14 @@ export class KnowledgeBaseService {
       throw new NotFoundException(`knowledge base ${id} not found`);
     }
 
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'knowledge_base.update',
+      entity: 'knowledge_base',
+      entityId: row.id,
+      data: { patch },
+    });
+
     const counts = await this.loadStatusCounts(id);
     return toSummary(row, counts.get(id));
   }
@@ -159,7 +181,7 @@ export class KnowledgeBaseService {
    * a live bot never loses its KB; documents/chunks cascade, stored files are
    * removed best-effort.
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId: string): Promise<void> {
     const kb = await this.loadKb(id);
     if (await this.bindings.isKbBound(kb.id)) {
       throw new ConflictException('knowledge base is bound to an inbox — unbind it first');
@@ -173,6 +195,14 @@ export class KnowledgeBaseService {
     await this.database.db.delete(knowledgeBases).where(eq(knowledgeBases.id, id));
     await this.cache.del(kbVersionKey(id));
     await Promise.all(files.map((file) => this.removeStoredFile(file.storagePath)));
+
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'knowledge_base.delete',
+      entity: 'knowledge_base',
+      entityId: kb.id,
+      data: { name: kb.name },
+    });
   }
 
   async listDocuments(kbId: string): Promise<KnowledgeDocument[]> {
@@ -278,11 +308,19 @@ export class KnowledgeBaseService {
       );
     }
 
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'document.upload',
+      entity: 'document',
+      entityId: row.id,
+      data: { kbId: row.kbId, filename: row.filename, sizeBytes: row.sizeBytes },
+    });
+
     return { documentId: row.id, status: row.status };
   }
 
   /** Reset status and re-run the pipeline (same file, idempotent replace). */
-  async reprocessDocument(documentId: string): Promise<KnowledgeDocument> {
+  async reprocessDocument(documentId: string, userId: string): Promise<KnowledgeDocument> {
     await this.loadDocument(documentId);
 
     const [row] = await this.database.db
@@ -312,15 +350,31 @@ export class KnowledgeBaseService {
       throw new ServiceUnavailableException('ingestion queue unavailable — retry reprocess');
     }
 
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'document.reprocess',
+      entity: 'document',
+      entityId: row.id,
+      data: { kbId: row.kbId, filename: row.filename },
+    });
+
     return toDocument(row);
   }
 
   /** Removes the document + chunks (cascade) and bumps the KB version counter. */
-  async removeDocument(documentId: string): Promise<void> {
+  async removeDocument(documentId: string, userId: string): Promise<void> {
     const document = await this.loadDocument(documentId);
     await this.database.db.delete(documents).where(eq(documents.id, documentId));
     await this.cache.incr(kbVersionKey(document.kbId));
     await this.removeStoredFile(document.storagePath);
+
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'document.delete',
+      entity: 'document',
+      entityId: document.id,
+      data: { kbId: document.kbId, filename: document.filename },
+    });
   }
 
   /** Projection for the ingestion pipeline — null when the row is gone. */

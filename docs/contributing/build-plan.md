@@ -194,8 +194,19 @@ escalation works; humans can pause/resume.
 **Exit criteria (roadmap M3):** support lead reads analytics weekly without
 engineering; dashboard admin flows used by the team.
 
-- [ ] **T-301 · Event + audit writers** (S) — `recordAnswerEvent()`/`recordAuditLog()`
+- [x] **T-301 · Event + audit writers** (S) — `recordAnswerEvent()`/`recordAuditLog()`
       used by agent, auth, KB, bindings, settings; retention fields. Refs FR-9 P0.
+      **Done 2026-10-18**: `AnalyticsService` (analytics module) exposes both writers;
+      each is best-effort (a failed insert is logged, never thrown — analytics must not
+      break a reply or a successful request) and every row carries an indexed
+      `created_at` as the retention key for T-403 (NFR-7). `AgentService.ask()` folds the
+      attempt into `answer_events` (query, top-k/score, retrieved chunk ids, latencies,
+      models, tokens) when the caller passes conversation context — the playground and
+      evals don't, T-203 will; `ANSWER_OUTCOMES` gains `escalated_guard` for output-guard
+      escalations. Audit rows are written for login success/failure (reason + IP/UA),
+      logout (owner read before delete), KB create/update/delete, document
+      upload/reprocess/delete, binding upserts (per-inbox kill switch) and settings
+      updates (before/after diff per changed key).
 - [ ] **T-302 · Analytics API + screen** (M) — deflection/escalation rate, bot messages,
       latency avg/p95, token cost, filters (inbox, day/week/month), top-unanswered list;
       metric definitions contract in [rest-api](../api/rest-api.md) — do not silently

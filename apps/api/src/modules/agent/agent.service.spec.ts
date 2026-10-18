@@ -5,6 +5,7 @@ import type { ConfigService } from '@nestjs/config';
 import type { RetrievedChunk } from '@support-agent/shared';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
+import type { AnalyticsService } from '../analytics/analytics.service';
 import type { GenerateReplyInput } from '../llm/llm.types';
 import type { LlmService } from '../llm/llm.service';
 import type { RetrievalService } from '../retrieval/retrieval.service';
@@ -72,8 +73,11 @@ function buildHarness(options: HarnessOptions = {}) {
     get: vi.fn((key: string) => (key === 'COMPANY_NAME' ? 'Acme Support' : undefined)),
   } as unknown as ConfigService;
 
-  const service = new AgentService(retrieval, llm, settings, logger, config);
-  return { service, retrieve, generateReply, logger };
+  const recordAnswerEvent = vi.fn(async (_input: unknown) => undefined);
+  const analytics = { recordAnswerEvent } as unknown as AnalyticsService;
+
+  const service = new AgentService(retrieval, llm, settings, analytics, logger, config);
+  return { service, retrieve, generateReply, recordAnswerEvent, logger };
 }
 
 function chunk(id: string, content: string, score = 0.8, filename = 'guide.pdf'): RetrievedChunk {
@@ -188,5 +192,65 @@ describe('AgentService.ask', () => {
     expect(result.escalated).toBe(false);
     expect(result.answer.length).toBe(100);
     expect(result.answer.endsWith('…')).toBe(true);
+  });
+
+  it('records an answer event with the retrieval trace when context is given', async () => {
+    const conversationId = '44444444-4444-4444-8444-444444444444';
+    const incomingMessageId = '55555555-5555-4555-8555-555555555555';
+    const { service, recordAnswerEvent } = buildHarness({
+      chunks: [chunk('c1', 'Reset via Settings.', 0.9), chunk('c2', 'Then confirm.')],
+      contextChunks: 1,
+    });
+
+    await service.ask({
+      question: 'How do I reset my password?',
+      kbIds: [KB],
+      history: [],
+      event: { conversationId, incomingMessageId },
+    });
+
+    expect(recordAnswerEvent).toHaveBeenCalledTimes(1);
+    expect(recordAnswerEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId,
+        incomingMessageId,
+        outcome: 'answered',
+        queryText: 'How do I reset my password?',
+        topK: 10,
+        topScore: 0.9,
+        // All retrieved candidates, not just the ones that fit the prompt.
+        retrievedChunkIds: ['c1', 'c2'],
+        chatModel: 'mock-chat',
+        tokensIn: 42,
+        tokensOut: 7,
+      }),
+    );
+  });
+
+  it('maps guard and low-score escalations to their outcomes', async () => {
+    const event = { conversationId: 'conv-1', incomingMessageId: 'msg-1' };
+
+    const guarded = buildHarness({
+      chunks: [chunk('c1', 'x')],
+      reply: 'I checked the knowledge base and file guide.pdf.',
+    });
+    await guarded.service.ask({ question: 'q', kbIds: [KB], history: [], event });
+    expect(guarded.recordAnswerEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'escalated_guard', chatModel: 'mock-chat' }),
+    );
+
+    const empty = buildHarness({ chunks: [] });
+    await empty.service.ask({ question: 'q', kbIds: [KB], history: [], event });
+    expect(empty.recordAnswerEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'escalated_low_score', topScore: null }),
+    );
+  });
+
+  it('does not touch analytics without conversation context', async () => {
+    const { service, recordAnswerEvent } = buildHarness({ chunks: [chunk('c1', 'x')] });
+
+    await service.ask({ question: 'q', kbIds: [KB], history: [] });
+
+    expect(recordAnswerEvent).not.toHaveBeenCalled();
   });
 });

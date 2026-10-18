@@ -5,6 +5,7 @@ import type { SessionUser } from '@support-agent/shared';
 
 import { AppLogger } from '../../common/logger/app-logger.service';
 import { DatabaseService } from '../../db/database.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { CacheService } from '../infra/cache.service';
 import {
   INVALID_CREDENTIALS_MESSAGE,
@@ -38,7 +39,8 @@ function toSessionUser(row: typeof users.$inferSelect): SessionUser {
 /**
  * Auth — owns `users` and `sessions`: argon2id login, server-side sessions,
  * per-IP + per-account login throttling (counters in Redis, fail-open when
- * Redis is down — availability first, the lock is best-effort).
+ * Redis is down — availability first, the lock is best-effort). Every login
+ * attempt and logout is audited (`audit_logs`, T-301).
  */
 @Injectable()
 export class AuthService {
@@ -46,16 +48,23 @@ export class AuthService {
     private readonly database: DatabaseService,
     private readonly cache: CacheService,
     private readonly passwords: PasswordService,
+    private readonly analytics: AnalyticsService,
     private readonly logger: AppLogger,
   ) {}
 
   async login(email: string, password: string, meta: LoginMeta): Promise<LoginResult> {
-    await this.enforceIpLimit(meta.ip);
+    await this.enforceIpLimit(meta.ip, email);
 
     const failKey = `login:fail:${email.toLowerCase()}`;
     const failures = (await this.cache.get<number>(failKey)) ?? 0;
     if (isLoginLocked(failures)) {
       this.logger.warn(`login locked for ${email}`, AuthService.name);
+      await this.analytics.recordAuditLog({
+        userId: null,
+        action: 'auth.login_failed',
+        entity: 'session',
+        data: { email, reason: 'account_locked', ip: meta.ip ?? null },
+      });
       throw new HttpException(LOGIN_LOCKED_MESSAGE, 429);
     }
 
@@ -77,12 +86,30 @@ export class AuthService {
       await this.cache.set(failKey, next, LOGIN_FAILURE_WINDOW_SECONDS);
       await sleep(loginDelayMs(next));
       this.logger.warn(`failed login for ${email}`, AuthService.name);
+      await this.analytics.recordAuditLog({
+        userId: user?.id ?? null,
+        action: 'auth.login_failed',
+        entity: 'session',
+        data: {
+          email,
+          reason: !user ? 'unknown_email' : !verified ? 'bad_password' : 'inactive_user',
+          ip: meta.ip ?? null,
+          userAgent: meta.userAgent ?? null,
+        },
+      });
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
     await this.cache.del(failKey);
     const sessionId = await this.createSession(user.id, meta);
     this.logger.log(`login ok for ${email}`, AuthService.name);
+    await this.analytics.recordAuditLog({
+      userId: user.id,
+      action: 'auth.login',
+      entity: 'session',
+      entityId: sessionId,
+      data: { ip: meta.ip ?? null, userAgent: meta.userAgent ?? null },
+    });
     return { user: toSessionUser(user), sessionId };
   }
 
@@ -125,12 +152,32 @@ export class AuthService {
     return { id: row.userId, email: row.email, name: row.name, role: row.role };
   }
 
-  /** Kills the session row; idempotent, garbage cookie values are ignored. */
-  async logout(sessionId: string | undefined): Promise<void> {
+  /**
+   * Kills the session row; idempotent, garbage cookie values are ignored.
+   * The owner is read before the delete so the logout can be attributed.
+   */
+  async logout(sessionId: string | undefined, meta: LoginMeta = {}): Promise<void> {
     if (!sessionId || !UUID_RE.test(sessionId)) {
       return;
     }
+
+    const [row] = await this.database.db
+      .select({ userId: sessions.userId })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
     await this.deleteSession(sessionId);
+
+    if (row) {
+      await this.analytics.recordAuditLog({
+        userId: row.userId,
+        action: 'auth.logout',
+        entity: 'session',
+        entityId: sessionId,
+        data: { ip: meta.ip ?? null, userAgent: meta.userAgent ?? null },
+      });
+    }
   }
 
   private async createSession(userId: string, meta: LoginMeta): Promise<string> {
@@ -158,11 +205,17 @@ export class AuthService {
    * (approximate limiter); Redis errors fail open — CacheService degrades to
    * a miss, so login still works when the cache is down.
    */
-  private async enforceIpLimit(ip: string | undefined): Promise<void> {
+  private async enforceIpLimit(ip: string | undefined, email: string): Promise<void> {
     const key = `login:ip:${ip ?? 'unknown'}`;
     const hits = (await this.cache.get<number>(key)) ?? 0;
     if (hits >= LOGIN_IP_LIMIT) {
       this.logger.warn(`login rate limited for ip ${ip ?? 'unknown'}`, AuthService.name);
+      await this.analytics.recordAuditLog({
+        userId: null,
+        action: 'auth.login_failed',
+        entity: 'session',
+        data: { email, reason: 'ip_rate_limited', ip: ip ?? null },
+      });
       throw new HttpException(LOGIN_IP_BLOCKED_MESSAGE, 429);
     }
     await this.cache.set(key, hits + 1, LOGIN_IP_WINDOW_SECONDS);

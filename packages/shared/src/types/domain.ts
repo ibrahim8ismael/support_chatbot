@@ -29,6 +29,7 @@ export type BotState = (typeof BOT_STATES)[number];
 export const ANSWER_OUTCOMES = [
   'answered',
   'escalated_low_score',
+  'escalated_guard',
   'escalated_request',
   'escalated_classifier',
   'escalated_repeat',

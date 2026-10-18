@@ -5,6 +5,7 @@ import type { SessionUser, UserRole } from '@support-agent/shared';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
+import type { AnalyticsService } from '../analytics/analytics.service';
 import type { CacheService } from '../infra/cache.service';
 import { LOGIN_IP_LIMIT, LOGIN_MAX_FAILURES } from './auth.constants';
 import { AuthService } from './auth.service';
@@ -113,8 +114,20 @@ function buildHarness(
     debug: vi.fn(),
   } as unknown as AppLogger;
 
-  const service = new AuthService(database, cache, passwords, logger);
-  return { service, cacheMap, select, insertValues, deleteWhere, verify, updateSet };
+  const recordAuditLog = vi.fn(async (_input: unknown) => undefined);
+  const analytics = { recordAuditLog } as unknown as AnalyticsService;
+
+  const service = new AuthService(database, cache, passwords, analytics, logger);
+  return {
+    service,
+    cacheMap,
+    select,
+    insertValues,
+    deleteWhere,
+    verify,
+    updateSet,
+    recordAuditLog,
+  };
 }
 
 /** Resolves to the rejection reason (or throws when it unexpectedly resolves). */
@@ -219,6 +232,69 @@ describe('AuthService.login', () => {
       harness.service.login('user@example.com', 'correct-password', {}),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it('audits a successful login with the session id', async () => {
+    const harness = buildHarness();
+
+    await harness.service.login('user@example.com', 'correct-password', { ip: '1.2.3.4' });
+
+    expect(harness.recordAuditLog).toHaveBeenCalledWith({
+      userId: USER_ID,
+      action: 'auth.login',
+      entity: 'session',
+      entityId: SESSION_ID,
+      data: { ip: '1.2.3.4', userAgent: null },
+    });
+  });
+
+  it('audits failed logins with a reason and no password material', async () => {
+    const harness = buildHarness();
+
+    await expect(
+      harness.service.login('user@example.com', 'wrong-password', { ip: '1.2.3.4' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(harness.recordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER_ID,
+        action: 'auth.login_failed',
+        entity: 'session',
+        data: expect.objectContaining({
+          email: 'user@example.com',
+          reason: 'bad_password',
+          ip: '1.2.3.4',
+        }),
+      }),
+    );
+  });
+
+  it('audits account lockouts and IP rate limits without an actor', async () => {
+    const locked = buildHarness({ cache: new Map([[FAIL_KEY, LOGIN_MAX_FAILURES]]) });
+
+    await statusOf(locked.service.login('user@example.com', 'correct-password', {}));
+
+    expect(locked.recordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: null,
+        action: 'auth.login_failed',
+        data: expect.objectContaining({ reason: 'account_locked' }),
+      }),
+    );
+
+    const limited = buildHarness({ cache: new Map([['login:ip:9.9.9.9', LOGIN_IP_LIMIT]]) });
+
+    await statusOf(
+      limited.service.login('user@example.com', 'correct-password', { ip: '9.9.9.9' }),
+    );
+
+    expect(limited.recordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: null,
+        action: 'auth.login_failed',
+        data: expect.objectContaining({ reason: 'ip_rate_limited' }),
+      }),
+    );
+  });
 });
 
 describe('AuthService.resolveSession', () => {
@@ -282,5 +358,30 @@ describe('AuthService.logout', () => {
     await harness.service.logout('garbage');
 
     expect(harness.deleteWhere).not.toHaveBeenCalled();
+  });
+
+  it('audits logout with the session owner', async () => {
+    const harness = buildHarness({
+      sessionRow: {
+        sessionId: SESSION_ID,
+        expiresAt: new Date(Date.now() + 60_000),
+        userId: USER_ID,
+        email: USER_ROW.email,
+        name: USER_ROW.name,
+        role: 'editor',
+        isActive: true,
+      },
+    });
+
+    await harness.service.logout(SESSION_ID, { ip: '1.2.3.4' });
+
+    expect(harness.deleteWhere).toHaveBeenCalledOnce();
+    expect(harness.recordAuditLog).toHaveBeenCalledWith({
+      userId: USER_ID,
+      action: 'auth.logout',
+      entity: 'session',
+      entityId: SESSION_ID,
+      data: { ip: '1.2.3.4', userAgent: null },
+    });
   });
 });

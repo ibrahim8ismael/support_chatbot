@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../db/database.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { InfraModule } from '../infra/infra.module';
 import { BindingsController } from './bindings.controller';
 import { BindingsService } from './bindings.service';
@@ -8,9 +9,10 @@ import { BindingsService } from './bindings.service';
 /**
  * Bindings — owns `inbox_bindings`. Per-inbox KB lists are cached in Redis
  * (60 s, busted on write) because the webhook filter reads them per message.
+ * Upserts are audited (T-301).
  */
 @Module({
-  imports: [DatabaseModule, InfraModule],
+  imports: [DatabaseModule, InfraModule, AnalyticsModule],
   controllers: [BindingsController],
   providers: [BindingsService],
   exports: [BindingsService],

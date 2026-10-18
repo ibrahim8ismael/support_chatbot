@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
+import type { AnalyticsService } from '../analytics/analytics.service';
 import type { CacheService } from '../infra/cache.service';
 import { BindingsService, BINDING_CACHE_TTL_SECONDS, bindingCacheKey } from './bindings.service';
 import { inboxBindings } from './entities/inbox-binding.entity';
 
 const KB_A = '11111111-1111-4111-8111-111111111111';
 const KB_B = '22222222-2222-4222-8222-222222222222';
+const ACTOR_ID = '44444444-4444-4444-8444-444444444444';
 
 interface BindingRow {
   id: string;
@@ -79,8 +81,11 @@ function buildHarness(rows: BindingRow[] = [], options: { accountId?: number } =
   const logger = { warn: vi.fn() } as unknown as AppLogger;
   const config = { get: vi.fn(() => options.accountId) } as unknown as ConfigService;
 
+  const recordAuditLog = vi.fn(async (_input: unknown) => undefined);
+  const analytics = { recordAuditLog } as unknown as AnalyticsService;
+
   return {
-    service: new BindingsService(database, cache, logger, config),
+    service: new BindingsService(database, cache, analytics, logger, config),
     select,
     insert,
     insertedValues,
@@ -88,6 +93,7 @@ function buildHarness(rows: BindingRow[] = [], options: { accountId?: number } =
     cache,
     store,
     logger,
+    recordAuditLog,
   };
 }
 
@@ -111,11 +117,11 @@ describe('BindingsService', () => {
   });
 
   it('upserts the full state and never touches the cached display name', async () => {
-    const { service, insertedValues, conflictConfigs, cache } = buildHarness([], {
+    const { service, insertedValues, conflictConfigs, cache, recordAuditLog } = buildHarness([], {
       accountId: 7,
     });
 
-    const binding = await service.upsert(9, { kbIds: [KB_A], enabled: false });
+    const binding = await service.upsert(9, { kbIds: [KB_A], enabled: false }, ACTOR_ID);
 
     expect(insertedValues).toEqual([
       { chatwootAccountId: 7, chatwootInboxId: 9, kbIds: [KB_A], enabled: false },
@@ -127,12 +133,19 @@ describe('BindingsService', () => {
     expect(conflictConfigs[0]).not.toHaveProperty('set.displayName');
     expect(cache.del).toHaveBeenCalledWith(bindingCacheKey(9));
     expect(binding).toMatchObject({ chatwootInboxId: 9, kbIds: [KB_A], enabled: false });
+    expect(recordAuditLog).toHaveBeenCalledWith({
+      userId: ACTOR_ID,
+      action: 'binding.update',
+      entity: 'inbox_binding',
+      entityId: '9',
+      data: { kbIds: [KB_A], enabled: false },
+    });
   });
 
   it('defaults to Chatwoot account 1 with a warning when env is missing', async () => {
     const { service, insertedValues, logger } = buildHarness();
 
-    await service.upsert(3, { kbIds: [], enabled: true });
+    await service.upsert(3, { kbIds: [], enabled: true }, ACTOR_ID);
 
     expect(insertedValues[0]).toMatchObject({ chatwootAccountId: 1 });
     expect(logger.warn).toHaveBeenCalledWith(
