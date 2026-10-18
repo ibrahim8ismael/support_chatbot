@@ -1,0 +1,32 @@
+# Caddy site config for the prod compose (docker/docker-compose.prod.yml).
+# SITE_ADDRESS is interpolated from the environment (root .env; e.g.
+# support-agent.internal.company or localhost for a drill).
+#
+# TLS: Caddy's internal CA by default — install the root certificate on team
+# machines:
+#   docker compose --env-file .env -f docker/docker-compose.prod.yml \
+#     exec proxy cat /data/caddy/pki/authorities/local/root.crt > caddy-root.crt
+# With real certificates (company CA or public domain), swap `tls internal`
+# for `tls /certs/<cert>.pem /certs/<key>.pem` (bind-mount the files) or drop
+# the line entirely for public ACME.
+#
+# Only three things are exposed: the dashboard (web), the API (/api/*) and
+# /health — everything else stays on the internal compose network.
+
+{
+	admin off
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	tls internal
+
+	@api path /api/* /health
+	handle @api {
+		reverse_proxy api:3001
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

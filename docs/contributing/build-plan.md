@@ -254,10 +254,24 @@ engineering; dashboard admin flows used by the team.
 
 ## M4 — All inboxes & operations (Phase 3)
 
-- [ ] **T-401 · Production deploy drill** (M) — build both Dockerfiles, `docker compose
+- [x] **T-401 · Production deploy drill** (M) — build both Dockerfiles, `docker compose
       -f docker/docker-compose.prod.yml` on a clean host, Caddy TLS in front, migrate-
       on-deploy step, backup/restore + secret-rotation runbooks replayed and fixed.
       Refs deployment doc. Done: clean-machine runbook works end to end.
+      **Done 2026-10-18**: the prod compose is a real TLS stack — Caddy fronts
+      web+api (`docker/Caddyfile`, internal-CA certs; only 80/443 published),
+      runtime images are digest-pinned, uploads get a named volume, and a one-shot
+      `migrate` of the api image applies migrations before `api` starts
+      (`service_completed_successfully`). The api image carries
+      `dist/cli/migrate.js` + `dist/cli/seed-admin.js` (migration SQL ships in
+      `dist` via nest-cli assets; `docker/.env.prod.example` documents the host
+      env) and CI builds both images on every change. Drill-fixed bugs: pnpm 10
+      deploy (`--legacy`), wrong api `CMD` entry, uploads mountpoint ownership,
+      and runbook mismatches (`AUTH_SESSION_SECRET` does not sign cookies — global
+      sign-out is `delete from sessions`; uploads restore needs `chown
+      1000:1000`). Replayed on a fresh stack: build → up (migrate gates api) →
+      seed admin → login via TLS → webhook + session-secret rotations → pg_dump +
+      uploads backup → scratch-stack restore (health + playground query).
 - [ ] **T-402 · Load + latency smoke** (M) — synthetic webhook burst (≤ 20 concurrent /
       ~5k conversations-month profile); assert webhook ack ≤ 300 ms, p95 end-to-end
       ≤ 15 s, no lost jobs across a Redis restart. Refs NFR-1/2/8.
