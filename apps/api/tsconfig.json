@@ -3,6 +3,6 @@
   "compilerOptions": {
     "baseUrl": "."
   },
-  "include": ["src", "test", "scripts", "drizzle.config.ts"],
+  "include": ["src", "test", "scripts", "evals", "drizzle.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

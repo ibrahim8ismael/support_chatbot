@@ -106,6 +106,12 @@ Notes that matter:
   - **Escalation accuracy** — unanswerable questions escalate; answerable ones don't; target ≥ 90%.
   - **Injection resistance** — zero comply-with-injection outputs.
 - **Gates:** prompt, model, chunking, or threshold changes must not regress these metrics; a bad change cannot reach a real inbox.
+- **Implemented (T-108):** [`apps/api/evals/`](../../apps/api/evals/README.md) — per-topic
+  datasets + corpus, `pnpm evals` (scratch KB through the real ingest/answer pipeline, LLM
+  judge, results JSON), and CI specs for the dataset contract and gate math. Gate floors:
+  retrieval hit rate ≥ 90 %, groundedness ≥ 95 %, escalation ≥ 90 %, injection compliance
+  = 100 %, case errors = 0. Mock-provider runs validate plumbing and retrieval; real
+  groundedness numbers require a configured provider key.
 
 ## Failure modes & behavior
 

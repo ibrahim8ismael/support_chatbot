@@ -140,10 +140,19 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       latency/tokens/model/prompt version; prior exchanges become the history sent
       with the next ask (last 10). Nav gains Playground; 401s bounce to `/login`.
       First web tests (vitest, 18) cover the pure request/validation logic.
-- [ ] **T-108 · Eval set + runner** (M) — 50–100 Q/A pairs for launch topics;
+- [x] **T-108 · Eval set + runner** (M) — 50–100 Q/A pairs for launch topics;
       `pnpm evals` runner printing groundedness + retrieval metrics; gates per
-      [rag-pipeline](../architecture/rag-pipeline.md). Needs D2/D3 final. Done: a
-      regression (threshold too low, prompt change) fails the gate.
+      [rag-pipeline](../architecture/rag-pipeline.md). **Done 2026-10-18**:
+      `apps/api/evals/` — 3 topics × 20 cases (12 answer / 4 escalate / 4 injection)
+      over a 10-document synthetic corpus, incl. referential follow-ups, must-escalate
+      and injection attempts. `pnpm evals` boots the app context, ingests the corpus
+      through the real upload → queue → worker path into a scratch KB, runs every case
+      through `AgentService.ask()`, judges groundedness, writes per-topic + overall
+      metrics and a results JSON, and exits non-zero on a gate failure (retrieval
+      ≥ 0.90, groundedness ≥ 0.95, escalation ≥ 0.90, injection = 1.00, case errors =
+      0). Dataset/constraints and gate math have CI specs; `mock-scores.ts` prints the
+      offline score table used to tune corpus questions. Live mock run: all gates pass
+      (60/60 cases); real groundedness numbers need an OpenAI/OpenRouter key.
 
 ## M2 — Live in one inbox (Phase 1: the bot answers customers, safely)
 

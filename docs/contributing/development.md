@@ -36,7 +36,7 @@ With no Chatwoot and no provider keys you can still: log into the dashboard, cre
 | `pnpm test:e2e` | api e2e (testcontainers Postgres & Redis + mocked providers) |
 | `pnpm db:migrate` / `pnpm db:generate` | apply / create migrations |
 | `pnpm db:studio` | inspect the local DB |
-| `pnpm evals` | run the RAG eval set against **real** configured models (costs money — manual use) |
+| `pnpm evals` | run the RAG eval set through the real pipeline (mock provider by default; real providers cost money — see below) |
 | `pnpm simulate:webhook` | send a captured Chatwoot payload to the local webhook |
 
 ## Environment
@@ -44,6 +44,28 @@ With no Chatwoot and no provider keys you can still: log into the dashboard, cre
 - `apps/api/.env.example` lists every variable ([reference](../operations/deployment.md#environment-variables)). Never commit real values.
 - Local profiles: `LLM_PROVIDER=mock` (default — no external calls), `openai` or `openrouter` when you have keys in `.env.local` (real embeddings/replies).
 - The web app talks to the API via `NEXT_PUBLIC_API_URL`.
+
+## Running evals
+
+`pnpm evals` runs [`apps/api/evals`](../../apps/api/evals/README.md) — the T-108 eval set
+and gates. It needs Postgres + Redis, migrations, and a seeded user; it then creates a
+scratch `__eval__` knowledge base, ingests the corpus through the normal upload/queue
+path, asks every case through `AgentService.ask()`, and prints per-topic + overall metrics:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d postgres redis
+pnpm db:migrate && pnpm seed:admin
+pnpm evals                              # provider from apps/api/.env.local
+pnpm evals -- --topic=password-reset
+pnpm evals -- --keep --verbose
+```
+
+The exit code is non-zero when a gate fails: retrieval ≥ 0.90, groundedness ≥ 0.95,
+escalation ≥ 0.90, injection compliance = 1.00, case errors = 0. With
+`LLM_PROVIDER=mock`, plumbing and retrieval invariants are exercised but groundedness
+uses the mock judge (plumbing only) — run with a real provider before claiming a quality
+number. Runs are written to `apps/api/evals/.results/` (gitignored);
+`pnpm test` guards the dataset contract and gate math in CI.
 
 ## Testing strategy
 
@@ -53,7 +75,7 @@ With no Chatwoot and no provider keys you can still: log into the dashboard, cre
 | Integration | SuperTest + testcontainers Postgres & Redis | module APIs against a real DB incl. pgvector, queue and cache behavior; Chatwoot HTTP calls mocked (nock/msw) |
 | E2E (local) | webhook fixtures → queue → mocked models | full message flow: webhook in → decision → outbound call asserted |
 | Contract | captured Chatwoot fixtures (anonymized) | catches payload drift when Chatwoot is upgraded |
-| Evals (manual) | `pnpm evals` | retrieval/groundedness quality against real models ([gates](../architecture/rag-pipeline.md#quality-eval-set--gates)) |
+| Evals (manual) | `pnpm evals` | retrieval, groundedness, escalation and injection gates through the real pipeline ([gates](../architecture/rag-pipeline.md#quality-eval-set--gates)) |
 
 Rules of thumb: **no real model calls in CI** (mock provider); every bugfix that involved an answer decision adds a case to the eval set or a unit test — not just a Slack message.
 
