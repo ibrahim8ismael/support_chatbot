@@ -126,6 +126,15 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   the previous run. CI specs cover the dataset contract, mock-embedding retrieval
   invariants, and gate math; under `LLM_PROVIDER=mock` the groundedness gate is a
   plumbing check, so real quality numbers need a configured provider key.
+- **Event + audit writers** (T-301): `AnalyticsService` owns both write paths —
+  `recordAnswerEvent()` (one row per answer attempt: query, top-k/score, retrieved chunk
+  ids, latency breakdown, models, tokens, outcome) and `recordAuditLog()` (actor, action,
+  entity, context). Both are best-effort: a failed insert is logged, never thrown.
+  Wired into the agent (when the caller passes conversation context), auth (login
+  success/failure with a reason, logout), KB and document create/update/upload/
+  reprocess/delete, binding upserts (per-inbox kill switch) and settings updates
+  (before/after diff per key). `ANSWER_OUTCOMES` gains `escalated_guard`; `created_at`
+  on both tables is the retention key for the T-403 cleanup.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

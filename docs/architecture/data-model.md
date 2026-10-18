@@ -190,7 +190,7 @@ One row per bot answer attempt — the analytics and debugging backbone.
 | `conversation_id` | uuid FK | |
 | `incoming_message_id` | uuid FK → messages | the question |
 | `outgoing_message_id` | uuid FK → messages NULL | the answer, when posted |
-| `outcome` | text | `answered \| escalated_low_score \| escalated_request \| escalated_classifier \| escalated_repeat \| error` |
+| `outcome` | text | `answered \| escalated_low_score \| escalated_guard \| escalated_request \| escalated_classifier \| escalated_repeat \| error` |
 | `query_text` | text | the actual retrieval query (after rewrite) |
 | `top_k` | int, `top_score` | float | best similarity seen |
 | `retrieved_chunk_ids` | uuid[] | |
@@ -198,7 +198,7 @@ One row per bot answer attempt — the analytics and debugging backbone.
 | `embedding_model`, `chat_model` | text | which models produced this |
 | `tokens_in`, `tokens_out` | int | chat model usage |
 | `estimated_cost_usd` | numeric(10,6) | |
-| `created_at` | timestamptz | |
+| `created_at` | timestamptz | retention key — the T-403 job deletes by age (NFR-7) |
 
 ### `settings` (owner: `settings`)
 
@@ -219,7 +219,7 @@ Single-row-style table (key/value) with typed accessors; values are validated on
 
 ### `audit_logs` (owner: `analytics`)
 
-`id, user_id, action (text), entity (text), entity_id (text), data jsonb, created_at` — written for logins, KB/document changes, binding/settings changes.
+`id, user_id, action (text), entity (text), entity_id (text), data jsonb, created_at` — written through `recordAuditLog()` (T-301) for logins (success/fail), KB/document changes and binding/settings changes; `user_id` is null for anonymous events. `created_at` is indexed and is the retention key for the T-403 job (NFR-7).
 
 ## Conventions
 

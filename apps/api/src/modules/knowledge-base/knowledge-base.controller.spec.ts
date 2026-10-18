@@ -73,18 +73,19 @@ describe('KnowledgeBaseController', () => {
     await kb.create({ name: 'Docs' }, USER);
     expect(service.create).toHaveBeenCalledWith({ name: 'Docs' }, USER.id);
 
-    await kb.update(SUMMARY.id, { status: 'archived' });
-    expect(service.update).toHaveBeenCalledWith(SUMMARY.id, { status: 'archived' });
+    await kb.update(SUMMARY.id, { status: 'archived' }, USER);
+    expect(service.update).toHaveBeenCalledWith(SUMMARY.id, { status: 'archived' }, USER.id);
   });
 
   it('maps delete to a status ack', async () => {
     const { kb, documents, service } = buildHarness();
 
-    await expect(kb.remove(SUMMARY.id)).resolves.toEqual({ status: 'ok' });
-    await expect(documents.remove(DOCUMENT.id)).resolves.toEqual({ status: 'ok' });
-    await expect(documents.reprocess(DOCUMENT.id)).resolves.toEqual(DOCUMENT);
-    expect(service.remove).toHaveBeenCalledWith(SUMMARY.id);
-    expect(service.removeDocument).toHaveBeenCalledWith(DOCUMENT.id);
+    await expect(kb.remove(SUMMARY.id, USER)).resolves.toEqual({ status: 'ok' });
+    await expect(documents.remove(DOCUMENT.id, USER)).resolves.toEqual({ status: 'ok' });
+    await expect(documents.reprocess(DOCUMENT.id, USER)).resolves.toEqual(DOCUMENT);
+    expect(service.remove).toHaveBeenCalledWith(SUMMARY.id, USER.id);
+    expect(service.removeDocument).toHaveBeenCalledWith(DOCUMENT.id, USER.id);
+    expect(service.reprocessDocument).toHaveBeenCalledWith(DOCUMENT.id, USER.id);
   });
 
   it('passes the uploaded file through to the service', async () => {

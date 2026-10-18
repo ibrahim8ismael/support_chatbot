@@ -3,9 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
+import type { AnalyticsService } from '../analytics/analytics.service';
 import type { CacheService } from '../infra/cache.service';
 import { settings } from './entities/setting.entity';
 import { SETTINGS_CACHE_KEY, SettingsService } from './settings.service';
+
+const ACTOR_ID = '44444444-4444-4444-8444-444444444444';
 
 interface SettingRow {
   key: string;
@@ -59,6 +62,9 @@ function buildHarness(initialRows: SettingRow[] = []) {
 
   const logger = { warn: vi.fn() } as unknown as AppLogger;
 
+  const recordAuditLog = vi.fn(async (_input: unknown) => undefined);
+  const analytics = { recordAuditLog } as unknown as AnalyticsService;
+
   const env: Record<string, string> = {
     EMBEDDING_MODEL: 'text-embedding-3-small',
     CHAT_MODEL: 'gpt-4.1-mini',
@@ -68,13 +74,14 @@ function buildHarness(initialRows: SettingRow[] = []) {
   } as unknown as ConfigService;
 
   return {
-    service: new SettingsService(database, cache, logger, config),
+    service: new SettingsService(database, cache, analytics, logger, config),
     rows,
     selectFrom,
     inserted,
     conflictConfigs,
     cache,
     logger,
+    recordAuditLog,
   };
 }
 
@@ -137,7 +144,7 @@ describe('SettingsService', () => {
   it('upserts every patched key in one transaction and busts the cache', async () => {
     const { service, inserted, conflictConfigs, cache } = buildHarness();
 
-    const snapshot = await service.update({ bot_enabled: true, retrieval_top_k: 7 });
+    const snapshot = await service.update({ bot_enabled: true, retrieval_top_k: 7 }, ACTOR_ID);
 
     expect(inserted).toEqual([
       { key: 'bot_enabled', value: true },
@@ -151,6 +158,32 @@ describe('SettingsService', () => {
     expect(cache.del).toHaveBeenCalledWith(SETTINGS_CACHE_KEY);
     expect(snapshot.bot_enabled).toBe(true);
     expect(snapshot.retrieval_top_k).toBe(7);
+  });
+
+  it('audits the change with a before/after diff per key', async () => {
+    const { service, recordAuditLog } = buildHarness();
+
+    await service.update({ bot_enabled: true, retrieval_top_k: 7 }, ACTOR_ID);
+
+    expect(recordAuditLog).toHaveBeenCalledWith({
+      userId: ACTOR_ID,
+      action: 'setting.update',
+      entity: 'settings',
+      data: {
+        changes: {
+          bot_enabled: { from: false, to: true },
+          retrieval_top_k: { from: 10, to: 7 },
+        },
+      },
+    });
+  });
+
+  it('does not audit an empty patch (no-op)', async () => {
+    const { service, recordAuditLog } = buildHarness();
+
+    await service.update({}, ACTOR_ID);
+
+    expect(recordAuditLog).not.toHaveBeenCalled();
   });
 
   it('exposes single-key typed access', async () => {

@@ -8,10 +8,15 @@ import {
   Put,
 } from '@nestjs/common';
 
-import { bindingUpdateSchema, type BindingUpdate, type InboxBinding } from '@support-agent/shared';
+import {
+  bindingUpdateSchema,
+  type BindingUpdate,
+  type InboxBinding,
+  type SessionUser,
+} from '@support-agent/shared';
 
 import { ZodBodyPipe } from '../../common/pipes/zod-body.pipe';
-import { Roles } from '../auth/auth.decorators';
+import { CurrentUser, Roles } from '../auth/auth.decorators';
 import { BindingsService } from './bindings.service';
 
 /**
@@ -35,6 +40,7 @@ export class BindingsController {
   upsert(
     @Param('chatwootInboxId', ParseIntPipe) chatwootInboxId: number,
     @Body(new ZodBodyPipe(bindingUpdateSchema)) body: BindingUpdate,
+    @CurrentUser() user: SessionUser,
   ): Promise<InboxBinding> {
     if (chatwootInboxId <= 0) {
       throw new BadRequestException({
@@ -45,6 +51,6 @@ export class BindingsController {
       });
     }
 
-    return this.bindings.upsert(chatwootInboxId, body);
+    return this.bindings.upsert(chatwootInboxId, body, user.id);
   }
 }

@@ -5,11 +5,12 @@ import {
   settingsUpdateSchema,
   type Settings,
   type SettingsPatch,
+  type SessionUser,
 } from '@support-agent/shared';
 
 import { ZodBodyPipe } from '../../common/pipes/zod-body.pipe';
 import { LlmService } from '../llm/llm.service';
-import { Roles } from '../auth/auth.decorators';
+import { CurrentUser, Roles } from '../auth/auth.decorators';
 import { SettingsService } from './settings.service';
 
 export interface LlmHealthCheck {
@@ -22,10 +23,8 @@ export interface LlmHealthCheck {
 /**
  * /api/settings — runtime knobs (docs/api/rest-api.md). Reads are open to every
  * signed-in role; writes follow the security matrix (editor/admin,
- * docs/operations/security.md § 2). `health-llm` runs a cheap embedding + chat
- * round-trip for the admin screen.
- *
- * TODO(T-301): audit settings changes via the analytics audit writer.
+ * docs/operations/security.md § 2) and are audited (T-301). `health-llm` runs
+ * a cheap embedding + chat round-trip for the admin screen.
  */
 @Controller('settings')
 export class SettingsController {
@@ -42,8 +41,11 @@ export class SettingsController {
 
   @Roles('editor', 'admin')
   @Put()
-  update(@Body(new ZodBodyPipe(settingsUpdateSchema)) body: SettingsPatch): Promise<Settings> {
-    return this.settings.update(body);
+  update(
+    @Body(new ZodBodyPipe(settingsUpdateSchema)) body: SettingsPatch,
+    @CurrentUser() user: SessionUser,
+  ): Promise<Settings> {
+    return this.settings.update(body, user.id);
   }
 
   @Roles('admin')

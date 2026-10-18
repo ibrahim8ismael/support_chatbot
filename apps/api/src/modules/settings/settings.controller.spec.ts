@@ -1,12 +1,19 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Settings } from '@support-agent/shared';
+import type { SessionUser, Settings } from '@support-agent/shared';
 
 import type { EmbedResult, GenerateReplyResult } from '../llm/llm.types';
 import type { LlmService } from '../llm/llm.service';
 import { SettingsController } from './settings.controller';
 import type { SettingsService } from './settings.service';
+
+const USER: SessionUser = {
+  id: '44444444-4444-4444-8444-444444444444',
+  email: 'editor@example.com',
+  name: 'Editor',
+  role: 'editor',
+};
 
 const SNAPSHOT: Settings = {
   bot_enabled: true,
@@ -66,12 +73,12 @@ describe('SettingsController', () => {
     await expect(controller.get()).resolves.toEqual(SNAPSHOT);
   });
 
-  it('delegates partial updates', async () => {
+  it('delegates partial updates with the acting user', async () => {
     const { controller, settingsService } = buildHarness();
 
-    await controller.update({ bot_enabled: false });
+    await controller.update({ bot_enabled: false }, USER);
 
-    expect(settingsService.update).toHaveBeenCalledWith({ bot_enabled: false });
+    expect(settingsService.update).toHaveBeenCalledWith({ bot_enabled: false }, USER.id);
   });
 
   it('reports a passing LLM health check', async () => {

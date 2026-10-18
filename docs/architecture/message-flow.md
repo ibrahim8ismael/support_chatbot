@@ -71,6 +71,7 @@ Triggers (evaluated in step 8/9; from [requirements FR-6](../product/requirement
 | Trigger | outcome value |
 | --- | --- |
 | Nothing above score threshold | `escalated_low_score` |
+| Reply fails the output guard (length/leak) | `escalated_guard` |
 | Customer asks for a human | `escalated_request` |
 | Classifier: cannot answer from chunks | `escalated_classifier` |
 | Same question repeated after a bot answer | `escalated_repeat` |

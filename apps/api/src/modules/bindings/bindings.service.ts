@@ -6,6 +6,7 @@ import type { BindingUpdate, InboxBinding } from '@support-agent/shared';
 
 import { AppLogger } from '../../common/logger/app-logger.service';
 import { DatabaseService } from '../../db/database.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { CacheService } from '../infra/cache.service';
 import { inboxBindings } from './entities/inbox-binding.entity';
 
@@ -24,7 +25,8 @@ export function bindingCacheKey(chatwootInboxId: number): string {
  * synced by the chatwoot module when it lists inboxes).
  *
  * Empty `kbIds` or `enabled=false` both mean "bot off here" — callers only
- * need the returned array.
+ * need the returned array. Upserts are audited through the analytics writer
+ * (T-301).
  */
 @Injectable()
 export class BindingsService {
@@ -33,6 +35,7 @@ export class BindingsService {
   constructor(
     private readonly database: DatabaseService,
     private readonly cache: CacheService,
+    private readonly analytics: AnalyticsService,
     private readonly logger: AppLogger,
     config: ConfigService,
   ) {
@@ -57,7 +60,11 @@ export class BindingsService {
   }
 
   /** Full-state upsert (`PUT /bindings/:chatwootInboxId`). */
-  async upsert(chatwootInboxId: number, input: BindingUpdate): Promise<InboxBinding> {
+  async upsert(
+    chatwootInboxId: number,
+    input: BindingUpdate,
+    userId: string,
+  ): Promise<InboxBinding> {
     const [row] = await this.database.db
       .insert(inboxBindings)
       .values({
@@ -78,6 +85,13 @@ export class BindingsService {
     }
 
     await this.cache.del(bindingCacheKey(chatwootInboxId));
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'binding.update',
+      entity: 'inbox_binding',
+      entityId: String(chatwootInboxId),
+      data: { kbIds: input.kbIds, enabled: input.enabled },
+    });
     return toBinding(row);
   }
 

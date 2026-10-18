@@ -1,10 +1,17 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { InboxBinding } from '@support-agent/shared';
+import type { InboxBinding, SessionUser } from '@support-agent/shared';
 
 import { BindingsController } from './bindings.controller';
 import type { BindingsService } from './bindings.service';
+
+const USER: SessionUser = {
+  id: '44444444-4444-4444-8444-444444444444',
+  email: 'editor@example.com',
+  name: 'Editor',
+  role: 'editor',
+};
 
 const BINDING: InboxBinding = {
   id: '33333333-3333-4333-8333-333333333333',
@@ -35,14 +42,16 @@ describe('BindingsController', () => {
     const { controller, service } = buildHarness();
     const body = { kbIds: [BINDING.kbIds[0] ?? ''], enabled: false };
 
-    await expect(controller.upsert(3, body)).resolves.toEqual(BINDING);
-    expect(service.upsert).toHaveBeenCalledWith(3, body);
+    await expect(controller.upsert(3, body, USER)).resolves.toEqual(BINDING);
+    expect(service.upsert).toHaveBeenCalledWith(3, body, USER.id);
   });
 
   it('rejects non-positive inbox ids before touching the service', () => {
     const { controller, service } = buildHarness();
 
-    expect(() => controller.upsert(0, { kbIds: [], enabled: true })).toThrow(BadRequestException);
+    expect(() => controller.upsert(0, { kbIds: [], enabled: true }, USER)).toThrow(
+      BadRequestException,
+    );
     expect(service.upsert).not.toHaveBeenCalled();
   });
 });

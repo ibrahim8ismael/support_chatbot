@@ -67,14 +67,18 @@ export class KnowledgeBaseController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodBodyPipe(knowledgeBaseUpdateSchema)) body: KnowledgeBaseUpdate,
+    @CurrentUser() user: SessionUser,
   ): Promise<KnowledgeBaseSummary> {
-    return this.knowledgeBase.update(id, body);
+    return this.knowledgeBase.update(id, body, user.id);
   }
 
   @Roles('editor', 'admin')
   @Delete(':id')
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<{ status: 'ok' }> {
-    await this.knowledgeBase.remove(id);
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ status: 'ok' }> {
+    await this.knowledgeBase.remove(id, user.id);
     return { status: 'ok' };
   }
 

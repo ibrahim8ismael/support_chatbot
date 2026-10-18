@@ -5,6 +5,7 @@ import { settingsSchema, type Settings, type SettingsPatch } from '@support-agen
 
 import { AppLogger } from '../../common/logger/app-logger.service';
 import { DatabaseService } from '../../db/database.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { CacheService } from '../infra/cache.service';
 import { settings } from './entities/setting.entity';
 import { buildSettingsDefaults } from './settings.defaults';
@@ -21,7 +22,8 @@ const SETTINGS_CACHE_TTL_SECONDS = 60;
  * Only overridden keys have rows; reads merge them over defaults, so adding a
  * key never needs a data migration. Rows that are unknown or fail validation
  * (manual DB edits) fall back to defaults with a warning — settings must never
- * break the reply path.
+ * break the reply path. Every write is audited with a before/after diff
+ * (T-301, docs/operations/security.md § Audited actions).
  */
 @Injectable()
 export class SettingsService {
@@ -30,6 +32,7 @@ export class SettingsService {
   constructor(
     private readonly database: DatabaseService,
     private readonly cache: CacheService,
+    private readonly analytics: AnalyticsService,
     private readonly logger: AppLogger,
     config: ConfigService,
   ) {
@@ -56,11 +59,13 @@ export class SettingsService {
   }
 
   /** Validated partial update (schema enforced at the API edge). */
-  async update(patch: SettingsPatch): Promise<Settings> {
+  async update(patch: SettingsPatch, userId: string): Promise<Settings> {
     const entries = Object.entries(patch);
     if (entries.length === 0) {
       return this.get();
     }
+
+    const before = await this.get();
 
     await this.database.db.transaction(async (tx) => {
       for (const [key, value] of entries) {
@@ -75,7 +80,23 @@ export class SettingsService {
     });
 
     await this.cache.del(SETTINGS_CACHE_KEY);
-    return this.get();
+    const after = await this.get();
+
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    for (const key of Object.keys(patch)) {
+      changes[key] = {
+        from: before[key as keyof Settings],
+        to: after[key as keyof Settings],
+      };
+    }
+    await this.analytics.recordAuditLog({
+      userId,
+      action: 'setting.update',
+      entity: 'settings',
+      data: { changes },
+    });
+
+    return after;
   }
 
   private mergeRows(rows: Array<typeof settings.$inferSelect>): Settings {

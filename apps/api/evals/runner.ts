@@ -174,7 +174,7 @@ async function main(): Promise<number> {
       if (flags.keep) {
         console.log(`keeping scratch KB ${kb.id} (--keep)`);
       } else {
-        await knowledgeBase.remove(kb.id);
+        await knowledgeBase.remove(kb.id, userId);
         console.log(`removed scratch KB ${kb.id}`);
       }
     }

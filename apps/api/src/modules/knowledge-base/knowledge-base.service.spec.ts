@@ -21,6 +21,7 @@ import {
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
+import type { AnalyticsService } from '../analytics/analytics.service';
 import type { BindingsService } from '../bindings/bindings.service';
 import type { CacheService } from '../infra/cache.service';
 import type { QueueService } from '../infra/queue.service';
@@ -182,11 +183,22 @@ function buildHarness(
 
   const logger = { warn: vi.fn(), error: vi.fn() } as unknown as AppLogger;
 
+  const recordAuditLog = vi.fn(async (_input: unknown) => undefined);
+  const analytics = { recordAuditLog } as unknown as AnalyticsService;
+
   const config = {
     get: vi.fn((key: string) => (key === 'UPLOAD_DIR' ? options.uploadDir : undefined)),
   } as unknown as ConfigService;
 
-  const service = new KnowledgeBaseService(database, queue, bindings, cache, logger, config);
+  const service = new KnowledgeBaseService(
+    database,
+    queue,
+    bindings,
+    analytics,
+    cache,
+    logger,
+    config,
+  );
 
   return {
     service,
@@ -198,6 +210,7 @@ function buildHarness(
     cacheDel,
     cacheIncr,
     logger,
+    recordAuditLog,
   };
 }
 
@@ -272,8 +285,8 @@ describe('KnowledgeBaseService', () => {
   });
 
   describe('create / update', () => {
-    it('creates with the current user as owner', async () => {
-      const { service, inserted } = buildHarness({}, { uploadDir });
+    it('creates with the current user as owner and audits it', async () => {
+      const { service, inserted, recordAuditLog } = buildHarness({}, { uploadDir });
 
       const created = await service.create({ name: 'Docs', description: 'Guides' }, USER_ID);
 
@@ -284,15 +297,32 @@ describe('KnowledgeBaseService', () => {
       });
       expect(created).toMatchObject({ name: 'Docs', description: 'Guides', status: 'active' });
       expect(created.createdAt).toBe('2026-10-18T10:00:00.000Z');
+      expect(recordAuditLog).toHaveBeenCalledWith({
+        userId: USER_ID,
+        action: 'knowledge_base.create',
+        entity: 'knowledge_base',
+        entityId: KB_ID,
+        data: { name: 'Docs' },
+      });
     });
 
-    it('applies only the provided patch fields', async () => {
-      const { service, updated } = buildHarness({ kbRows: [kbRow()] }, { uploadDir });
+    it('applies only the provided patch fields and audits the change', async () => {
+      const { service, updated, recordAuditLog } = buildHarness(
+        { kbRows: [kbRow()] },
+        { uploadDir },
+      );
 
-      const result = await service.update(KB_ID, { status: 'archived' });
+      const result = await service.update(KB_ID, { status: 'archived' }, USER_ID);
 
       expect(updated[0]?.values).toEqual({ status: 'archived' });
       expect(result.status).toBe('archived');
+      expect(recordAuditLog).toHaveBeenCalledWith({
+        userId: USER_ID,
+        action: 'knowledge_base.update',
+        entity: 'knowledge_base',
+        entityId: KB_ID,
+        data: { patch: { status: 'archived' } },
+      });
     });
 
     it('404s when the KB disappeared before the update', async () => {
@@ -301,35 +331,45 @@ describe('KnowledgeBaseService', () => {
         { uploadDir, emptyUpdateReturn: true },
       );
 
-      await expect(service.update(KB_ID, { name: 'x' })).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.update(KB_ID, { name: 'x' }, USER_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
   describe('remove', () => {
     it('refuses to delete a KB that is bound to an inbox', async () => {
-      const { service, deleted, cacheDel } = buildHarness(
+      const { service, deleted, cacheDel, recordAuditLog } = buildHarness(
         { kbRows: [kbRow()] },
         { uploadDir, bound: true },
       );
 
-      await expect(service.remove(KB_ID)).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.remove(KB_ID, USER_ID)).rejects.toBeInstanceOf(ConflictException);
       expect(deleted).toHaveLength(0);
       expect(cacheDel).not.toHaveBeenCalled();
+      expect(recordAuditLog).not.toHaveBeenCalled();
     });
 
-    it('deletes the KB, drops the version counter, and removes stored files', async () => {
+    it('deletes the KB, drops the version counter, removes stored files and audits it', async () => {
       const stored = 'stored.pdf';
       await writeFile(path.join(uploadDir, stored), 'stale');
-      const { service, deleted, cacheDel } = buildHarness(
+      const { service, deleted, cacheDel, recordAuditLog } = buildHarness(
         { kbRows: [kbRow()], documentRows: [docRow({ storagePath: stored })] },
         { uploadDir },
       );
 
-      await service.remove(KB_ID);
+      await service.remove(KB_ID, USER_ID);
 
       expect(deleted).toEqual([{ table: knowledgeBases }]);
       expect(cacheDel).toHaveBeenCalledWith(kbVersionKey(KB_ID));
       await expect(access(path.join(uploadDir, stored))).rejects.toThrow();
+      expect(recordAuditLog).toHaveBeenCalledWith({
+        userId: USER_ID,
+        action: 'knowledge_base.delete',
+        entity: 'knowledge_base',
+        entityId: KB_ID,
+        data: { name: 'Support FAQ' },
+      });
     });
   });
 
@@ -355,8 +395,11 @@ describe('KnowledgeBaseService', () => {
   });
 
   describe('uploadDocument', () => {
-    it('stores the file, creates a processing row, and enqueues ingestion', async () => {
-      const { service, inserted, enqueue } = buildHarness({ kbRows: [kbRow()] }, { uploadDir });
+    it('stores the file, creates a processing row, enqueues ingestion and audits it', async () => {
+      const { service, inserted, enqueue, recordAuditLog } = buildHarness(
+        { kbRows: [kbRow()] },
+        { uploadDir },
+      );
       const file = pdfFile();
 
       const result = await service.uploadDocument(KB_ID, file, USER_ID);
@@ -383,6 +426,13 @@ describe('KnowledgeBaseService', () => {
 
       expect(enqueue).toHaveBeenCalledWith(QUEUES.ingestDocument, 'ingest-document', {
         documentId: DOC_ID,
+      });
+      expect(recordAuditLog).toHaveBeenCalledWith({
+        userId: USER_ID,
+        action: 'document.upload',
+        entity: 'document',
+        entityId: DOC_ID,
+        data: { kbId: KB_ID, filename: 'Manual.PDF', sizeBytes: file.size },
       });
     });
 
@@ -464,13 +514,13 @@ describe('KnowledgeBaseService', () => {
   });
 
   describe('reprocessDocument', () => {
-    it('resets status/error/chunks and re-enqueues', async () => {
-      const { service, updated, enqueue } = buildHarness(
+    it('resets status/error/chunks, re-enqueues and audits it', async () => {
+      const { service, updated, enqueue, recordAuditLog } = buildHarness(
         { documentRows: [docRow({ status: 'failed', error: 'parse error', chunkCount: 0 })] },
         { uploadDir },
       );
 
-      const result = await service.reprocessDocument(DOC_ID);
+      const result = await service.reprocessDocument(DOC_ID, USER_ID);
 
       expect(updated).toContainEqual({
         table: documents,
@@ -480,29 +530,45 @@ describe('KnowledgeBaseService', () => {
       expect(enqueue).toHaveBeenCalledWith(QUEUES.ingestDocument, 'ingest-document', {
         documentId: DOC_ID,
       });
+      expect(recordAuditLog).toHaveBeenCalledWith({
+        userId: USER_ID,
+        action: 'document.reprocess',
+        entity: 'document',
+        entityId: DOC_ID,
+        data: { kbId: KB_ID, filename: 'faq.pdf' },
+      });
     });
 
     it('404s for a missing document', async () => {
       const { service } = buildHarness({}, { uploadDir });
 
-      await expect(service.reprocessDocument(DOC_ID)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.reprocessDocument(DOC_ID, USER_ID)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 
   describe('removeDocument', () => {
-    it('deletes the row, bumps the KB version, and removes the file', async () => {
+    it('deletes the row, bumps the KB version, removes the file and audits it', async () => {
       const stored = 'stored.txt';
       await writeFile(path.join(uploadDir, stored), 'content');
-      const { service, deleted, cacheIncr } = buildHarness(
+      const { service, deleted, cacheIncr, recordAuditLog } = buildHarness(
         { documentRows: [docRow({ kbId: KB_ID, storagePath: stored })] },
         { uploadDir },
       );
 
-      await service.removeDocument(DOC_ID);
+      await service.removeDocument(DOC_ID, USER_ID);
 
       expect(deleted).toEqual([{ table: documents }]);
       expect(cacheIncr).toHaveBeenCalledWith(kbVersionKey(KB_ID));
       await expect(access(path.join(uploadDir, stored))).rejects.toThrow();
+      expect(recordAuditLog).toHaveBeenCalledWith({
+        userId: USER_ID,
+        action: 'document.delete',
+        entity: 'document',
+        entityId: DOC_ID,
+        data: { kbId: KB_ID, filename: 'faq.pdf' },
+      });
     });
 
     it('survives a manually tampered storage path outside UPLOAD_DIR', async () => {
@@ -513,7 +579,7 @@ describe('KnowledgeBaseService', () => {
         { uploadDir },
       );
 
-      await expect(service.removeDocument(DOC_ID)).resolves.toBeUndefined();
+      await expect(service.removeDocument(DOC_ID, USER_ID)).resolves.toBeUndefined();
 
       await expect(access(outside)).resolves.toBeUndefined();
       expect(logger.warn).toHaveBeenCalledWith(
