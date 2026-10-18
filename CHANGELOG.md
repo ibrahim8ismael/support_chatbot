@@ -218,6 +218,9 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   reprocess and delete actions; polling unchanged.
 - **Playground screen**: HeroUI KB checkboxes and question composer, answer cards
   with escalation status, grounded chunks, scores and trace metadata.
+- **Conversations screen**: HeroUI filter bar (range presets plus Select-based
+  state/inbox filters), conversation cards, and a detail card with message
+  bubbles and collapsible bot-attempt traces.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
