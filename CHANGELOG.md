@@ -228,6 +228,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   range/interval/inbox Select filters, and an unanswered-questions `Table`.
 - **Settings screen**: HeroUI card with Switch/TextField/TextArea controls for
   runtime tunables, Save + LLM health-check actions, and success/danger Alerts.
+- **Users screen**: HeroUI account cards with inline name/role/active editing,
+  a toggleable password-reset form and an add-user form card.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
