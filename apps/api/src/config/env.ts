@@ -40,6 +40,9 @@ export const envSchema = z
     /** Weekly top-unanswered digest webhook (T-305); unset = logged, not posted. */
     DIGEST_WEBHOOK_URL: optional(z.url()),
 
+    /** NFR-7: messages/events retention window; documents live until deleted. */
+    RETENTION_DAYS: z.coerce.number().int().min(1).default(365),
+
     UPLOAD_DIR: z.string().min(1).default('./data/uploads'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),

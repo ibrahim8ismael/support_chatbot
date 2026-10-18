@@ -17,6 +17,7 @@ import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { RetrievalModule } from './modules/retrieval/retrieval.module';
+import { RetentionModule } from './modules/retention/retention.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -47,6 +48,7 @@ import { UsersModule } from './modules/users/users.module';
     BindingsModule,
     AnalyticsModule,
     SettingsModule,
+    RetentionModule,
   ],
   providers: [AppLogger],
 })

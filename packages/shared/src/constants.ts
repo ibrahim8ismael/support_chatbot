@@ -3,6 +3,7 @@ export const QUEUES = {
   reply: 'reply-job',
   ingestDocument: 'ingest-document',
   analyticsFollowup: 'analytics-followup',
+  maintenance: 'maintenance',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

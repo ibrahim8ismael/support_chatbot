@@ -190,6 +190,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   required). The CLI exits non-zero on any failed assertion, never touches real
   queues, and takes `--base-url`/`--insecure`/`--email`/`--password` for staging
   or prod runs — [deployment](docs/operations/deployment.md#load-smoke-nfr-128).
+- **Retention cleanup** (T-403): a daily `retention-cleanup` job on the new
+  `maintenance` queue deletes messages/conversations and answer/audit events older
+  than `RETENTION_DAYS` (default 365, NFR-7) in 1,000-row batches — documents,
+  chunks and KBs are never touched, and an immediate re-run is a no-op. The
+  schedule (03:00 UTC) is upserted at every boot like the digest, and the env docs
+  cover the new knob —
+  [deployment](docs/operations/deployment.md#scheduled-jobs).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

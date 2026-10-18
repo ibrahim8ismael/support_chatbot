@@ -67,6 +67,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt |
 | `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |
+| `RETENTION_DAYS` | `365` | messages/events retention window in days (NFR-7); documents/KBs are never purged |
 | `UPLOAD_DIR` | `/data/uploads` | mounted volume |
 | `LOG_LEVEL` | `info` | |
 | `WORKER_CONCURRENCY` | `4` | reply job pool size |
@@ -83,6 +84,13 @@ Mondays 09:00 UTC on the `analytics-followup` queue — and posts the trailing w
 clustered questions to `DIGEST_WEBHOOK_URL` (Slack-compatible; retried 3× with
 backoff, failed runs stay inspectable on the queue). Without the webhook the digest
 is written to the API log instead.
+
+The daily retention cleanup is scheduled the same way — 03:00 UTC on the
+`maintenance` queue. It deletes messages/conversations and answer/audit events older
+than `RETENTION_DAYS` (default 365, NFR-7) in 1,000-row batches, so a backlog never
+holds one huge transaction; documents, chunks, KBs, users and settings are never
+touched. The next morning, check the `retention done: cutoff=… deleted=…` log line
+for the per-table counts.
 
 ## Deploy & migrate
 
