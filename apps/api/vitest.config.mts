@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.spec.ts', 'evals/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'evals/**/*.spec.ts', 'scripts/**/*.spec.ts'],
   },
   plugins: [
     // NestJS decorators need emitDecoratorMetadata, which esbuild does not
