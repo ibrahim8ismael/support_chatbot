@@ -22,12 +22,14 @@ describe('validateEnv', () => {
       CHATWOOT_ACCOUNT_ID: '',
       OPENAI_API_KEY: '',
       OPENROUTER_API_KEY: '',
+      DIGEST_WEBHOOK_URL: '',
     });
 
     expect(env.CHATWOOT_BASE_URL).toBeUndefined();
     expect(env.CHATWOOT_ACCOUNT_ID).toBeUndefined();
     expect(env.OPENAI_API_KEY).toBeUndefined();
     expect(env.OPENROUTER_API_KEY).toBeUndefined();
+    expect(env.DIGEST_WEBHOOK_URL).toBeUndefined();
   });
 
   it('refuses to start with a missing or short session secret', () => {

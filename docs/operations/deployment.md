@@ -65,11 +65,21 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt |
+| `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |
 | `UPLOAD_DIR` | `/data/uploads` | mounted volume |
 | `LOG_LEVEL` | `info` | |
 | `WORKER_CONCURRENCY` | `4` | reply job pool size |
 
 Secrets live in `.env` **only on the host** (or docker secrets) — never in the repo, never in the settings table. `.env.example` in the repo documents names without values.
+
+## Scheduled jobs
+
+No host cron needed: the API schedules its own repeatable jobs on Redis (BullMQ).
+The weekly top-unanswered digest is upserted at every boot as a job scheduler —
+Mondays 09:00 UTC on the `analytics-followup` queue — and posts the trailing week's
+clustered questions to `DIGEST_WEBHOOK_URL` (Slack-compatible; retried 3× with
+backoff, failed runs stay inspectable on the queue). Without the webhook the digest
+is written to the API log instead.
 
 ## Deploy & migrate
 

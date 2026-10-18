@@ -161,6 +161,12 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   The web app now ships working `/bindings` (KB multi-select + per-inbox kill switch)
   and `/settings` (typed form + admin LLM health check) screens plus new admin-only
   `/users` and `/audit` screens; other roles see inline 403 notes.
+- **Weekly digest cron** (T-305): the first repeatable BullMQ job — `DigestScheduler`
+  upserts the Monday 09:00 UTC `weekly-digest` schedule on the `analytics-followup`
+  queue at every boot (idempotent) and `DigestWorker` clusters the trailing week with
+  the `/analytics/unanswered` contract, posting a Slack-compatible `{"text": …}` to
+  `DIGEST_WEBHOOK_URL` (unset → logged; failures retried with backoff and kept on the
+  queue). No host cron — [deployment](docs/operations/deployment.md#scheduled-jobs).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

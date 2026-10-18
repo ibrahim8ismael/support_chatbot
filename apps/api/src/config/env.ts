@@ -37,6 +37,9 @@ export const envSchema = z
     /** Substituted into the answer prompt's `{{company_name}}`. */
     COMPANY_NAME: z.string().min(1).max(120).default('Acme Support'),
 
+    /** Weekly top-unanswered digest webhook (T-305); unset = logged, not posted. */
+    DIGEST_WEBHOOK_URL: optional(z.url()),
+
     UPLOAD_DIR: z.string().min(1).default('./data/uploads'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
