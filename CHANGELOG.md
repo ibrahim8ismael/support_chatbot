@@ -221,6 +221,9 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Conversations screen**: HeroUI filter bar (range presets plus Select-based
   state/inbox filters), conversation cards, and a detail card with message
   bubbles and collapsible bot-attempt traces.
+- **Inbox bindings screen**: one HeroUI card per inbox with the kill-switch
+  `Switch`, KB `Checkbox` mapping, unsaved-changes chip and per-row save; the
+  add-inbox form uses an `Input` + button.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
