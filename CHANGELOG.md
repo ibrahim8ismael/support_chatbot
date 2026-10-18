@@ -226,6 +226,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   add-inbox form uses an `Input` + button.
 - **Analytics screen**: HeroUI stat-card grid, token-styled bar chart with
   range/interval/inbox Select filters, and an unanswered-questions `Table`.
+- **Settings screen**: HeroUI card with Switch/TextField/TextArea controls for
+  runtime tunables, Save + LLM health-check actions, and success/danger Alerts.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
