@@ -220,8 +220,16 @@ engineering; dashboard admin flows used by the team.
       500 scanned, representative = most frequent variant) and is admin-only — it returns
       customer text; aggregates stay open to all roles. The `/analytics` screen renders
       cards, a dependency-free bar chart (buckets UTC) and the unanswered table.
-- [ ] **T-303 · Conversation explorer** (M) — list + detail: messages, answer events,
+- [x] **T-303 · Conversation explorer** (M) — list + detail: messages, answer events,
       retrieved chunks with scores, escalation notes. Refs FR-7 P1.
+      **Done 2026-10-18**: `ConversationsController` exposes `GET /conversations`
+      (filters on `last_message_at`, paging via `limit`/`offset`, window total) and
+      `GET /conversations/:id` (thread oldest → newest, private notes flagged).
+      Answer events include the cited chunks in retrieval-rank order; per-chunk scores
+      are not persisted, so each event's `topScore` is the score signal. Answer events
+      are admin-only — the response flags `answerEventsRestricted` for other roles.
+      The `/conversations` screen has a filter bar (range/state/inbox), a paged list and
+      the thread + diagnostics panel.
 - [ ] **T-304 · Admin UIs** (M) — bindings, settings, users (admin), audit log screen.
       Refs FR-8/9.
 - [ ] **T-305 · Weekly digest cron** (S) — repeatable BullMQ job posting “top unanswered”

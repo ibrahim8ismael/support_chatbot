@@ -144,6 +144,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   customer question text ([security](docs/operations/security.md) § 4). The `/analytics`
   dashboard renders the aggregates as cards, a dependency-free bar chart, and the top
   unanswered list, with range/interval/inbox filters.
+- **Conversation explorer** (T-303): `GET /conversations` lists conversations with
+  `inboxId`/`botState`/`from`/`to` filters on `last_message_at` (half-open), `limit`/
+  `offset` paging and a window total; `GET /conversations/:id` returns the thread
+  oldest → newest (private notes flagged) plus the answer-event diagnostics. Answer
+  events carry customer query text and cited chunks, so they are admin-only — other
+  roles get the thread with `answerEventsRestricted: true`
+  ([security](docs/operations/security.md) § 4). The `/conversations` screen adds a
+  filter bar, a paged list and the diagnostics panel.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

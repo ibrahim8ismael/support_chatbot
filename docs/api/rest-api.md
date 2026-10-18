@@ -63,8 +63,8 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/conversations` | filters: `inboxId`, `botState`, `from`, `to`; sorted by `last_message_at` desc |
-| GET | `/conversations/:id` | messages + `answer_events` for the thread |
+| GET | `/conversations` | `?inboxId&botState&from&to&limit&offset` → `{ items, total }`; `from`/`to` filter `last_message_at` (half-open; `from >= to` → 400); sorted by `last_message_at` desc (nulls last); `limit` 1–100 (default 50), `offset` ≥ 0; all roles |
+| GET | `/conversations/:id` | `{ conversation, messages, answerEvents, answerEventsRestricted }` — messages oldest → newest with private notes flagged; answer events (query text + cited chunks in retrieval-rank order) are admin-only, other roles get `[]` and `answerEventsRestricted: true`; unknown id → 404 |
 | POST | `/conversations/:id/pause` | `{ reason? }` → `bot_state=paused` |
 | POST | `/conversations/:id/resume` | → `bot_state=active` (also removes `ai-paused` label in Chatwoot) |
 
