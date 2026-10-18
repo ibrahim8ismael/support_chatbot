@@ -230,8 +230,17 @@ engineering; dashboard admin flows used by the team.
       are admin-only — the response flags `answerEventsRestricted` for other roles.
       The `/conversations` screen has a filter bar (range/state/inbox), a paged list and
       the thread + diagnostics panel.
-- [ ] **T-304 · Admin UIs** (M) — bindings, settings, users (admin), audit log screen.
+- [x] **T-304 · Admin UIs** (M) — bindings, settings, users (admin), audit log screen.
       Refs FR-8/9.
+      **Done 2026-10-18**: `UsersController` (`/api/users`, admin-only) implements
+      create/list/patch/password-reset with session revocation on deactivation and
+      password change (security.md § Session hygiene) and `users.*` audit rows;
+      `AuditLogController` (`/api/audit-logs`, admin-only) serves the paginated,
+      filterable trail with the acting user's email. Web: the `/bindings` and
+      `/settings` placeholders became working screens (KB multi-select + per-inbox
+      kill switch; typed settings form with `PUT /settings` and the admin LLM smoke
+      check), plus new `/users` and `/audit` admin screens with 403 notes for other
+      roles. Screen and API share the users/audit schemas.
 - [ ] **T-305 · Weekly digest cron** (S) — repeatable BullMQ job posting “top unanswered”
       to the support channel; reviews cadence per roadmap.
 

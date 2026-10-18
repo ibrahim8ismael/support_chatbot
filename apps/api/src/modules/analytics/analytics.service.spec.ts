@@ -319,3 +319,69 @@ describe('AnalyticsService.unanswered', () => {
     ]);
   });
 });
+
+describe('AnalyticsService.listAuditLogs', () => {
+  const ROW = {
+    id: 'aaaaaaaa-1111-4111-8111-111111111111',
+    user_id: 'bbbbbbbb-2222-4222-8222-222222222222',
+    user_email: 'admin@example.com',
+    action: 'auth.login',
+    entity: 'session',
+    entity_id: 'cccccccc-3333-4333-8333-333333333333',
+    data: { ip: '127.0.0.1' },
+    created_at: new Date('2026-10-18T09:00:00Z'),
+    total: 1,
+  };
+
+  it('maps rows to entries and carries the window total', async () => {
+    const { service } = buildHarness({ results: [[ROW]] });
+
+    const result = await service.listAuditLogs({ limit: 50, offset: 0 });
+
+    expect(result).toEqual({
+      items: [
+        {
+          id: ROW.id,
+          userId: ROW.user_id,
+          userEmail: 'admin@example.com',
+          action: 'auth.login',
+          entity: 'session',
+          entityId: ROW.entity_id,
+          data: { ip: '127.0.0.1' },
+          createdAt: '2026-10-18T09:00:00.000Z',
+        },
+      ],
+      total: 1,
+    });
+  });
+
+  it('keeps anonymous rows (null user) and returns total 0 for an empty page', async () => {
+    const anonymous = buildHarness({
+      results: [[{ ...ROW, user_id: null, user_email: null, data: null }]],
+    });
+    const result = await anonymous.service.listAuditLogs({ limit: 50, offset: 0 });
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({ userId: null, userEmail: null, data: null }),
+    );
+
+    const empty = buildHarness({ results: [[]] });
+    await expect(empty.service.listAuditLogs({ limit: 50, offset: 0 })).resolves.toEqual({
+      items: [],
+      total: 0,
+    });
+  });
+
+  it('rejects an inverted range before touching the database', async () => {
+    const harness = buildHarness();
+
+    await expect(
+      harness.service.listAuditLogs({
+        from: '2026-10-18T00:00:00.000Z',
+        to: '2026-10-01T00:00:00.000Z',
+        limit: 50,
+        offset: 0,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(harness.execute).not.toHaveBeenCalled();
+  });
+});

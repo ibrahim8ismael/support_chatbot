@@ -180,6 +180,14 @@ export class AuthService {
     }
   }
 
+  /**
+   * Session hygiene (security.md § 1): drop every session a user holds. Called
+   * by user management when an account is deactivated or its password changes.
+   */
+  async invalidateSessions(userId: string): Promise<void> {
+    await this.database.db.delete(sessions).where(eq(sessions.userId, userId));
+  }
+
   private async createSession(userId: string, meta: LoginMeta): Promise<string> {
     const [row] = await this.database.db
       .insert(sessions)

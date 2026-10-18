@@ -23,10 +23,12 @@ Design of the dashboard + webhook API exposed by `apps/api`. Once the code exist
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/users` | list |
-| POST | `/users` | `{ email, name, role, password }` (invite flow P1) |
-| PATCH | `/users/:id` | role, name, `is_active` |
-| POST | `/users/:id/password` | admin reset |
+| GET | `/users` | array of `{ id, email, name, role, isActive, createdAt, updatedAt }`, oldest first; never the password hash |
+| POST | `/users` | `{ email, name, role, password }` — password policy as login (≥ 12 chars) → 201 created user; duplicate email → 409 |
+| PATCH | `/users/:id` | partial `{ name?, role?, isActive? }`, at least one field; `isActive: false` revokes every session of that user |
+| POST | `/users/:id/password` | `{ password }` → `{ status: "ok" }`; re-hashes and revokes every session of that user |
+
+Every change writes an audit row (`users.create` / `users.update` / `users.password_reset`); deactivation and password resets drop the target's sessions (security.md § Session hygiene).
 
 ## Knowledge bases (`knowledge-base`, editor/admin for writes)
 
@@ -106,7 +108,7 @@ Keys and defaults: [data-model](../architecture/data-model.md#settings-owner-set
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/audit-logs` | `?userId&action&from&to`, paginated |
+| GET | `/audit-logs` | `?userId&action&from&to&limit&offset` → `{ items, total }`; `action` matches exactly, `from`/`to` are half-open on `created_at` (`from >= to` → 400); newest first with the acting user's email joined in |
 
 ## Webhooks (public)
 
