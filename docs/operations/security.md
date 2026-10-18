@@ -48,7 +48,7 @@ Outbound credentials: Chatwoot bot token and provider API keys are env-only, lea
 | With external providers | OpenAI: chat + embeddings (`text-embedding-3-small`); OpenRouter: chat only. Dev/CI keep `LLM_PROVIDER=mock` — nothing leaves |
 | If the policy changes | A self-hosted (vLLM/Ollama) carrier is a new factory `case` behind the same AI SDK interface; no pipeline refactor |
 | PII minimization | Send only what retrieval needs; no user emails/ids in prompts; (P1) redaction pass for obvious PII before provider calls |
-| Logs | Prompt content logged at debug only, with email/phone regex redaction (P1); `answer_events` stores query text (needed for analytics) with access limited to admins — `/analytics/unanswered` and the audit log are admin-only (T-302/T-304); the aggregate analytics endpoints carry no query text and are open to all signed-in roles |
+| Logs | Prompt content logged at debug only, with email/phone regex redaction (P1); `answer_events` stores query text (needed for analytics) with access limited to admins — `/analytics/unanswered`, the answer-event block of `/conversations/:id` (T-303), and the audit log are admin-only (T-302/T-304); the aggregate analytics endpoints and the conversation thread itself carry no query text and are open to all signed-in roles |
 | Caching | Redis holds hashed inputs + derived data (vectors, chunk ids); queue payloads carry **ids, not message text** — workers re-read content from Postgres |
 | Retention | 12 months default for messages/events ([NFR-7](../product/requirements.md)); documents until deleted |
 
