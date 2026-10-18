@@ -100,9 +100,11 @@ import { Button, Card } from '@heroui/react';
 
 HeroUI v3 needs no provider. Use Tailwind utilities for layout and HeroUI's
 semantic tokens (`bg-surface`, `text-muted`, `border-border`) instead of raw hex
-values; dark mode is the `.dark` class on `<html>`. Screens that still use inline
-styles read the temporary `--legacy-border` / `--legacy-muted` tokens — delete a
-pair once its last screen migrates.
+values; dark mode is the `.dark` class on `<html>`. Dashboard chrome (sidebar,
+mobile drawer, header, theme toggle, account menu) lives in
+`apps/web/components/dashboard-shell.tsx`. New screens should compose the same
+primitives: `Card` for sections, `Table` for collections, `Select`/`TextField`
+for filters and forms, `Alert`/`Spinner` for states.
 
 ## Conventions
 

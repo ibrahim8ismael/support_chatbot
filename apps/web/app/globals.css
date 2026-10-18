@@ -1,24 +1,7 @@
 @import 'tailwindcss';
 @import '@heroui/styles';
 
-/*
- * Legacy tokens for screens that still use inline styles (pre-HeroUI).
- * Remove each pair as its screen migrates to HeroUI components.
- */
-:root {
-  --legacy-border: #d4d4d8;
-  --legacy-muted: #71717a;
-}
-
-* {
-  box-sizing: border-box;
-}
-
 body {
   margin: 0;
   line-height: 1.5;
-}
-
-a {
-  color: inherit;
 }

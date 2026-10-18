@@ -204,8 +204,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   on delivery failure (unset webhook → warn logs) —
   [deployment](docs/operations/deployment.md#observability--alerting).
 - **Dashboard UI foundation**: HeroUI v3 + Tailwind CSS v4 wired into `apps/web`
-  (PostCSS pipeline, layered theme tokens, dark-mode ready); existing screens keep
-  their interim styles until each is migrated —
+  (PostCSS pipeline, layered theme tokens, dark-mode ready), now used by every
+  dashboard screen —
   [development](docs/contributing/development.md#dashboard-ui-heroui).
 - **Login screen**: rebuilt with HeroUI — centered auth block, accessible
   TextField/Form/Alert primitives, pending spinner and the same session-cookie
@@ -232,6 +232,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   a toggleable password-reset form and an add-user form card.
 - **Audit log screen**: HeroUI range/action/user filters and a result `Table`
   with expandable JSON payloads, plus the admin-only warning.
+- **Dashboard UI cleanup**: removed the transitional legacy CSS tokens and the
+  global anchor color override now that every dashboard screen uses HeroUI.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
