@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { MetricsModule } from '../../common/metrics/metrics.module';
 import { ChatwootWebhookController } from './chatwoot.controller';
 import { ChatwootService } from './chatwoot.service';
 
@@ -9,6 +10,7 @@ import { ChatwootService } from './chatwoot.service';
  * addLabel() (repo-structure.md).
  */
 @Module({
+  imports: [MetricsModule],
   controllers: [ChatwootWebhookController],
   providers: [ChatwootService],
   exports: [ChatwootService],

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { MetricsModule } from '../../common/metrics/metrics.module';
 import { InfraModule } from '../infra/infra.module';
 import { LlmService } from './llm.service';
 
@@ -9,7 +10,7 @@ import { LlmService } from './llm.service';
  * modules (`agent`, `retrieval`) as versioned templates.
  */
 @Module({
-  imports: [InfraModule],
+  imports: [InfraModule, MetricsModule],
   providers: [LlmService],
   exports: [LlmService],
 })

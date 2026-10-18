@@ -301,8 +301,25 @@ engineering; dashboard admin flows used by the team.
       conversation + message + event + audit rows were purged while fresh rows and a KB
       with its document/chunks survived; an immediate re-run deleted 0 (idempotent).
       15 new unit tests (batching/order/cutoff/summary/worker/scheduler) — api suite 340.
-- [ ] **T-404 · Alerting** (S) — webhook error rate, queue depth/age, LLM error rate,
+- [x] **T-404 · Alerting** (S) — webhook error rate, queue depth/age, LLM error rate,
       Redis full; wire to the ops channel. Refs NFR-4.
+      **Done 2026-10-18**: new `alerting` module + `common/metrics`. An `alert-check`
+      job on the `maintenance` queue (every 5 min, upserted at boot) evaluates queue
+      depth (> 50 waiting), queue age (oldest waiting > 10 min), failed jobs (> 5 in
+      15 min), LLM error rate (> 5% in 5 min, ≥ 5 calls — process-local counters in
+      `LlmService`), webhook 5xx (> 3 in 10 min — the controller records unexpected
+      failures) and Redis memory (> 90% of `maxmemory`, or `ALERT_REDIS_MEMORY_MB`
+      when unset). Breaches post Slack-compatible `{"text": …}` to
+      `ALERT_WEBHOOK_URL` (unset → warn log) with a per-condition
+      `ALERT_COOLDOWN_MINUTES` (default 30) `SET NX EX` dedupe; delivery failures
+      clear the cooldown and throw so BullMQ retries. The `maintenance` queue now has
+      one worker handling both retention and alert jobs (two workers on one queue
+      would steal each other's job names). Verified live: 51 waiting + an 11-min-old
+      job + the Redis fallback raised 3 alerts; a repeat check inside the cooldown
+      sent none; with the receiver down 6 checks exhausted retries and failed; with
+      it back one check delivered the failed-queue alert (4 conditions total). 23 new
+      unit tests — api suite 363. `/health` remains an external uptime check
+      (documented).
 - [ ] **T-405 · Rollout to remaining inboxes** (S, ops) — activate inboxes one by one
       via bindings; verify kill switches per inbox. Refs roadmap M4.
 

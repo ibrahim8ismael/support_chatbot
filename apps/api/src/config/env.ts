@@ -43,6 +43,12 @@ export const envSchema = z
     /** NFR-7: messages/events retention window; documents live until deleted. */
     RETENTION_DAYS: z.coerce.number().int().min(1).default(365),
 
+    /** T-404 ops channel (Slack-compatible `{"text": …}`); unset = warn-log alerts. */
+    ALERT_WEBHOOK_URL: optional(z.url()),
+    ALERT_COOLDOWN_MINUTES: z.coerce.number().int().min(1).default(30),
+    /** Fallback Redis memory cap when `maxmemory` is unset (ADR-0006: 512 MB box). */
+    ALERT_REDIS_MEMORY_MB: z.coerce.number().int().min(1).default(460),
+
     UPLOAD_DIR: z.string().min(1).default('./data/uploads'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
