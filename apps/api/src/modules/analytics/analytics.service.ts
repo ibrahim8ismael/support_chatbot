@@ -9,6 +9,9 @@ import {
   type AnalyticsTimeseriesQuery,
   type AnalyticsUnansweredQuery,
   type AnswerOutcome,
+  type AuditLogEntry,
+  type AuditLogList,
+  type AuditLogQuery,
   type UnansweredQuestion,
 } from '@support-agent/shared';
 
@@ -31,6 +34,9 @@ export const AUDIT_ACTIONS = [
   'document.delete',
   'binding.update',
   'setting.update',
+  'users.create',
+  'users.update',
+  'users.password_reset',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -169,6 +175,42 @@ export class AnalyticsService {
         AnalyticsService.name,
       );
     }
+  }
+
+  /**
+   * Admin audit-log page (rest-api.md § Audit log): newest first, all filters
+   * optional (`from`/`to` half-open on `created_at`), window total for paging.
+   */
+  async listAuditLogs(query: AuditLogQuery): Promise<AuditLogList> {
+    const { from, to } = resolveAuditRange(query);
+    const userId = query.userId ?? null;
+    const action = query.action ?? null;
+
+    const rows = await this.queryRows<Record<string, unknown>>(sql`
+      select
+        a.id,
+        a.user_id,
+        u.email as user_email,
+        a.action,
+        a.entity,
+        a.entity_id,
+        a.data,
+        a.created_at,
+        count(*) over()::int as total
+      from audit_logs a
+      left join users u on u.id = a.user_id
+      where (${userId}::uuid is null or a.user_id = ${userId}::uuid)
+        and (${action}::text is null or a.action = ${action})
+        and (${from}::timestamptz is null or a.created_at >= ${from}::timestamptz)
+        and (${to}::timestamptz is null or a.created_at < ${to}::timestamptz)
+      order by a.created_at desc, a.id desc
+      limit ${query.limit} offset ${query.offset}
+    `);
+
+    return {
+      items: rows.map((row) => toAuditLogEntry(row)),
+      total: rows.length > 0 ? toNumber(rows[0]?.total) : 0,
+    };
   }
 
   /**
@@ -464,6 +506,36 @@ function toOverview(row: Record<string, unknown>): AnalyticsOverview {
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Timestamps come back as `Date` from postgres-js; the API speaks ISO strings. */
+function toIso(value: unknown): string | null {
+  if (value == null) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : new Date(String(value)).toISOString();
+}
+
+function toAuditLogEntry(row: Record<string, unknown>): AuditLogEntry {
+  return {
+    id: String(row.id),
+    userId: (row.user_id as string | null) ?? null,
+    userEmail: (row.user_email as string | null) ?? null,
+    action: String(row.action),
+    entity: String(row.entity),
+    entityId: (row.entity_id as string | null) ?? null,
+    data: row.data ?? null,
+    createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
+  };
+}
+
+function resolveAuditRange(query: AuditLogQuery): { from: string | null; to: string | null } {
+  const from = query.from ? new Date(query.from) : null;
+  const to = query.to ? new Date(query.to) : null;
+  if (from && to && from.getTime() >= to.getTime()) {
+    throw new BadRequestException('from must be before to');
+  }
+  return { from: from ? from.toISOString() : null, to: to ? to.toISOString() : null };
 }
 
 function describe(error: unknown): string {

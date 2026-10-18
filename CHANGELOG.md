@@ -152,6 +152,15 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   roles get the thread with `answerEventsRestricted: true`
   ([security](docs/operations/security.md) § 4). The `/conversations` screen adds a
   filter bar, a paged list and the diagnostics panel.
+- **Admin UIs + users/audit APIs** (T-304): `GET/POST /users`, `PATCH /users/:id` and
+  `POST /users/:id/password` (admin-only) manage accounts — duplicate emails are 409s,
+  and deactivation or a password reset revokes the target's sessions
+  ([security](docs/operations/security.md) § Session hygiene); every change writes a
+  `users.*` audit row. `GET /audit-logs` (admin-only) returns the trail with the acting
+  user's email, filters (`userId`, exact `action`, half-open `from`/`to`) and paging.
+  The web app now ships working `/bindings` (KB multi-select + per-inbox kill switch)
+  and `/settings` (typed form + admin LLM health check) screens plus new admin-only
+  `/users` and `/audit` screens; other roles see inline 403 notes.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

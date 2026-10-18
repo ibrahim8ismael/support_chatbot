@@ -8,6 +8,8 @@ const NAV = [
   { href: '/bindings', label: 'Inbox bindings' },
   { href: '/analytics', label: 'Analytics' },
   { href: '/settings', label: 'Settings' },
+  { href: '/users', label: 'Users' },
+  { href: '/audit', label: 'Audit log' },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
