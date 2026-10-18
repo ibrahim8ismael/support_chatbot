@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, Input, Label, Spinner, Table, TextField } from '@heroui/react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { AuditLogList } from '@support-agent/shared';
 
@@ -95,143 +96,162 @@ export function AuditView() {
   const total = list?.total ?? 0;
 
   return (
-    <>
-      <h1>Audit log</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Who changed what, when: logins, knowledge-base and document changes, bindings, settings and
-        user management.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-semibold tracking-tight">Audit log</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Who changed what, when: logins, knowledge-base and document changes, bindings, settings
+          and user management.
+        </p>
+      </div>
 
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
       {forbidden ? (
-        <p style={{ color: 'var(--legacy-muted)' }}>The audit log is admin-only.</p>
+        <Alert status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Read-only for your role</Alert.Title>
+            <Alert.Description>
+              The audit log is admin-only — ask an admin if you need access.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
       ) : (
         <>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              alignItems: 'center',
-              margin: '12px 0',
-            }}
-          >
-            {ANALYTICS_RANGES.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                aria-pressed={rangeId === preset.id}
-                onClick={() => {
-                  setRangeId(preset.id);
+          <Card>
+            <Card.Content className="flex flex-wrap items-end gap-3">
+              {ANALYTICS_RANGES.map((preset) => (
+                <Button
+                  key={preset.id}
+                  size="sm"
+                  variant={rangeId === preset.id ? 'primary' : 'ghost'}
+                  onPress={() => {
+                    setRangeId(preset.id);
+                    setOffset(0);
+                  }}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+
+              <TextField
+                className="w-56"
+                value={action}
+                onChange={(value) => {
+                  setAction(value);
                   setOffset(0);
-                }}
-                style={{
-                  padding: '4px 10px',
-                  border: '1px solid var(--legacy-border)',
-                  borderRadius: 999,
-                  background: rangeId === preset.id ? '#2563eb' : 'transparent',
-                  color: rangeId === preset.id ? 'white' : 'inherit',
-                  cursor: 'pointer',
                 }}
               >
-                {preset.label}
-              </button>
-            ))}
-            <label style={{ color: 'var(--legacy-muted)' }}>
-              Action{' '}
-              <input
-                placeholder="exact, e.g. users.update"
-                value={action}
-                onChange={(event) => {
-                  setAction(event.target.value);
-                  setOffset(0);
-                }}
-              />
-            </label>
-            <label style={{ color: 'var(--legacy-muted)' }}>
-              User id{' '}
-              <input
-                placeholder="uuid"
+                <Label>Action</Label>
+                <Input placeholder="exact, e.g. users.update" />
+              </TextField>
+
+              <TextField
+                className="w-64"
                 value={userId}
-                onChange={(event) => {
-                  setUserId(event.target.value);
+                onChange={(value) => {
+                  setUserId(value);
                   setOffset(0);
                 }}
-              />
-            </label>
-            {loading ? <span style={{ color: 'var(--legacy-muted)' }}>Loading…</span> : null}
-          </div>
+              >
+                <Label>User id</Label>
+                <Input placeholder="uuid" />
+              </TextField>
 
-          {list && list.items.length === 0 && !loading ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>No audit rows match these filters.</p>
-          ) : null}
+              {loading ? <Spinner size="sm" /> : null}
+            </Card.Content>
+          </Card>
 
-          {list && list.items.length > 0 ? (
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
-                  <th style={{ padding: '4px 8px 4px 0' }}>Time</th>
-                  <th style={{ padding: '4px 8px' }}>User</th>
-                  <th style={{ padding: '4px 8px' }}>Action</th>
-                  <th style={{ padding: '4px 0 4px 8px' }}>Entity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.items.map((entry) => (
-                  <tr key={entry.id} style={{ borderTop: '1px solid var(--legacy-border)' }}>
-                    <td style={{ padding: '6px 8px 6px 0', whiteSpace: 'nowrap' }}>
-                      {formatTimestamp(entry.createdAt)}
-                    </td>
-                    <td style={{ padding: '6px 8px' }}>{entry.userEmail ?? '—'}</td>
-                    <td style={{ padding: '6px 8px' }}>
-                      <code>{entry.action}</code>
-                    </td>
-                    <td style={{ padding: '6px 0 6px 8px' }}>
-                      <div>
-                        {entry.entity}
-                        {entry.entityId ? (
-                          <span style={{ color: 'var(--legacy-muted)' }}> · {entry.entityId}</span>
-                        ) : null}
-                      </div>
-                      <details style={{ marginTop: 2 }}>
-                        <summary
-                          style={{ cursor: 'pointer', color: 'var(--legacy-muted)', fontSize: 12 }}
-                        >
-                          {describeAuditData(entry.data)}
-                        </summary>
-                        <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>
-                          {JSON.stringify(entry.data, null, 2)}
-                        </pre>
-                      </details>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : null}
+          <Card>
+            <Card.Content className="p-0">
+              {list && list.items.length === 0 && !loading ? (
+                <p className="px-4 py-10 text-center text-sm text-muted">
+                  No audit rows match these filters.
+                </p>
+              ) : (
+                <Table>
+                  <Table.ScrollContainer>
+                    <Table.Content aria-label="Audit log" className="min-w-[760px]">
+                      <Table.Header>
+                        <Table.Column isRowHeader>Time</Table.Column>
+                        <Table.Column>User</Table.Column>
+                        <Table.Column>Action</Table.Column>
+                        <Table.Column>Entity</Table.Column>
+                      </Table.Header>
+                      <Table.Body items={list?.items ?? []}>
+                        {(entry) => (
+                          <Table.Row id={entry.id}>
+                            <Table.Cell>
+                              <span className="whitespace-nowrap text-sm text-muted">
+                                {formatTimestamp(entry.createdAt)}
+                              </span>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <span className="text-sm">{entry.userEmail ?? '—'}</span>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <code className="rounded bg-surface-secondary px-1.5 py-0.5 text-xs">
+                                {entry.action}
+                              </code>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <p className="text-sm">
+                                {entry.entity}
+                                {entry.entityId ? (
+                                  <span className="text-muted"> · {entry.entityId}</span>
+                                ) : null}
+                              </p>
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-xs text-muted">
+                                  {describeAuditData(entry.data)}
+                                </summary>
+                                <pre className="mt-1 overflow-x-auto rounded-lg bg-surface-secondary p-2 text-xs whitespace-pre-wrap">
+                                  {JSON.stringify(entry.data, null, 2)}
+                                </pre>
+                              </details>
+                            </Table.Cell>
+                          </Table.Row>
+                        )}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              )}
+            </Card.Content>
+          </Card>
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-            <button
-              type="button"
-              disabled={offset === 0 || loading}
-              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              isDisabled={offset === 0 || loading}
+              onPress={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
             >
               Previous
-            </button>
-            <button
-              type="button"
-              disabled={offset + shown >= total || loading}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              isDisabled={offset + shown >= total || loading}
+              onPress={() => setOffset(offset + PAGE_SIZE)}
             >
               Next
-            </button>
-            <span style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>
+            </Button>
+            <span className="text-xs text-muted">
               {total === 0 ? 'No rows' : `Rows ${offset + 1}–${offset + shown} of ${total}`}
             </span>
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

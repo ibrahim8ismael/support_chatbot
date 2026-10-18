@@ -230,6 +230,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   runtime tunables, Save + LLM health-check actions, and success/danger Alerts.
 - **Users screen**: HeroUI account cards with inline name/role/active editing,
   a toggleable password-reset form and an add-user form card.
+- **Audit log screen**: HeroUI range/action/user filters and a result `Table`
+  with expandable JSON payloads, plus the admin-only warning.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
