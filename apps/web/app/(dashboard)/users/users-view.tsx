@@ -1,7 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Input,
+  Label,
+  ListBox,
+  Select,
+  Spinner,
+  Switch,
+  TextField,
+} from '@heroui/react';
+import { KeyRound, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   USER_ROLES,
@@ -205,174 +218,245 @@ export function UsersView() {
   }
 
   return (
-    <>
-      <h1>Users</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Accounts and roles. Deactivated users keep their history; sessions are revoked on
-        deactivation and on password change.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-semibold tracking-tight">Users</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Accounts and roles. Deactivated users keep their history; sessions are revoked on
+          deactivation and on password change.
+        </p>
+      </div>
 
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-      {notice ? <p style={{ color: 'var(--legacy-muted)' }}>{notice}</p> : null}
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert status="success">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{notice}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
       {forbidden ? (
-        <p style={{ color: 'var(--legacy-muted)' }}>
-          User management is admin-only — ask an admin if you need access.
-        </p>
+        <Alert status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Read-only for your role</Alert.Title>
+            <Alert.Description>
+              User management is admin-only — ask an admin if you need access.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : loading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
       ) : (
         <>
-          {loading ? <p style={{ color: 'var(--legacy-muted)' }}>Loading…</p> : null}
+          <div className="flex flex-col gap-3">
+            {users.map((user) => {
+              const draft = draftFor(user, drafts);
+              const dirty = Object.keys(changedPatch(user, draft)).length > 0;
+              const busyRow = busy === user.id;
+              return (
+                <Card key={user.id}>
+                  <Card.Header className="flex flex-row flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Card.Title className="text-base">{user.email}</Card.Title>
+                      <Card.Description>
+                        joined {new Date(user.createdAt).toISOString().slice(0, 10)}
+                      </Card.Description>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Switch
+                        size="sm"
+                        isSelected={draft.isActive}
+                        onChange={(isActive) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [user.id]: { ...draft, isActive },
+                          }))
+                        }
+                      >
+                        <Switch.Control>
+                          <Switch.Thumb />
+                        </Switch.Control>
+                        <Switch.Content>
+                          <Label>Active</Label>
+                        </Switch.Content>
+                      </Switch>
+                      <Button
+                        size="sm"
+                        isDisabled={!dirty || busyRow}
+                        isPending={busyRow}
+                        onPress={() => void saveUser(user)}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isDisabled={busyRow}
+                        onPress={() => {
+                          setResetFor(resetFor === user.id ? null : user.id);
+                          setResetPassword('');
+                        }}
+                      >
+                        <KeyRound className="size-4" aria-hidden />
+                        Reset password
+                      </Button>
+                    </div>
+                  </Card.Header>
 
-          {!loading ? (
-            <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 900 }}>
-              <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
-                  <th style={{ padding: '4px 8px 4px 0' }}>User</th>
-                  <th style={{ padding: '4px 8px' }}>Name</th>
-                  <th style={{ padding: '4px 8px' }}>Role</th>
-                  <th style={{ padding: '4px 8px' }}>Active</th>
-                  <th style={{ padding: '4px 0 4px 8px' }} />
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => {
-                  const draft = draftFor(user, drafts);
-                  const dirty = Object.keys(changedPatch(user, draft)).length > 0;
-                  const busyRow = busy === user.id;
-                  return (
-                    <tr key={user.id} style={{ borderTop: '1px solid var(--legacy-border)' }}>
-                      <td style={{ padding: '6px 8px 6px 0' }}>
-                        <div>{user.email}</div>
-                        <div style={{ color: 'var(--legacy-muted)', fontSize: 11 }}>
-                          joined {new Date(user.createdAt).toISOString().slice(0, 10)}
-                        </div>
-                      </td>
-                      <td style={{ padding: '6px 8px' }}>
-                        <input
-                          value={draft.name}
-                          onChange={(event) =>
-                            setDrafts((current) => ({
-                              ...current,
-                              [user.id]: { ...draft, name: event.target.value },
-                            }))
-                          }
-                          style={{ width: 140 }}
-                        />
-                      </td>
-                      <td style={{ padding: '6px 8px' }}>
-                        <select
-                          value={draft.role}
-                          onChange={(event) =>
-                            setDrafts((current) => ({
-                              ...current,
-                              [user.id]: { ...draft, role: event.target.value as UserRole },
-                            }))
-                          }
-                        >
-                          {USER_ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {USER_ROLE_LABELS[role]}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ padding: '6px 8px' }}>
-                        <input
-                          type="checkbox"
-                          checked={draft.isActive}
-                          onChange={(event) =>
-                            setDrafts((current) => ({
-                              ...current,
-                              [user.id]: { ...draft, isActive: event.target.checked },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td style={{ padding: '6px 0 6px 8px', whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          disabled={!dirty || busyRow}
-                          onClick={() => void saveUser(user)}
-                        >
-                          {busyRow ? 'Saving…' : 'Save'}
-                        </button>{' '}
-                        <button
-                          type="button"
-                          disabled={busyRow}
-                          onClick={() => {
-                            setResetFor(resetFor === user.id ? null : user.id);
-                            setResetPassword('');
-                          }}
-                        >
-                          Reset password
-                        </button>
-                        {resetFor === user.id ? (
-                          <div
-                            style={{
-                              display: 'flex',
-                              gap: 8,
-                              alignItems: 'center',
-                              marginTop: 6,
-                            }}
-                          >
-                            <input
-                              type="password"
-                              placeholder="New password (12+ chars)"
-                              value={resetPassword}
-                              onChange={(event) => setResetPassword(event.target.value)}
-                            />
-                            <button
-                              type="button"
-                              disabled={busyRow}
-                              onClick={() => void resetUserPassword(user)}
-                            >
-                              Confirm
-                            </button>
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : null}
+                  <Card.Content className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-start gap-3">
+                      <TextField
+                        className="w-60"
+                        value={draft.name}
+                        onChange={(name) =>
+                          setDrafts((current) => ({
+                            ...current,
+                            [user.id]: { ...draft, name },
+                          }))
+                        }
+                      >
+                        <Label>Name</Label>
+                        <Input />
+                      </TextField>
 
-          <h2 style={{ fontSize: 16, marginTop: 24 }}>Add a user</h2>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input
-              type="email"
-              placeholder="email"
-              value={createEmail}
-              onChange={(event) => setCreateEmail(event.target.value)}
-            />
-            <input
-              placeholder="name"
-              value={createName}
-              onChange={(event) => setCreateName(event.target.value)}
-            />
-            <select
-              value={createRole}
-              onChange={(event) => setCreateRole(event.target.value as UserRole)}
-            >
-              {USER_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {USER_ROLE_LABELS[role]}
-                </option>
-              ))}
-            </select>
-            <input
-              type="password"
-              placeholder="password (12+ chars)"
-              value={createPassword}
-              onChange={(event) => setCreatePassword(event.target.value)}
-            />
-            <button type="button" disabled={busy === 'create'} onClick={() => void createUser()}>
-              {busy === 'create' ? 'Creating…' : 'Create user'}
-            </button>
+                      <Select
+                        className="w-40"
+                        value={draft.role}
+                        onChange={(role) => {
+                          if (typeof role !== 'string') {
+                            return;
+                          }
+                          setDrafts((current) => ({
+                            ...current,
+                            [user.id]: { ...draft, role: role as UserRole },
+                          }));
+                        }}
+                      >
+                        <Label>Role</Label>
+                        <Select.Trigger>
+                          <Select.Value />
+                          <Select.Indicator />
+                        </Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {USER_ROLES.map((role) => (
+                              <ListBox.Item key={role} id={role} textValue={USER_ROLE_LABELS[role]}>
+                                {USER_ROLE_LABELS[role]}
+                                <ListBox.ItemIndicator />
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                    </div>
+
+                    {resetFor === user.id ? (
+                      <form
+                        className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-surface-secondary/50 p-3"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void resetUserPassword(user);
+                        }}
+                      >
+                        <TextField
+                          className="w-64"
+                          value={resetPassword}
+                          onChange={setResetPassword}
+                        >
+                          <Label>New password</Label>
+                          <Input
+                            type="password"
+                            placeholder="12+ characters"
+                            autoComplete="new-password"
+                          />
+                        </TextField>
+                        <Button type="submit" size="sm" isPending={busyRow}>
+                          Confirm reset
+                        </Button>
+                      </form>
+                    ) : null}
+                  </Card.Content>
+                </Card>
+              );
+            })}
           </div>
+
+          <Card className="max-w-3xl">
+            <Card.Header>
+              <Card.Title className="text-base">Add a user</Card.Title>
+              <Card.Description>
+                New accounts get the selected role immediately; passwords must be at least 12
+                characters.
+              </Card.Description>
+            </Card.Header>
+            <Card.Content>
+              <form
+                className="grid gap-4 sm:grid-cols-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void createUser();
+                }}
+              >
+                <TextField value={createEmail} onChange={setCreateEmail} isRequired>
+                  <Label>Email</Label>
+                  <Input type="email" autoComplete="off" />
+                </TextField>
+                <TextField value={createName} onChange={setCreateName} isRequired>
+                  <Label>Name</Label>
+                  <Input autoComplete="off" />
+                </TextField>
+                <Select
+                  value={createRole}
+                  onChange={(role) => {
+                    if (typeof role === 'string') {
+                      setCreateRole(role as UserRole);
+                    }
+                  }}
+                >
+                  <Label>Role</Label>
+                  <Select.Trigger>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {USER_ROLES.map((role) => (
+                        <ListBox.Item key={role} id={role} textValue={USER_ROLE_LABELS[role]}>
+                          {USER_ROLE_LABELS[role]}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+                <TextField value={createPassword} onChange={setCreatePassword} isRequired>
+                  <Label>Password</Label>
+                  <Input type="password" placeholder="12+ characters" autoComplete="new-password" />
+                </TextField>
+                <div className="sm:col-span-2">
+                  <Button type="submit" isPending={busy === 'create'}>
+                    <UserPlus className="size-4" aria-hidden />
+                    Create user
+                  </Button>
+                </div>
+              </form>
+            </Card.Content>
+          </Card>
         </>
       )}
-    </>
+    </div>
   );
 }
