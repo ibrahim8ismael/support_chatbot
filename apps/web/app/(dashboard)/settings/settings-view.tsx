@@ -1,7 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Description,
+  Input,
+  Label,
+  Spinner,
+  Switch,
+  TextArea,
+  TextField,
+} from '@heroui/react';
+import { Stethoscope } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { Settings } from '@support-agent/shared';
 
@@ -132,76 +145,125 @@ export function SettingsView() {
   }
 
   return (
-    <>
-      <h1>Settings</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Runtime tuning: kill switch, retrieval thresholds, prompts and models. Secrets (API keys,
-        Chatwoot tokens) are environment-only and never appear here.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Runtime tuning: kill switch, retrieval thresholds, prompts and models. Secrets (API keys,
+          Chatwoot tokens) are environment-only and never appear here.
+        </p>
+      </div>
 
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-      {notice ? <p style={{ color: 'var(--legacy-muted)' }}>{notice}</p> : null}
-      {loading ? <p style={{ color: 'var(--legacy-muted)' }}>Loading…</p> : null}
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+      {notice ? (
+        <Alert status="success">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{notice}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
-      {settings && form ? (
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
+      ) : settings && form ? (
         <>
-          <div style={{ display: 'grid', gap: 12, maxWidth: 720 }}>
-            {SETTINGS_FIELDS.map((field) => (
-              <label key={field.key} style={{ display: 'grid', gap: 4 }}>
-                <span style={{ fontSize: 13 }}>
-                  {field.label}
-                  {field.hint ? (
-                    <span style={{ color: 'var(--legacy-muted)' }}> — {field.hint}</span>
-                  ) : null}
-                </span>
-                {field.kind === 'boolean' ? (
-                  <input
-                    type="checkbox"
-                    checked={form[field.key] === 'true'}
-                    onChange={(event) =>
-                      updateField(field.key, event.target.checked ? 'true' : 'false')
-                    }
-                    style={{ justifySelf: 'start' }}
-                  />
-                ) : field.kind === 'textarea' ? (
-                  <textarea
-                    rows={field.key === 'system_prompt' ? 8 : 3}
-                    value={form[field.key]}
-                    onChange={(event) => updateField(field.key, event.target.value)}
-                  />
-                ) : (
-                  <input
-                    type={field.kind === 'number' ? 'number' : 'text'}
-                    min={field.min}
-                    max={field.max}
-                    step={field.step}
-                    value={form[field.key]}
-                    onChange={(event) => updateField(field.key, event.target.value)}
-                  />
-                )}
-              </label>
-            ))}
-          </div>
+          <Card className="max-w-3xl">
+            <Card.Header>
+              <Card.Title className="text-base">Runtime settings</Card.Title>
+              <Card.Description>
+                Changes apply to new bot answers after saving; values are validated by the API.
+              </Card.Description>
+            </Card.Header>
+            <Card.Content className="flex flex-col gap-5">
+              {SETTINGS_FIELDS.map((field) => {
+                if (field.kind === 'boolean') {
+                  return (
+                    <Switch
+                      key={field.key}
+                      isSelected={form[field.key] === 'true'}
+                      onChange={(enabled) => updateField(field.key, enabled ? 'true' : 'false')}
+                    >
+                      <Switch.Control>
+                        <Switch.Thumb />
+                      </Switch.Control>
+                      <Switch.Content>
+                        <Label>{field.label}</Label>
+                        {field.hint ? <Description>{field.hint}</Description> : null}
+                      </Switch.Content>
+                    </Switch>
+                  );
+                }
 
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 16 }}>
-            <button type="button" disabled={saving} onClick={() => void save()}>
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
-            <button type="button" disabled={healthBusy} onClick={() => void runHealthCheck()}>
-              {healthBusy ? 'Checking…' : 'Run LLM health check'}
-            </button>
-          </div>
+                return (
+                  <TextField
+                    key={field.key}
+                    value={form[field.key]}
+                    onChange={(value) => updateField(field.key, value)}
+                  >
+                    <Label>{field.label}</Label>
+                    {field.kind === 'textarea' ? (
+                      <TextArea rows={field.key === 'system_prompt' ? 8 : 3} />
+                    ) : (
+                      <Input
+                        type={field.kind === 'number' ? 'number' : 'text'}
+                        min={field.min}
+                        max={field.max}
+                        step={field.step}
+                      />
+                    )}
+                    {field.hint ? <Description>{field.hint}</Description> : null}
+                  </TextField>
+                );
+              })}
+            </Card.Content>
+            <Card.Footer className="flex flex-wrap items-center gap-3">
+              <Button isPending={saving} onPress={() => void save()}>
+                Save changes
+              </Button>
+              <Button
+                variant="secondary"
+                isPending={healthBusy}
+                onPress={() => void runHealthCheck()}
+              >
+                <Stethoscope className="size-4" aria-hidden />
+                Run LLM health check
+              </Button>
+            </Card.Footer>
+          </Card>
 
           {health ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>
-              LLM ok: {health.embedding.model} ({health.embedding.dimensions}d,{' '}
-              {health.embedding.latencyMs} ms) + {health.chat.model} ({health.chat.latencyMs} ms) —{' '}
-              {health.totalLatencyMs} ms total
-            </p>
+            <Alert status="success" className="max-w-3xl">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Description>
+                  LLM ok: {health.embedding.model} ({health.embedding.dimensions}d,{' '}
+                  {health.embedding.latencyMs} ms) + {health.chat.model} ({health.chat.latencyMs}{' '}
+                  ms) — {health.totalLatencyMs} ms total
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
           ) : null}
-          {healthError ? <p style={{ color: 'crimson' }}>{healthError}</p> : null}
+          {healthError ? (
+            <Alert status="danger" className="max-w-3xl">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Description>{healthError}</Alert.Description>
+              </Alert.Content>
+            </Alert>
+          ) : null}
         </>
       ) : null}
-    </>
+    </div>
   );
 }
