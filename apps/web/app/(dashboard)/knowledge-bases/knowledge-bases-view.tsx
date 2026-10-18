@@ -1,7 +1,24 @@
 'use client';
 
+import {
+  Alert,
+  Button,
+  Card,
+  Chip,
+  FieldError,
+  Form,
+  Input,
+  Label,
+  Modal,
+  Spinner,
+  Table,
+  TextArea,
+  TextField,
+  useOverlayState,
+} from '@heroui/react';
+import { BookOpen, FileText, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
 import type {
   DocumentStatus,
@@ -21,15 +38,27 @@ import {
 /** Ingestion runs in the BullMQ worker — poll while anything is processing. */
 const POLL_INTERVAL_MS = 2500;
 
+const STATUS_COLORS: Record<DocumentStatus, 'success' | 'danger' | 'warning'> = {
+  ready: 'success',
+  failed: 'danger',
+  processing: 'warning',
+};
+
 export function KnowledgeBasesView() {
   const router = useRouter();
   const [kbs, setKbs] = useState<KnowledgeBaseSummary[]>([]);
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const createModal = useOverlayState();
 
   const selectedKb = kbs.find((kb) => kb.id === selectedKbId) ?? null;
 
@@ -51,6 +80,8 @@ export function KnowledgeBasesView() {
       setError(null);
     } catch (cause) {
       handleError(cause);
+    } finally {
+      setLoading(false);
     }
   }, [handleError]);
 
@@ -101,24 +132,32 @@ export function KnowledgeBasesView() {
     const name = String(form.get('name') ?? '').trim();
     const description = String(form.get('description') ?? '').trim();
     if (name.length === 0) {
-      setError('Give the knowledge base a name');
+      setCreateError('Give the knowledge base a name');
       return;
     }
 
-    setBusy(true);
+    setCreating(true);
     try {
       const created = await apiFetch<KnowledgeBaseSummary>('/knowledge-bases', {
         method: 'POST',
         body: JSON.stringify({ name, ...(description.length > 0 ? { description } : {}) }),
       });
       formElement.reset();
+      setCreateError(null);
       setSelectedKbId(created.id);
+      createModal.close();
       setError(null);
       await loadKbs();
     } catch (cause) {
-      handleError(cause);
+      if (cause instanceof ApiError && cause.status === 401) {
+        router.push('/login');
+      } else {
+        setCreateError(
+          cause instanceof Error ? cause.message : 'Could not create the knowledge base',
+        );
+      }
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   }
 
@@ -136,7 +175,7 @@ export function KnowledgeBasesView() {
       return;
     }
 
-    setBusy(true);
+    setUploading(true);
     setUploadError(null);
     try {
       await apiUpload<{ documentId: string; status: DocumentStatus }>(
@@ -152,7 +191,7 @@ export function KnowledgeBasesView() {
         setUploadError(cause instanceof Error ? cause.message : 'Upload failed');
       }
     } finally {
-      setBusy(false);
+      setUploading(false);
       input.value = '';
     }
   }
@@ -186,181 +225,306 @@ export function KnowledgeBasesView() {
   }
 
   return (
-    <>
-      <h1>Knowledge bases</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Upload PDF/DOCX/TXT/MD files and follow ingestion status. Retrieval and the playground
-        answer from the chunks produced here.
-      </p>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-semibold tracking-tight">Knowledge bases</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Upload PDF, DOCX, TXT or MD files and follow ingestion status. Retrieval and the
+            playground answer from the chunks produced here.
+          </p>
+        </div>
+        <Button
+          onPress={() => {
+            setCreateError(null);
+            createModal.open();
+          }}
+        >
+          <Plus className="size-4" aria-hidden />
+          New knowledge base
+        </Button>
+      </div>
 
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
-      <section
-        style={{
-          display: 'grid',
-          gap: 24,
-          gridTemplateColumns: 'minmax(260px, 360px) 1fr',
-          marginTop: 16,
-        }}
-      >
-        <div>
-          <h2 style={{ fontSize: 16 }}>Create</h2>
-          <form
-            onSubmit={onCreate}
-            style={{
-              display: 'grid',
-              gap: 8,
-              border: '1px solid var(--legacy-border)',
-              padding: 12,
-            }}
-          >
-            <label>
-              Name
-              <input name="name" required maxLength={200} style={{ width: '100%' }} />
-            </label>
-            <label>
-              Description
-              <textarea name="description" rows={2} maxLength={2000} style={{ width: '100%' }} />
-            </label>
-            <button type="submit" disabled={busy}>
-              Create knowledge base
-            </button>
-          </form>
+      <div className="grid gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
+        <section className="flex min-w-0 flex-col gap-3">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-sm font-semibold">All knowledge bases</h3>
+            <span className="text-xs text-muted">{kbs.length}</span>
+          </div>
 
-          <h2 style={{ fontSize: 16, marginTop: 24 }}>All knowledge bases</h2>
-          {kbs.length === 0 ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>
-              No knowledge bases yet — create the first one.
-            </p>
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Spinner />
+            </div>
+          ) : kbs.length === 0 ? (
+            <Card>
+              <Card.Content className="flex flex-col items-center gap-3 py-10 text-center">
+                <BookOpen className="size-8 text-muted" aria-hidden />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">No knowledge bases yet</p>
+                  <p className="text-xs text-muted">
+                    Create the first one to start uploading documents.
+                  </p>
+                </div>
+                <Button size="sm" variant="secondary" onPress={createModal.open}>
+                  <Plus className="size-4" aria-hidden />
+                  Create knowledge base
+                </Button>
+              </Card.Content>
+            </Card>
           ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-              {kbs.map((kb) => (
-                <li key={kb.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedKbId(kb.id)}
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: 10,
-                      cursor: 'pointer',
-                      background: 'transparent',
-                      border:
-                        kb.id === selectedKbId
-                          ? '2px solid #2563eb'
-                          : '1px solid var(--legacy-border)',
-                    }}
-                  >
-                    <strong>{kb.name}</strong>
-                    {kb.status === 'archived' ? <em> · archived</em> : null}
-                    <div style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
-                      {kb.documentCount} document{kb.documentCount === 1 ? '' : 's'}
-                      {kb.statusCounts.processing > 0
-                        ? ` · ${kb.statusCounts.processing} processing`
-                        : ''}
-                      {kb.statusCounts.failed > 0 ? ` · ${kb.statusCounts.failed} failed` : ''}
-                    </div>
-                  </button>
-                </li>
-              ))}
+            <ul className="flex flex-col gap-2">
+              {kbs.map((kb) => {
+                const active = kb.id === selectedKbId;
+                return (
+                  <li key={kb.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedKbId(kb.id);
+                        setUploadError(null);
+                      }}
+                      className={`w-full rounded-2xl border p-4 text-left transition-colors ${
+                        active
+                          ? 'border-accent bg-accent/5 ring-1 ring-accent'
+                          : 'border-border bg-surface hover:bg-surface-secondary'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium">{kb.name}</span>
+                        {kb.status === 'archived' ? (
+                          <Chip size="sm" variant="soft">
+                            Archived
+                          </Chip>
+                        ) : null}
+                      </span>
+                      {kb.description ? (
+                        <span className="mt-1 line-clamp-2 block text-xs text-muted">
+                          {kb.description}
+                        </span>
+                      ) : null}
+                      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                        <span>
+                          {kb.documentCount} document{kb.documentCount === 1 ? '' : 's'}
+                        </span>
+                        {kb.statusCounts.processing > 0 ? (
+                          <span className="text-warning">
+                            {kb.statusCounts.processing} processing
+                          </span>
+                        ) : null}
+                        {kb.statusCounts.failed > 0 ? (
+                          <span className="text-danger">{kb.statusCounts.failed} failed</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
-        </div>
+        </section>
 
-        <div>
-          <h2 style={{ fontSize: 16 }}>
-            {selectedKb ? `Documents — ${selectedKb.name}` : 'Documents'}
-          </h2>
+        <section className="min-w-0">
           {!selectedKb ? (
-            <p style={{ color: 'var(--legacy-muted)' }}>
-              Select a knowledge base to manage its documents.
-            </p>
+            <Card className="h-full">
+              <Card.Content className="flex min-h-64 flex-col items-center justify-center gap-3 text-center">
+                <FileText className="size-8 text-muted" aria-hidden />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Select a knowledge base</p>
+                  <p className="text-xs text-muted">
+                    Its documents and ingestion status appear here.
+                  </p>
+                </div>
+              </Card.Content>
+            </Card>
           ) : (
-            <>
-              <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+            <Card>
+              <Card.Header className="flex flex-row items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <Card.Title className="truncate">{selectedKb.name}</Card.Title>
+                  <Card.Description className="truncate">
+                    {selectedKb.description ?? 'No description'}
+                  </Card.Description>
+                </div>
                 <input
+                  ref={fileInput}
                   type="file"
                   accept={DOCUMENT_ACCEPT}
+                  className="hidden"
                   onChange={(event) => void onUpload(event)}
-                  disabled={busy}
+                  disabled={uploading}
                 />
-                {uploadError ? <p style={{ color: 'crimson', margin: 0 }}>{uploadError}</p> : null}
-              </div>
-              {documents.length === 0 ? (
-                <p style={{ color: 'var(--legacy-muted)' }}>No documents yet — upload one above.</p>
-              ) : (
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-                  {documents.map((document) => (
-                    <li
-                      key={document.id}
-                      style={{
-                        border: '1px solid var(--legacy-border)',
-                        padding: 10,
-                        display: 'grid',
-                        gap: 4,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'baseline',
-                          gap: 8,
-                        }}
-                      >
-                        <strong>{document.filename}</strong>
-                        <span style={{ color: statusColor(document.status) }}>
-                          {DOCUMENT_STATUS_LABELS[document.status]}
-                        </span>
-                      </div>
-                      <div style={{ color: 'var(--legacy-muted)', fontSize: 13 }}>
-                        {formatBytes(document.sizeBytes)}
-                        {document.status === 'ready'
-                          ? ` · ${document.chunkCount} chunk${document.chunkCount === 1 ? '' : 's'}`
-                          : ''}
-                      </div>
-                      {document.error ? (
-                        <p style={{ color: 'crimson', margin: 0, fontSize: 13 }}>
-                          {document.error}
-                        </p>
-                      ) : null}
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {document.status !== 'processing' ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void onReprocess(document.id)}
-                          >
-                            Reprocess
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void onDeleteDocument(document)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-    </>
-  );
-}
+                <Button
+                  variant="secondary"
+                  isPending={uploading}
+                  onPress={() => fileInput.current?.click()}
+                >
+                  <Upload className="size-4" aria-hidden />
+                  Upload document
+                </Button>
+              </Card.Header>
 
-function statusColor(status: DocumentStatus): string {
-  switch (status) {
-    case 'ready':
-      return '#15803d';
-    case 'failed':
-      return 'crimson';
-    default:
-      return 'var(--legacy-muted)';
-  }
+              <Card.Content className="flex flex-col gap-3 p-0">
+                {uploadError ? (
+                  <div className="px-4 pt-4">
+                    <Alert status="danger">
+                      <Alert.Indicator />
+                      <Alert.Content>
+                        <Alert.Description>{uploadError}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  </div>
+                ) : null}
+
+                <Table>
+                  <Table.ScrollContainer>
+                    <Table.Content aria-label="Documents" className="min-w-[640px]">
+                      <Table.Header>
+                        <Table.Column isRowHeader>File</Table.Column>
+                        <Table.Column>Status</Table.Column>
+                        <Table.Column>Size</Table.Column>
+                        <Table.Column>Chunks</Table.Column>
+                        <Table.Column className="text-right">Actions</Table.Column>
+                      </Table.Header>
+                      <Table.Body
+                        items={documents}
+                        renderEmptyState={() => (
+                          <div className="flex flex-col items-center gap-1 py-12 text-center">
+                            <p className="text-sm font-medium">No documents yet</p>
+                            <p className="text-xs text-muted">
+                              Upload a PDF, DOCX, TXT or MD file to ingest it.
+                            </p>
+                          </div>
+                        )}
+                      >
+                        {(document) => (
+                          <Table.Row id={document.id}>
+                            <Table.Cell>
+                              <span className="flex min-w-0 items-center gap-2">
+                                <FileText className="size-4 shrink-0 text-muted" aria-hidden />
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-medium">
+                                    {document.filename}
+                                  </span>
+                                  {document.error ? (
+                                    <span className="block truncate text-xs text-danger">
+                                      {document.error}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              </span>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <Chip size="sm" variant="soft" color={STATUS_COLORS[document.status]}>
+                                {DOCUMENT_STATUS_LABELS[document.status]}
+                              </Chip>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <span className="text-sm text-muted">
+                                {formatBytes(document.sizeBytes)}
+                              </span>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <span className="text-sm text-muted">
+                                {document.status === 'ready' ? document.chunkCount : '—'}
+                              </span>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <div className="flex justify-end gap-1">
+                                {document.status !== 'processing' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    isDisabled={busy}
+                                    onPress={() => void onReprocess(document.id)}
+                                  >
+                                    <RefreshCw className="size-3.5" aria-hidden />
+                                    Reprocess
+                                  </Button>
+                                ) : null}
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  isDisabled={busy}
+                                  onPress={() => void onDeleteDocument(document)}
+                                >
+                                  <Trash2 className="size-3.5" aria-hidden />
+                                  Delete
+                                </Button>
+                              </div>
+                            </Table.Cell>
+                          </Table.Row>
+                        )}
+                      </Table.Body>
+                    </Table.Content>
+                  </Table.ScrollContainer>
+                </Table>
+              </Card.Content>
+            </Card>
+          )}
+        </section>
+      </div>
+
+      <Modal state={createModal}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.Header>
+                <Modal.Heading>New knowledge base</Modal.Heading>
+              </Modal.Header>
+              <Modal.Body>
+                <Form className="flex flex-col gap-4" onSubmit={onCreate}>
+                  <TextField isRequired>
+                    <Label>Name</Label>
+                    <Input name="name" maxLength={200} placeholder="Product documentation" />
+                    <FieldError />
+                  </TextField>
+
+                  <TextField>
+                    <Label>
+                      Description <span className="text-muted">(optional)</span>
+                    </Label>
+                    <TextArea
+                      name="description"
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="What does this knowledge base cover?"
+                    />
+                  </TextField>
+
+                  {createError ? (
+                    <Alert status="danger">
+                      <Alert.Indicator />
+                      <Alert.Content>
+                        <Alert.Description>{createError}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  ) : null}
+
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="ghost" onPress={createModal.close}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" isPending={creating}>
+                      Create knowledge base
+                    </Button>
+                  </div>
+                </Form>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+    </div>
+  );
 }
