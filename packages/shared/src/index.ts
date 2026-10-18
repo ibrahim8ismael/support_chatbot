@@ -3,6 +3,7 @@
  * Keep this package dependency-light — no Node- or browser-only APIs.
  */
 export * from './constants';
+export * from './schemas/analytics.schema';
 export * from './schemas/auth.schema';
 export * from './schemas/bindings.schema';
 export * from './schemas/health.schema';

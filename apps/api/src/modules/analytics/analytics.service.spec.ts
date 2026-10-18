@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
@@ -6,7 +7,7 @@ import { AnalyticsService } from './analytics.service';
 import { answerEvents } from './entities/answer-event.entity';
 import { auditLogs } from './entities/audit-log.entity';
 
-function buildHarness(options: { fail?: boolean } = {}) {
+function buildHarness(options: { fail?: boolean; results?: unknown[][] } = {}) {
   const inserted: Array<{ table: unknown; values: Record<string, unknown> }> = [];
   const insert = vi.fn((table: unknown) => ({
     values: vi.fn(async (values: Record<string, unknown>) => {
@@ -17,10 +18,19 @@ function buildHarness(options: { fail?: boolean } = {}) {
     }),
   }));
 
-  const database = { db: { insert } } as unknown as DatabaseService;
+  const results = [...(options.results ?? [])];
+  const execute = vi.fn(async (_query: unknown) => {
+    const next = results.shift();
+    if (!next) {
+      throw new Error('no canned execute result');
+    }
+    return next;
+  });
+
+  const database = { db: { insert, execute } } as unknown as DatabaseService;
   const logger = { error: vi.fn() } as unknown as AppLogger;
 
-  return { service: new AnalyticsService(database, logger), inserted, logger };
+  return { service: new AnalyticsService(database, logger), inserted, execute, logger };
 }
 
 describe('AnalyticsService.recordAnswerEvent', () => {
@@ -158,5 +168,154 @@ describe('AnalyticsService.recordAuditLog', () => {
       expect.stringContaining('auth.logout'),
       'AnalyticsService',
     );
+  });
+});
+
+describe('AnalyticsService.overview', () => {
+  it('maps the aggregate row to the contract shape with rates computed', async () => {
+    const { service } = buildHarness({
+      results: [
+        [
+          {
+            conversations: 40,
+            bot_answered: '30',
+            escalated_conversations: 6,
+            avg_latency_ms: 812.5,
+            p95_latency_ms: 2400,
+            tokens_in: 12_000,
+            tokens_out: 3400,
+            estimated_cost_usd: '0.42',
+          },
+        ],
+      ],
+    });
+
+    await expect(service.overview({})).resolves.toEqual({
+      conversations: 40,
+      botAnswered: 30,
+      deflectionRate: 0.75,
+      escalationRate: 0.15,
+      avgLatencyMs: 812.5,
+      p95LatencyMs: 2400,
+      tokensIn: 12_000,
+      tokensOut: 3400,
+      estimatedCostUsd: 0.42,
+    });
+  });
+
+  it('returns zeros for an empty range', async () => {
+    const { service } = buildHarness({ results: [[{ conversations: 0 }]] });
+
+    await expect(service.overview({})).resolves.toEqual({
+      conversations: 0,
+      botAnswered: 0,
+      deflectionRate: 0,
+      escalationRate: 0,
+      avgLatencyMs: 0,
+      p95LatencyMs: 0,
+      tokensIn: 0,
+      tokensOut: 0,
+      estimatedCostUsd: 0,
+    });
+  });
+
+  it('rejects ranges where from is not before to', async () => {
+    const { service, execute } = buildHarness();
+
+    await expect(
+      service.overview({ from: '2026-10-18T00:00:00.000Z', to: '2026-10-01T00:00:00.000Z' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('AnalyticsService.timeseries', () => {
+  it('maps buckets with per-bucket rates and echoes the resolved range', async () => {
+    const { service } = buildHarness({
+      results: [
+        [
+          {
+            bucket: new Date('2026-10-17T00:00:00.000Z'),
+            conversations: 10,
+            bot_answered: 8,
+            escalated_conversations: 1,
+            avg_latency_ms: 500,
+            p95_latency_ms: 900,
+            tokens_in: 100,
+            tokens_out: 20,
+            estimated_cost_usd: 0.01,
+          },
+          { bucket: new Date('2026-10-18T00:00:00.000Z'), conversations: 0 },
+        ],
+      ],
+    });
+
+    const result = await service.timeseries({
+      from: '2026-10-17T00:00:00.000Z',
+      to: '2026-10-18T12:00:00.000Z',
+      interval: 'day',
+    });
+
+    expect(result.interval).toBe('day');
+    expect(result.from).toBe('2026-10-17T00:00:00.000Z');
+    expect(result.to).toBe('2026-10-18T12:00:00.000Z');
+    expect(result.points).toEqual([
+      {
+        bucket: '2026-10-17T00:00:00.000Z',
+        conversations: 10,
+        botAnswered: 8,
+        deflectionRate: 0.8,
+        escalationRate: 0.1,
+        avgLatencyMs: 500,
+        p95LatencyMs: 900,
+        tokensIn: 100,
+        tokensOut: 20,
+        estimatedCostUsd: 0.01,
+      },
+      {
+        bucket: '2026-10-18T00:00:00.000Z',
+        conversations: 0,
+        botAnswered: 0,
+        deflectionRate: 0,
+        escalationRate: 0,
+        avgLatencyMs: 0,
+        p95LatencyMs: 0,
+        tokensIn: 0,
+        tokensOut: 0,
+        estimatedCostUsd: 0,
+      },
+    ]);
+  });
+});
+
+describe('AnalyticsService.unanswered', () => {
+  it('clusters similar queries and returns the strongest groups first', async () => {
+    const newest = new Date('2026-10-18T09:00:00.000Z');
+    const older = new Date('2026-10-18T08:00:00.000Z');
+    const oldest = new Date('2026-10-18T07:00:00.000Z');
+    const { service } = buildHarness({
+      results: [
+        [
+          { query_text: 'How do I reset my password?', created_at: newest, conversation_id: 'c1' },
+          { query_text: 'how do i reset a password', created_at: older, conversation_id: 'c2' },
+          { query_text: 'Do you offer refunds?', created_at: oldest, conversation_id: 'c3' },
+        ],
+      ],
+    });
+
+    await expect(service.unanswered({ limit: 10 })).resolves.toEqual([
+      {
+        query: 'How do I reset my password?',
+        count: 2,
+        lastSeen: newest.toISOString(),
+        sampleConversationId: 'c1',
+      },
+      {
+        query: 'Do you offer refunds?',
+        count: 1,
+        lastSeen: oldest.toISOString(),
+        sampleConversationId: 'c3',
+      },
+    ]);
   });
 });
