@@ -182,6 +182,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   sign-out is `delete from sessions`). Deploy/backup/restore runbooks replayed end
   to end, including a scratch-stack restore with a playground query —
   [deployment](docs/operations/deployment.md#deploy-migrate).
+- **Load + latency smoke** (T-402): `pnpm --filter api load:smoke` replays the
+  NFR-1/2/8 envelope against any deployment — a 100-message webhook burst at 20
+  concurrency (ack p95 ≤ 300 ms), 20 full-pipeline playground asks (e2e p95
+  ≤ 15 s, retrieval p95 ≤ 500 ms) and a 50-job Redis-restart durability probe on
+  a dedicated `load-smoke` queue with the ADR-0006 defaults (zero loss
+  required). The CLI exits non-zero on any failed assertion, never touches real
+  queues, and takes `--base-url`/`--insecure`/`--email`/`--password` for staging
+  or prod runs — [deployment](docs/operations/deployment.md#load-smoke-nfr-128).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

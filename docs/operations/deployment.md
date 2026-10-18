@@ -199,6 +199,23 @@ Run from the repo root with the dump + uploads tarball in `$PWD`:
 
 (Earlier steps abbreviate the compose invocation; it is `docker compose --env-file .env -f docker/docker-compose.prod.yml` throughout.)
 
+## Load smoke (NFR-1/2/8)
+
+`scripts/load-smoke.ts` is the repeatable burst check — run it from the repo root against dev, staging or prod:
+
+```sh
+pnpm --filter api load:smoke -- \
+  --base-url https://support-agent.internal.company --insecure \
+  --email ops@company.com --password '<admin password>' \
+  --webhook-secret '<CHATWOOT_WEBHOOK_SECRET>'
+```
+
+- **Webhook ack** (NFR-1): `--webhook-burst` (default 100) synthetic `message_created` events at `--concurrency` (default 20 — the NFR-8 burst envelope; the 5k conversations/month average is ~7/h). Asserts every request is 2xx and ack p95 ≤ 300 ms after a 10-request warm-up.
+- **Pipeline latency** (NFR-1): `--pipeline-count` (default 20) playground asks at the same concurrency through the full answer path, against a throwaway KB (`--kb <uuid>` reuses a populated one; KB create/delete needs an admin account). Asserts p95 end-to-end ≤ 15 s and retrieval p95 ≤ 500 ms. Numbers are only meaningful with a real provider key — under `LLM_PROVIDER=mock` it is a plumbing check — and the customer-message → posted-reply path joins the measurement with T-203.
+- **Queue durability** (NFR-2): `--jobs` (default 50) jobs on the dedicated `load-smoke` queue with the ADR-0006 defaults; Redis is restarted mid-flight (`--restart-cmd` overrides the default dev-compose command, `--skip-restart` for managed Redis), then nothing may be lost and every job must complete. The dedicated queue name means a prod run never touches real reply traffic.
+
+Exit code is non-zero when any assertion fails. The burst is side-effect-free until the reply pipeline lands (T-201+); afterwards point `--account`/`--inbox` at a test inbox or run the burst in staging.
+
 ## Changing the embedding model (dimension change)
 
 Plan (not an outage-free operation, do during low traffic):

@@ -272,9 +272,23 @@ engineering; dashboard admin flows used by the team.
       1000:1000`). Replayed on a fresh stack: build → up (migrate gates api) →
       seed admin → login via TLS → webhook + session-secret rotations → pg_dump +
       uploads backup → scratch-stack restore (health + playground query).
-- [ ] **T-402 · Load + latency smoke** (M) — synthetic webhook burst (≤ 20 concurrent /
+- [x] **T-402 · Load + latency smoke** (M) — synthetic webhook burst (≤ 20 concurrent /
       ~5k conversations-month profile); assert webhook ack ≤ 300 ms, p95 end-to-end
       ≤ 15 s, no lost jobs across a Redis restart. Refs NFR-1/2/8.
+      **Done 2026-10-18**: `scripts/load-smoke.ts` (`pnpm --filter api load:smoke`)
+      replays the envelope against any deployment. Phase 1: 100 `message_created`
+      webhooks at 20 concurrency (10-request unmeasured warm-up; `--account`/`--inbox`
+      aim it at a test inbox) — all 2xx + ack p95 ≤ 300 ms. Phase 2: 20 playground asks
+      through the full answer path at the same concurrency, against a throwaway KB
+      created and deleted via the API (`--kb` reuses a populated one) — e2e p95 ≤ 15 s
+      + retrieval p95 ≤ 500 ms (meaningful with a real provider; mock is a plumbing
+      check). Phase 3: 50 jobs on a dedicated `load-smoke` queue with the ADR-0006
+      defaults, Redis restarted mid-flight (dev compose by default, `--restart-cmd`
+      for other hosts, `--skip-restart` for managed Redis), then zero loss and full
+      drain. Non-zero exit on any failed assertion; `--insecure` accepts Caddy's
+      internal CA. Verified: three consecutive local runs green (ack p95 107–213 ms,
+      e2e p95 157–476 ms under `LLM_PROVIDER=mock`, 50/50 jobs recovered across three
+      Redis restarts) plus the failure path (wrong secret → 10/10 rejected, exit 1).
 - [ ] **T-403 · Retention job** (S) — configurable 12-month cleanup of messages/events
       (never documents/KBs). Refs NFR-7.
 - [ ] **T-404 · Alerting** (S) — webhook error rate, queue depth/age, LLM error rate,
