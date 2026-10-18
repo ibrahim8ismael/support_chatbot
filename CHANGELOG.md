@@ -213,6 +213,9 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Dashboard shell**: HeroUI sidebar/header with grouped navigation, a responsive
   drawer, a light/dark/system theme toggle (`next-themes`) and an account menu
   backed by `/auth/me` with sign-out.
+- **Knowledge bases screen**: HeroUI two-pane layout — KB cards with document
+  counts, create-in-modal form, documents table with status chips, upload,
+  reprocess and delete actions; polling unchanged.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
