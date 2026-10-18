@@ -117,6 +117,15 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   `answer_events` never mix models; missing keys and unknown providers fail fast at
   boot (`ANTHROPIC_API_KEY` / `SELF_HOSTED_BASE_URL` are gone — a third carrier would
   be a new factory case, not an env var).
+- **RAG evals** (T-108): `apps/api/evals/` — 3 launch topics × 20 cases (answerable,
+  must-escalate, injection) over a synthetic 10-document corpus, and `pnpm evals`, a
+  runner that ingests the corpus through the real upload → queue → worker pipeline into
+  a scratch KB, asks every case through `AgentService.ask()`, judges groundedness, and
+  gates the run (retrieval ≥ 0.90, groundedness ≥ 0.95, escalation ≥ 0.90, injection =
+  1.00, zero case errors). Results are written to `evals/.results/` with deltas against
+  the previous run. CI specs cover the dataset contract, mock-embedding retrieval
+  invariants, and gate math; under `LLM_PROVIDER=mock` the groundedness gate is a
+  plumbing check, so real quality numbers need a configured provider key.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

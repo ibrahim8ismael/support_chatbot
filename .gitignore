@@ -11,6 +11,9 @@ dist/
 # Testing
 coverage/
 
+# Eval run artifacts (pnpm evals)
+apps/api/evals/.results/
+
 # Environment
 .env
 .env.*

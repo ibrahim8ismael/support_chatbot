@@ -18,7 +18,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "tsx scripts/seed-admin.ts",
-    "evals": "echo \"RAG evals not implemented yet — see docs/architecture/rag-pipeline.md\" && exit 1",
+    "evals": "ts-node --transpile-only evals/runner.ts",
     "simulate:webhook": "tsx scripts/simulate-webhook.ts"
   },
   "dependencies": {
@@ -57,6 +57,7 @@
     "@types/supertest": "^7.2.1",
     "drizzle-kit": "^0.31.11",
     "supertest": "^7.3.1",
+    "ts-node": "^10.9.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "unplugin-swc": "^2.0.0",
