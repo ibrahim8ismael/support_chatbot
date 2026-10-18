@@ -6,6 +6,7 @@ import { LoggerModule } from './common/logger/logger.module';
 import { validateEnv } from './config/env';
 import { DatabaseModule } from './db/database.module';
 import { AgentModule } from './modules/agent/agent.module';
+import { AlertingModule } from './modules/alerting/alerting.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BindingsModule } from './modules/bindings/bindings.module';
@@ -16,6 +17,7 @@ import { InfraModule } from './modules/infra/infra.module';
 import { IngestionModule } from './modules/ingestion/ingestion.module';
 import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 import { LlmModule } from './modules/llm/llm.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { RetrievalModule } from './modules/retrieval/retrieval.module';
 import { RetentionModule } from './modules/retention/retention.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -49,6 +51,8 @@ import { UsersModule } from './modules/users/users.module';
     AnalyticsModule,
     SettingsModule,
     RetentionModule,
+    AlertingModule,
+    MaintenanceModule,
   ],
   providers: [AppLogger],
 })

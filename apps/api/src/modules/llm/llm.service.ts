@@ -8,6 +8,7 @@ import type { z } from 'zod';
 import { EMBEDDING_DIMENSIONS } from '@support-agent/shared';
 
 import { AppLogger } from '../../common/logger/app-logger.service';
+import { RuntimeMetricsService } from '../../common/metrics/runtime-metrics.service';
 import { CacheService } from '../infra/cache.service';
 import type {
   ClassifyInput,
@@ -45,9 +46,26 @@ export class LlmService {
     config: ConfigService,
     private readonly cache: CacheService,
     private readonly logger: AppLogger,
+    private readonly metrics: RuntimeMetricsService,
   ) {
     // Fails fast at boot on a broken provider config (missing key / unknown provider).
     this.models = createLlmModels(config);
+  }
+
+  /**
+   * Every provider call goes through here: the T-404 alert check reads the
+   * success/error counters (process-local) to alert on the LLM error rate.
+   * Cache-only work never touches this.
+   */
+  private async providerCall<T>(call: () => Promise<T>): Promise<T> {
+    try {
+      const result = await call();
+      this.metrics.recordLlmCall(true);
+      return result;
+    } catch (error) {
+      this.metrics.recordLlmCall(false);
+      throw error;
+    }
   }
 
   /** Model ids for analytics (`answer_events.model` etc.). */
@@ -81,10 +99,12 @@ export class LlmService {
     let tokens = 0;
 
     if (misses.length > 0) {
-      const result = await embedMany({
-        model: this.models.embedding,
-        values: misses.map((key) => textByKey.get(key) ?? ''),
-      });
+      const result = await this.providerCall(() =>
+        embedMany({
+          model: this.models.embedding,
+          values: misses.map((key) => textByKey.get(key) ?? ''),
+        }),
+      );
       tokens = result.usage.tokens;
 
       await Promise.all(
@@ -134,13 +154,18 @@ export class LlmService {
   /** Non-streamed reply generation (ADR-0005); the caller owns the prompt. */
   async generateReply(input: GenerateReplyInput): Promise<GenerateReplyResult> {
     const started = Date.now();
-    const result = await generateText({
-      model: this.models.chat,
-      system: input.system,
-      messages: input.messages.map((message) => ({ role: message.role, content: message.content })),
-      maxOutputTokens: input.maxOutputTokens,
-      temperature: input.temperature,
-    });
+    const result = await this.providerCall(() =>
+      generateText({
+        model: this.models.chat,
+        system: input.system,
+        messages: input.messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+        maxOutputTokens: input.maxOutputTokens,
+        temperature: input.temperature,
+      }),
+    );
 
     return {
       text: result.text,
@@ -159,14 +184,19 @@ export class LlmService {
     input: ClassifyInput<TSchema>,
   ): Promise<ClassifyResult<z.infer<TSchema>>> {
     const started = Date.now();
-    const result = await generateText({
-      model: this.models.chat,
-      system: input.system,
-      messages: input.messages.map((message) => ({ role: message.role, content: message.content })),
-      // AI SDK v7 successor of `generateObject` (ADR-0005 intent: typed output).
-      output: Output.object({ schema: input.schema }),
-      maxOutputTokens: input.maxOutputTokens,
-    });
+    const result = await this.providerCall(() =>
+      generateText({
+        model: this.models.chat,
+        system: input.system,
+        messages: input.messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+        // AI SDK v7 successor of `generateObject` (ADR-0005 intent: typed output).
+        output: Output.object({ schema: input.schema }),
+        maxOutputTokens: input.maxOutputTokens,
+      }),
+    );
 
     return {
       object: result.output as z.infer<TSchema>,

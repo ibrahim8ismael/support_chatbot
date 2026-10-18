@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { EMBEDDING_DIMENSIONS } from '@support-agent/shared';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
+import { RuntimeMetricsService } from '../../common/metrics/runtime-metrics.service';
 import type { CacheService } from '../infra/cache.service';
 import { embeddingCacheKey, LlmService } from './llm.service';
 import { LlmProviderNotConfiguredError } from './providers/provider.factory';
@@ -26,8 +27,9 @@ function buildHarness(provider = 'mock') {
   } as unknown as CacheService;
 
   const logger = { debug: vi.fn() } as unknown as AppLogger;
+  const metrics = new RuntimeMetricsService();
 
-  return { service: new LlmService(config, cache, logger), cache, store };
+  return { service: new LlmService(config, cache, logger, metrics), cache, store, metrics };
 }
 
 describe('LlmService', () => {

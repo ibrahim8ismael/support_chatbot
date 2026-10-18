@@ -68,6 +68,9 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt |
 | `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |
 | `RETENTION_DAYS` | `365` | messages/events retention window in days (NFR-7); documents/KBs are never purged |
+| `ALERT_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | ops channel for threshold alerts (see below); Slack-compatible `{"text": …}`; unset → `warn` log lines |
+| `ALERT_COOLDOWN_MINUTES` | `30` | re-alert suppression window per condition |
+| `ALERT_REDIS_MEMORY_MB` | `460` | Redis memory alert cap when `maxmemory` is unset (512 MB box, ADR-0006) |
 | `UPLOAD_DIR` | `/data/uploads` | mounted volume |
 | `LOG_LEVEL` | `info` | |
 | `WORKER_CONCURRENCY` | `4` | reply job pool size |
@@ -91,6 +94,10 @@ than `RETENTION_DAYS` (default 365, NFR-7) in 1,000-row batches, so a backlog ne
 holds one huge transaction; documents, chunks, KBs, users and settings are never
 touched. The next morning, check the `retention done: cutoff=… deleted=…` log line
 for the per-table counts.
+
+The `alert-check` job runs every 5 minutes on the same queue — see
+[Observability & alerting](#observability--alerting) for the thresholds and the
+ops-channel wiring.
 
 ## Deploy & migrate
 
@@ -237,7 +244,7 @@ Plan (not an outage-free operation, do during low traffic):
 
 - **Logs:** pino JSON to stdout → host log driver; request id on every line; webhook id and conversation id on pipeline lines.
 - **Metrics (P1):** OpenTelemetry → company Grafana; key panels: webhook rate, filter outcomes, answer latency p50/p95, LLM error rate, queue counts (`waiting/active/failed`), Redis memory, cost/day.
-- **Alerts (minimal, from day one via log-based checks):** LLM error rate > 5% (5 min window), webhook 5xx > 3 in 10 min, queue `waiting` > 50 for 10 min, queue `failed` > 5 in 15 min, `/health` failing.
+- **In-app alerts (from day one):** an `alert-check` job runs every 5 minutes on the `maintenance` queue and evaluates: LLM error rate > 5% (5 min window, ≥ 5 calls), webhook 5xx > 3 in 10 min, queue `waiting` > 50, oldest waiting job > 10 min, queue `failed` > 5 in 15 min, and Redis memory > 90% of `maxmemory` (or above `ALERT_REDIS_MEMORY_MB` when unset). Breaches post a Slack-compatible `{"text": …}` message to `ALERT_WEBHOOK_URL` (unset → `warn` log lines) and repeat at most once per `ALERT_COOLDOWN_MINUTES` per condition. `/health` still needs an external uptime check — a dead API cannot alert about itself.
 
 ## Environment promotion
 

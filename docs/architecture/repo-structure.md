@@ -47,6 +47,10 @@ Each module owns its controllers, services, and database access. Cross-module ca
 | `agent` (orchestrator) | — | `ask()` answer core (query build → retrieval → prompt → guard) + playground `POST /playground/ask`; `handleIncomingMessage()` gluing chatwoot → retrieval → llm → chatwoot lands with the live pipeline (T-203) | Anything reused; it is the composition point |
 | `bindings` | `inbox_bindings` | inbox ↔ KB mapping, `getBoundKbIdsForInbox()` | KB CRUD itself |
 | `analytics` | `answer_events`, `audit_logs` | aggregation queries for dashboard | Writing events (modules write via its service) |
+| `retention` | `answer_events`, `messages`, `conversations`, `audit_logs` (delete-only, NFR-7) | `RetentionService.run()` — daily batched cleanup | Documents/KBs; anything on the answer path |
+| `alerting` | — (queue stats + Redis `INFO`; in-process counters) | threshold evaluation + ops-channel delivery (T-404) | Durable metrics storage/Grafana; paging escalation |
+| `maintenance` | — (BullMQ `maintenance` queue worker) | job dispatch for retention cleanup + alert check | Job business logic (lives in the owning modules) |
+| `metrics` (common) | — (process memory) | process-local LLM/webhook error counters for alerting | Durable metrics; cross-process aggregation |
 | `settings` | `settings` | typed get/set of runtime settings | Secrets (those are env-only) |
 | `infra` | — (Redis) | BullMQ `QueueService`, Redis `CacheService`, worker registration, per-conversation locks | Domain logic; job business logic (lives in the owning modules) |
 | `health` | — | `/health` | — |

@@ -197,6 +197,12 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   schedule (03:00 UTC) is upserted at every boot like the digest, and the env docs
   cover the new knob —
   [deployment](docs/operations/deployment.md#scheduled-jobs).
+- **Ops alerting** (T-404): an `alert-check` job runs every 5 minutes on the
+  `maintenance` queue and posts Slack-compatible messages to `ALERT_WEBHOOK_URL`
+  when queues back up, jobs fail, the LLM error rate spikes, webhook 5xx pile up,
+  or Redis memory nears its cap — with per-condition cooldown and BullMQ retries
+  on delivery failure (unset webhook → warn logs) —
+  [deployment](docs/operations/deployment.md#observability--alerting).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
