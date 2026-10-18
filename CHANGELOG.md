@@ -135,6 +135,15 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   reprocess/delete, binding upserts (per-inbox kill switch) and settings updates
   (before/after diff per key). `ANSWER_OUTCOMES` gains `escalated_guard`; `created_at`
   on both tables is the retention key for the T-403 cleanup.
+- **Analytics API + screen** (T-302): `GET /analytics/overview`, `/analytics/timeseries`
+  and `/analytics/unanswered` implement the metric definitions contract in
+  [rest-api](docs/api/rest-api.md) — `[from, to)` ranges (default: last 7 days), optional
+  `inboxId`, UTC gap-free buckets (`interval=day|week|month`), deflection qualified by "no
+  human agent message within 24 h". Unanswered questions are escalation rows in range,
+  clustered by token similarity, and the endpoint is admin-only because it exposes
+  customer question text ([security](docs/operations/security.md) § 4). The `/analytics`
+  dashboard renders the aggregates as cards, a dependency-free bar chart, and the top
+  unanswered list, with range/interval/inbox filters.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 

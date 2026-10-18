@@ -207,10 +207,19 @@ engineering; dashboard admin flows used by the team.
       logout (owner read before delete), KB create/update/delete, document
       upload/reprocess/delete, binding upserts (per-inbox kill switch) and settings
       updates (before/after diff per changed key).
-- [ ] **T-302 · Analytics API + screen** (M) — deflection/escalation rate, bot messages,
+- [x] **T-302 · Analytics API + screen** (M) — deflection/escalation rate, bot messages,
       latency avg/p95, token cost, filters (inbox, day/week/month), top-unanswered list;
       metric definitions contract in [rest-api](../api/rest-api.md) — do not silently
       change. Refs FR-7 P0.
+      **Done 2026-10-18**: `AnalyticsController` exposes `overview` / `timeseries` /
+      `unanswered` with the shared zod query schemas (defaults: last 7 days, `day`,
+      limit 10; `from >= to` → 400). The SQL in `AnalyticsService` mirrors the contract:
+      conversations = distinct conversations with an incoming message in `[from, to)`;
+      botAnswered adds "no `human_agent` message within 24 h"; escalations/exports are
+      per-bucket. `unanswered` clusters escalation rows by token Jaccard (≥ 0.6, newest
+      500 scanned, representative = most frequent variant) and is admin-only — it returns
+      customer text; aggregates stay open to all roles. The `/analytics` screen renders
+      cards, a dependency-free bar chart (buckets UTC) and the unanswered table.
 - [ ] **T-303 · Conversation explorer** (M) — list + detail: messages, answer events,
       retrieved chunks with scores, escalation notes. Refs FR-7 P1.
 - [ ] **T-304 · Admin UIs** (M) — bindings, settings, users (admin), audit log screen.

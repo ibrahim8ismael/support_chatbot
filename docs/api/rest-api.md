@@ -73,9 +73,11 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/analytics/overview` | `?from&to&inboxId?` → `{ conversations, botAnswered, deflectionRate, escalationRate, avgLatencyMs, p95LatencyMs, tokensIn, tokensOut, estimatedCostUsd }` |
-| GET | `/analytics/timeseries` | same filters, `?interval=day\|week\|month` → arrays for charts |
-| GET | `/analytics/unanswered` | top unanswered questions (low-score / escalated), grouped by similarity, `{ query, count, lastSeen, sampleConversationId }` |
+| GET | `/analytics/timeseries` | same filters, `?interval=day\|week\|month` (default `day`) → `{ interval, from, to, points: [{ bucket, …overview metrics }] }`; buckets are UTC and gap-free |
+| GET | `/analytics/unanswered` | **admin** (exposes customer question text, security § 4); `?from&to&inboxId?&limit=1..50` (default 10) → `[{ query, count, lastSeen, sampleConversationId }]`, escalation rows in range grouped by query similarity (token Jaccard ≥ 0.6, most recent 500 scanned) |
 | GET | `/analytics/knowledge-bases/:id/usage` | chunks retrieved most/never, per document (P1) |
+
+Filters: `from`/`to` are ISO 8601, the range is half-open `[from, to)`; `to` defaults to now, `from` to 7 days before `to`; `from >= to` → 400. `overview`/`timeseries` follow the security matrix (all signed-in roles).
 
 ### Metric definitions (contract — do not silently change)
 
@@ -83,9 +85,11 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 | --- | --- |
 | `conversations` | distinct conversations with ≥ 1 incoming message in range |
 | `botAnswered` | conversations where ≥ 1 `answer_events.outcome=answered` and no human message followed within 24 h |
-| `deflectionRate` | `botAnswered / conversations` (per selected range/inbox) |
+| `deflectionRate` | `botAnswered / conversations` (per selected range/inbox); 0 when the range is empty |
 | `escalationRate` | conversations with an escalation outcome / conversations |
 | `avgLatencyMs` | mean of `answer_events.total_ms` for `answered` rows |
+| `p95LatencyMs` | 95th percentile of `answer_events.total_ms` for `answered` rows |
+| `tokensIn` / `tokensOut` | Σ `tokens_in` / `tokens_out` over the range |
 | `estimatedCostUsd` | Σ `estimated_cost_usd` over the range |
 
 ## Settings (`settings`, editor/admin for writes)
