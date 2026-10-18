@@ -1,5 +1,6 @@
 'use client';
 
+import { Alert, Button, Card, FieldError, Form, Input, Label, TextField } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
@@ -46,19 +47,41 @@ export function LoginForm() {
   }
 
   return (
-    <form method="post" onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
-      <label>
-        Email
-        <input name="email" type="email" autoComplete="email" required />
-      </label>
-      <label>
-        Password
-        <input name="password" type="password" autoComplete="current-password" required />
-      </label>
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-      <button type="submit" disabled={pending}>
-        {pending ? 'Signing in…' : 'Sign in'}
-      </button>
-    </form>
+    <Card>
+      <Card.Content>
+        <Form className="flex flex-col gap-5" onSubmit={onSubmit}>
+          <TextField isRequired>
+            <Label>Email</Label>
+            <Input name="email" type="email" autoComplete="email" placeholder="you@company.com" />
+            <FieldError />
+          </TextField>
+
+          <TextField isRequired>
+            <Label>Password</Label>
+            <Input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+            />
+            <FieldError />
+          </TextField>
+
+          {error ? (
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Sign-in failed</Alert.Title>
+                <Alert.Description>{error}</Alert.Description>
+              </Alert.Content>
+            </Alert>
+          ) : null}
+
+          <Button type="submit" fullWidth isPending={pending}>
+            {pending ? 'Signing in…' : 'Sign in'}
+          </Button>
+        </Form>
+      </Card.Content>
+    </Card>
   );
 }
