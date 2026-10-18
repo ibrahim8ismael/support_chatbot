@@ -216,6 +216,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Knowledge bases screen**: HeroUI two-pane layout — KB cards with document
   counts, create-in-modal form, documents table with status chips, upload,
   reprocess and delete actions; polling unchanged.
+- **Playground screen**: HeroUI KB checkboxes and question composer, answer cards
+  with escalation status, grounded chunks, scores and trace metadata.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
