@@ -1,16 +1,35 @@
-# Production compose — run from the docker/ directory.
-# Secrets and per-host values live in ../.env on the host (never in the repo —
-# see docs/operations/deployment.md). DATABASE_URL/REDIS_URL must use the
-# service names (postgres, redis) in that file.
+# Production compose — run from the repository root on the host:
+#
+#   docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --build
+#
+# Per-host values live in the repo-root .env (gitignored — template:
+# docker/.env.prod.example). DATABASE_URL/REDIS_URL in that file must use the
+# service names (postgres, redis). Runtime images are pinned by digest
+# (security.md § Dependencies); bump them monthly with `docker pull <image>`
+# and update the sha here.
+#
+# `migrate` is a one-shot of the same api image: it applies the forward-only
+# Drizzle migrations, and `api` starts only after it exits 0 (depends_on).
+# Caddy is the only published entry point: TLS in front of web + api.
 
 name: support-agent
 
+x-api: &api
+  build:
+    context: ..
+    dockerfile: apps/api/Dockerfile
+  image: support-agent-api
+  env_file:
+    - ../.env
+  environment:
+    NODE_ENV: production
+
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sa}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in ../.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the repo-root .env}
       POSTGRES_DB: ${POSTGRES_DB:-support_agent}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -23,7 +42,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
     command:
       [
         'redis-server',
@@ -43,21 +62,27 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # One-shot schema migration (deploy step 3 in docs/operations/deployment.md).
+  # No restart: a failure fails the deploy, and the logs say why.
+  migrate:
+    <<: *api
+    command: ['node', 'dist/cli/migrate.js']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
-    build:
-      context: ..
-      dockerfile: apps/api/Dockerfile
-    env_file:
-      - ../.env
-    environment:
-      NODE_ENV: production
-    ports:
-      - '3001:3001'
+    <<: *api
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - uploads:/data/uploads
     healthcheck:
       test:
         [
@@ -77,18 +102,36 @@ services:
       context: ..
       dockerfile: apps/web/Dockerfile
       args:
-        # NEXT_PUBLIC_* is baked at build time — set it to the public dashboard URL.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-    ports:
-      - '3000:3000'
+        # NEXT_PUBLIC_* is baked at build time — the public dashboard origin
+        # (rebuild web after changing it).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://localhost}
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
 
-  # TODO(ops): Caddy (or the company proxy) for TLS in front of web/api —
-  # docs/operations/deployment.md.
+  # The only published ports in the stack: TLS entry point (docs/operations/deployment.md).
+  proxy:
+    image: caddy:2@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   pgdata:
   redisdata:
+  uploads:
+  caddydata:
+  caddyconfig:

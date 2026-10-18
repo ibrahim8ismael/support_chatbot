@@ -8,13 +8,18 @@ import { z } from 'zod';
 
 import { newPasswordSchema } from '@support-agent/shared';
 
-import { users } from '../src/modules/auth/entities/user.entity';
-import { PasswordService } from '../src/modules/auth/password.service';
+import { users } from '../modules/auth/entities/user.entity';
+import { PasswordService } from '../modules/auth/password.service';
 
 /**
  * Creates (or updates) an admin user — the first login for a fresh install.
  *
  *   pnpm seed:admin -- --email admin@example.com [--name "Admin"] [--password ...]
+ *
+ * In a deployed container (compiled into the image, same schema — no tsx):
+ *
+ *   docker compose --env-file .env -f docker/docker-compose.prod.yml \
+ *     run --rm api node dist/cli/seed-admin.js --email admin@example.com
  *
  * Without `--password` a random one is generated and printed once. Re-running
  * with an existing email updates the user (role → admin, new password).

@@ -167,6 +167,21 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   the `/analytics/unanswered` contract, posting a Slack-compatible `{"text": …}` to
   `DIGEST_WEBHOOK_URL` (unset → logged; failures retried with backoff and kept on the
   queue). No host cron — [deployment](docs/operations/deployment.md#scheduled-jobs).
+- **Production deploy drill** (T-401): the prod compose is now a real TLS stack —
+  Caddy fronts web+api (`docker/Caddyfile`; internal CA by default, `SITE_ADDRESS`
+  picks the host), only 80/443 are published, runtime images are digest-pinned,
+  uploads get a named volume, and a one-shot `migrate` of the api image applies
+  Drizzle migrations before `api` starts. The api image carries
+  `dist/cli/migrate.js` and `dist/cli/seed-admin.js` for the host runbook
+  (migration SQL ships in `dist` via nest-cli assets), `docker/.env.prod.example`
+  is the host template, and CI builds both Dockerfiles on every change. Drill
+  findings fixed en route: pnpm 10 refuses `deploy` without `--legacy`, the api
+  `CMD` pointed at a file that never existed, the uploads mountpoint needed
+  app-user ownership, and the secret-rotation runbook claimed
+  `AUTH_SESSION_SECRET` rotation invalidates sessions (it does not — global
+  sign-out is `delete from sessions`). Deploy/backup/restore runbooks replayed end
+  to end, including a scratch-stack restore with a playground query —
+  [deployment](docs/operations/deployment.md#deploy-migrate).
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
