@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Alert, Button, Card, ListBox, Select, Spinner, Table } from '@heroui/react';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   ANALYTICS_INTERVALS,
@@ -135,75 +136,113 @@ export function AnalyticsView() {
   }, [rangeId, interval, inboxId, handleError]);
 
   return (
-    <>
-      <h1>Analytics</h1>
-      <p style={{ color: 'var(--legacy-muted)' }}>
-        Answer and deflection metrics from answer_events — definitions in docs/api/rest-api.md.
-        Times are UTC.
-      </p>
-
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          alignItems: 'center',
-          margin: '12px 0',
-        }}
-      >
-        {ANALYTICS_RANGES.map((preset) => (
-          <button
-            key={preset.id}
-            type="button"
-            aria-pressed={rangeId === preset.id}
-            onClick={() => setRangeId(preset.id)}
-            style={{
-              padding: '4px 10px',
-              border: '1px solid var(--legacy-border)',
-              borderRadius: 999,
-              background: rangeId === preset.id ? '#2563eb' : 'transparent',
-              color: rangeId === preset.id ? 'white' : 'inherit',
-              cursor: 'pointer',
-            }}
-          >
-            {preset.label}
-          </button>
-        ))}
-        <label style={{ color: 'var(--legacy-muted)' }}>
-          Interval{' '}
-          <select
-            value={interval}
-            onChange={(event) => setIntervalValue(event.target.value as AnalyticsInterval)}
-          >
-            {ANALYTICS_INTERVALS.map((value) => (
-              <option key={value} value={value}>
-                {ANALYTICS_INTERVAL_LABELS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label style={{ color: 'var(--legacy-muted)' }}>
-          Inbox{' '}
-          <select value={inboxId} onChange={(event) => setInboxId(event.target.value)}>
-            <option value="">All inboxes</option>
-            {inboxes.map((binding) => (
-              <option key={binding.chatwootInboxId} value={binding.chatwootInboxId}>
-                {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
-              </option>
-            ))}
-          </select>
-        </label>
-        {loading ? <span style={{ color: 'var(--legacy-muted)' }}>Loading…</span> : null}
+    <div className="flex flex-col gap-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-semibold tracking-tight">Analytics</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Answer and deflection metrics from answer_events — definitions in docs/api/rest-api.md.
+          Times are UTC.
+        </p>
       </div>
 
-      {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+      <Card>
+        <Card.Content className="flex flex-wrap items-center gap-2">
+          {ANALYTICS_RANGES.map((preset) => (
+            <Button
+              key={preset.id}
+              size="sm"
+              variant={rangeId === preset.id ? 'primary' : 'ghost'}
+              onPress={() => setRangeId(preset.id)}
+            >
+              {preset.label}
+            </Button>
+          ))}
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Select
+              aria-label="Interval"
+              className="w-36"
+              value={interval}
+              onChange={(value) => {
+                if (typeof value === 'string') {
+                  setIntervalValue(value as AnalyticsInterval);
+                }
+              }}
+            >
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {ANALYTICS_INTERVALS.map((value) => (
+                    <ListBox.Item
+                      key={value}
+                      id={value}
+                      textValue={ANALYTICS_INTERVAL_LABELS[value]}
+                    >
+                      {ANALYTICS_INTERVAL_LABELS[value]}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+
+            <Select
+              aria-label="Inbox"
+              className="w-48"
+              value={inboxId === '' ? 'all' : inboxId}
+              onChange={(value) => {
+                const next = typeof value === 'string' ? value : 'all';
+                setInboxId(next === 'all' ? '' : next);
+              }}
+            >
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <ListBox.Item id="all" textValue="All inboxes">
+                    All inboxes
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  {inboxes.map((binding) => (
+                    <ListBox.Item
+                      key={binding.chatwootInboxId}
+                      id={String(binding.chatwootInboxId)}
+                      textValue={binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                    >
+                      {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+
+            {loading ? <Spinner size="sm" /> : null}
+          </div>
+        </Card.Content>
+      </Card>
+
+      {error ? (
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Request failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
       {overview ? <OverviewCards overview={overview} /> : null}
       {timeseries && timeseries.points.length > 0 ? (
         <TimeseriesChart points={timeseries.points} interval={timeseries.interval} />
       ) : null}
       <UnansweredPanel questions={unanswered} forbidden={unansweredForbidden} />
-    </>
+    </div>
   );
 }
 
@@ -223,22 +262,14 @@ function OverviewCards({ overview }: { overview: AnalyticsOverview }) {
   ];
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: 12,
-        margin: '16px 0',
-      }}
-    >
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
-        <div
-          key={card.label}
-          style={{ border: '1px solid var(--legacy-border)', borderRadius: 8, padding: 12 }}
-        >
-          <div style={{ color: 'var(--legacy-muted)', fontSize: 12 }}>{card.label}</div>
-          <div style={{ fontSize: 22, marginTop: 4 }}>{card.value}</div>
-        </div>
+        <Card key={card.label}>
+          <Card.Content className="flex flex-col gap-1 py-4">
+            <p className="text-xs font-medium text-muted">{card.label}</p>
+            <p className="text-2xl font-semibold tracking-tight">{card.value}</p>
+          </Card.Content>
+        </Card>
       ))}
     </div>
   );
@@ -254,78 +285,50 @@ function TimeseriesChart({
   const max = Math.max(1, ...points.map((point) => point.conversations));
 
   return (
-    <div
-      style={{
-        border: '1px solid var(--legacy-border)',
-        borderRadius: 8,
-        padding: 16,
-        margin: '16px 0',
-      }}
-    >
-      <h2 style={{ margin: 0, fontSize: 16 }}>Conversations vs bot answers</h2>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          color: 'var(--legacy-muted)',
-          fontSize: 12,
-          margin: '8px 0',
-        }}
-      >
-        <span>
-          <span style={swatch('var(--legacy-muted)')} /> Conversations
-        </span>
-        <span>
-          <span style={swatch('#2563eb')} /> Bot-answered
-        </span>
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 4,
-          overflowX: 'auto',
-          paddingBottom: 4,
-        }}
-      >
-        {points.map((point) => (
-          <div
-            key={point.bucket}
-            title={
-              `${bucketLabel(point.bucket, interval)} — ${formatCount(point.conversations)} conversations, ` +
-              `${formatCount(point.botAnswered)} bot-answered, deflection ${formatRate(point.deflectionRate)}`
-            }
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 4,
-              minWidth: 26,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 120 }}>
-              <div
-                style={{
-                  width: 9,
-                  height: `${(point.conversations / max) * 120}px`,
-                  background: 'var(--legacy-muted)',
-                }}
-              />
-              <div
-                style={{
-                  width: 9,
-                  height: `${(point.botAnswered / max) * 120}px`,
-                  background: '#2563eb',
-                }}
-              />
+    <Card>
+      <Card.Header>
+        <Card.Title className="text-base">Conversations vs bot answers</Card.Title>
+        <Card.Description>
+          Bucketed by {ANALYTICS_INTERVAL_LABELS[interval].toLowerCase()} in UTC.
+        </Card.Description>
+      </Card.Header>
+      <Card.Content className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-muted/40" aria-hidden />
+            Conversations
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm bg-accent" aria-hidden />
+            Bot-answered
+          </span>
+        </div>
+
+        <div className="flex items-end gap-1 overflow-x-auto pb-1">
+          {points.map((point) => (
+            <div
+              key={point.bucket}
+              title={`${bucketLabel(point.bucket, interval)} — ${formatCount(point.conversations)} conversations, ${formatCount(point.botAnswered)} bot-answered, deflection ${formatRate(point.deflectionRate)}`}
+              className="flex min-w-7 flex-col items-center gap-1"
+            >
+              <div className="flex h-32 items-end gap-0.5">
+                <div
+                  className="w-2 rounded-t-sm bg-muted/40"
+                  style={{ height: `${(point.conversations / max) * 100}%` }}
+                />
+                <div
+                  className="w-2 rounded-t-sm bg-accent"
+                  style={{ height: `${(point.botAnswered / max) * 100}%` }}
+                />
+              </div>
+              <span className="whitespace-nowrap text-[10px] text-muted">
+                {bucketLabel(point.bucket, interval)}
+              </span>
             </div>
-            <span style={{ fontSize: 10, color: 'var(--legacy-muted)', whiteSpace: 'nowrap' }}>
-              {bucketLabel(point.bucket, interval)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      </Card.Content>
+    </Card>
   );
 }
 
@@ -337,47 +340,57 @@ function UnansweredPanel({
   forbidden: boolean;
 }) {
   return (
-    <div
-      style={{
-        border: '1px solid var(--legacy-border)',
-        borderRadius: 8,
-        padding: 16,
-        margin: '16px 0',
-      }}
-    >
-      <h2 style={{ margin: 0, fontSize: 16 }}>Top unanswered questions</h2>
-      {forbidden ? (
-        <p style={{ color: 'var(--legacy-muted)' }}>
-          Customer question text is visible to admins only.
-        </p>
-      ) : questions.length === 0 ? (
-        <p style={{ color: 'var(--legacy-muted)' }}>No unanswered questions in this range.</p>
-      ) : (
-        <table style={{ borderCollapse: 'collapse', width: '100%', marginTop: 8 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', color: 'var(--legacy-muted)', fontSize: 12 }}>
-              <th style={{ padding: '4px 8px 4px 0' }}>Question</th>
-              <th style={{ padding: '4px 8px', textAlign: 'right' }}>Times</th>
-              <th style={{ padding: '4px 0 4px 8px' }}>Last seen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {questions.map((question) => (
-              <tr key={question.query} style={{ borderTop: '1px solid var(--legacy-border)' }}>
-                <td style={{ padding: '6px 8px 6px 0' }}>{question.query}</td>
-                <td style={{ padding: '6px 8px', textAlign: 'right' }}>{question.count}</td>
-                <td style={{ padding: '6px 0 6px 8px', whiteSpace: 'nowrap' }}>
-                  {formatTimestamp(question.lastSeen)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <Card>
+      <Card.Header>
+        <Card.Title className="text-base">Top unanswered questions</Card.Title>
+      </Card.Header>
+      <Card.Content className="p-0">
+        {forbidden ? (
+          <div className="p-4">
+            <Alert status="warning">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Description>
+                  Customer question text is visible to admins only.
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
+          </div>
+        ) : questions.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-muted">
+            No unanswered questions in this range.
+          </p>
+        ) : (
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label="Top unanswered questions" className="min-w-[520px]">
+                <Table.Header>
+                  <Table.Column isRowHeader>Question</Table.Column>
+                  <Table.Column className="text-right">Times</Table.Column>
+                  <Table.Column>Last seen</Table.Column>
+                </Table.Header>
+                <Table.Body items={questions}>
+                  {(question) => (
+                    <Table.Row id={question.query}>
+                      <Table.Cell>
+                        <span className="text-sm">{question.query}</span>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <span className="text-sm text-muted">{question.count}</span>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <span className="whitespace-nowrap text-sm text-muted">
+                          {formatTimestamp(question.lastSeen)}
+                        </span>
+                      </Table.Cell>
+                    </Table.Row>
+                  )}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        )}
+      </Card.Content>
+    </Card>
   );
-}
-
-function swatch(color: string): React.CSSProperties {
-  return { display: 'inline-block', width: 10, height: 10, background: color, marginRight: 4 };
 }

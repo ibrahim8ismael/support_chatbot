@@ -224,6 +224,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Inbox bindings screen**: one HeroUI card per inbox with the kill-switch
   `Switch`, KB `Checkbox` mapping, unsaved-changes chip and per-row save; the
   add-inbox form uses an `Input` + button.
+- **Analytics screen**: HeroUI stat-card grid, token-styled bar chart with
+  range/interval/inbox Select filters, and an unanswered-questions `Table`.
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
