@@ -7,15 +7,16 @@ import { EMBEDDING_DIMENSIONS } from '@support-agent/shared';
 import type { AppLogger } from '../../common/logger/app-logger.service';
 import { RuntimeMetricsService } from '../../common/metrics/runtime-metrics.service';
 import type { CacheService } from '../infra/cache.service';
-import { embeddingCacheKey, LlmService } from './llm.service';
+import { decodeEmbedding, embeddingCacheKey, encodeEmbedding, LlmService } from './llm.service';
 import { LlmProviderNotConfiguredError } from './providers/provider.factory';
 
-function buildHarness(provider = 'mock') {
+function buildHarness(provider = 'mock', options: { cacheWrites?: number } = {}) {
   const config = {
     get: vi.fn((key: string) => (key === 'LLM_PROVIDER' ? provider : undefined)),
   } as unknown as ConfigService;
 
   const store = new Map<string, unknown>();
+  let writes = options.cacheWrites ?? 0;
   const cache = {
     get: vi.fn(async (key: string) => store.get(key)),
     set: vi.fn(async (key: string, value: unknown) => {
@@ -24,12 +25,37 @@ function buildHarness(provider = 'mock') {
     del: vi.fn(async (key: string) => {
       store.delete(key);
     }),
+    incrByWithTtl: vi.fn(async (_key: string, amount: number) => {
+      writes += amount;
+      return writes;
+    }),
   } as unknown as CacheService;
 
-  const logger = { debug: vi.fn() } as unknown as AppLogger;
+  const logger = { debug: vi.fn(), warn: vi.fn() } as unknown as AppLogger;
   const metrics = new RuntimeMetricsService();
 
-  return { service: new LlmService(config, cache, logger, metrics), cache, store, metrics };
+  return {
+    service: new LlmService(config, cache, logger, metrics),
+    cache,
+    store,
+    metrics,
+    logger,
+  };
+}
+
+/** Cached vectors come back as float32 — compare with precision tolerance. */
+function expectVectorsClose(actual: number[], expected: number[]): void {
+  expect(actual).toHaveLength(expected.length);
+  actual.forEach((value, index) => {
+    expect(value).toBeCloseTo(expected[index] ?? Number.NaN, 5);
+  });
+}
+
+/** `embeddings[i]` under noUncheckedIndexedAccess — `[]` fails the length check. */
+function vectorAt(embeddings: number[][], index: number): number[] {
+  const vector = embeddings[index];
+  expect(vector).toBeDefined();
+  return vector ?? [];
 }
 
 describe('LlmService', () => {
@@ -56,8 +82,8 @@ describe('LlmService', () => {
       expect(store.size).toBe(1);
       expect(cache.set).toHaveBeenCalledWith(
         embeddingCacheKey('mock-embedding-1536', 'reset my password'),
-        result.embeddings[0],
-        7 * 24 * 60 * 60,
+        encodeEmbedding(vectorAt(result.embeddings, 0)),
+        24 * 60 * 60,
       );
     });
 
@@ -67,7 +93,7 @@ describe('LlmService', () => {
       const first = await service.embed(['reset my password']);
       const second = await service.embed(['reset my password']);
 
-      expect(second.embeddings).toEqual(first.embeddings);
+      expectVectorsClose(vectorAt(second.embeddings, 0), vectorAt(first.embeddings, 0));
       expect(second.cacheHits).toBe(1);
       expect(second.tokens).toBe(0);
       // Two gets, one set: the second call never wrote a new vector.
@@ -92,8 +118,8 @@ describe('LlmService', () => {
 
       expect(second.cacheHits).toBe(2);
       expect(second.tokens).toBe(0);
-      expect(second.embeddings[0]).toEqual(first.embeddings[1]);
-      expect(second.embeddings[1]).toEqual(first.embeddings[0]);
+      expectVectorsClose(vectorAt(second.embeddings, 0), vectorAt(first.embeddings, 1));
+      expectVectorsClose(vectorAt(second.embeddings, 1), vectorAt(first.embeddings, 0));
     });
 
     it('handles an empty batch without calling the provider', async () => {
@@ -105,6 +131,26 @@ describe('LlmService', () => {
       expect(result.tokens).toBe(0);
       expect(result.cacheHits).toBe(0);
       expect(cache.set).not.toHaveBeenCalled();
+    });
+
+    it('serves fresh vectors uncached once the hourly write budget is spent', async () => {
+      const { service, cache, logger } = buildHarness('mock', { cacheWrites: 200 });
+
+      const result = await service.embed(['a brand new text']);
+
+      expect(result.embeddings[0]).toHaveLength(EMBEDDING_DIMENSIONS);
+      expect(cache.set).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledOnce();
+    });
+
+    it('round-trips vectors through the base64 float32 codec', () => {
+      const vector = [0.5, -1.25, 3];
+
+      expect(decodeEmbedding(encodeEmbedding(vector))).toEqual(vector);
+      // Anything that is not a base64 float32 payload is a miss, never garbage.
+      expect(decodeEmbedding('not a vector')).toBeNull();
+      expect(decodeEmbedding([1, 2, 3])).toBeNull();
+      expect(decodeEmbedding(undefined)).toBeNull();
     });
   });
 
