@@ -20,6 +20,12 @@ function argValue(name: string): string | undefined {
 }
 
 async function main(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'refusing to send synthetic webhooks with NODE_ENV=production — point this at a local/dev API',
+    );
+  }
+
   const port = process.env.PORT ?? '3001';
   const secret = process.env.CHATWOOT_WEBHOOK_SECRET ?? 'dev-webhook-secret';
   const conversationId = Number(argValue('--conversation') ?? 812);

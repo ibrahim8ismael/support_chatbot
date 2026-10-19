@@ -10,6 +10,7 @@ import {
   evaluate,
   findRepoRoot,
   formatEvaluation,
+  isLocalHost,
   mapConcurrent,
   maskRedisUrl,
   percentile,
@@ -165,5 +166,19 @@ describe('maskRedisUrl', () => {
 
   it('leaves password-less urls untouched', () => {
     expect(maskRedisUrl('redis://localhost:6379')).toContain('localhost:6379');
+  });
+});
+
+describe('isLocalHost', () => {
+  it('accepts localhost and loopback addresses (v4 + v6)', () => {
+    expect(isLocalHost('http://localhost:3001')).toBe(true);
+    expect(isLocalHost('http://127.0.0.1:3001')).toBe(true);
+    expect(isLocalHost('http://[::1]:3001')).toBe(true);
+  });
+
+  it('rejects remote hosts, other loopback-range addresses and garbage', () => {
+    expect(isLocalHost('https://support.example.com')).toBe(false);
+    expect(isLocalHost('http://10.0.0.5:3001')).toBe(false);
+    expect(isLocalHost('not a url')).toBe(false);
   });
 });

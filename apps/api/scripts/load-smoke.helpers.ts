@@ -32,6 +32,20 @@ export const LOAD_SMOKE_JOB_DEFAULTS = {
   removeOnFail: false,
 };
 
+/**
+ * True when `url` targets the local machine — the webhook-burst safety gate
+ * (scripts/load-smoke.ts § assertBurstTargetSafe). Anything unparsable or
+ * non-loopback counts as remote (fail closed).
+ */
+export function isLocalHost(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
 /** A few plausible customer questions; each burst message gets one by index. */
 export const LOAD_SMOKE_QUESTIONS = [
   'What does the annual plan cost?',
