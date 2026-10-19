@@ -1,6 +1,6 @@
 'use client';
 
-import { Avatar, Button, Drawer, Dropdown, Label, useOverlayState } from '@heroui/react';
+import { Alert, Avatar, Button, Drawer, Dropdown, Label, useOverlayState } from '@heroui/react';
 import {
   BarChart3,
   BookOpen,
@@ -193,6 +193,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const drawer = useOverlayState();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -214,7 +215,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   async function signOut(): Promise<void> {
     setSigningOut(true);
-    await apiFetch('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    setSignOutError(null);
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch (cause) {
+      // Never claim success while the server session is still alive.
+      setSigningOut(false);
+      setSignOutError(
+        cause instanceof Error && cause.message.length > 0
+          ? cause.message
+          : 'The API did not confirm the sign-out.',
+      );
+      return;
+    }
     router.replace('/login');
     router.refresh();
   }
@@ -252,6 +265,18 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <div className="mx-1 h-6 w-px bg-separator" aria-hidden />
           <AccountMenu user={user} signingOut={signingOut} onSignOut={() => void signOut()} />
         </header>
+
+        {signOutError ? (
+          <div className="px-4 pt-4 lg:px-8">
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Sign out failed — you are still signed in</Alert.Title>
+                <Alert.Description>{signOutError}</Alert.Description>
+              </Alert.Content>
+            </Alert>
+          </div>
+        ) : null}
 
         <main className="flex-1 px-4 py-6 lg:px-8">{children}</main>
       </div>

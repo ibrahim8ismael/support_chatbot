@@ -57,7 +57,9 @@ export function KnowledgeBasesView() {
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [docsLoading, setDocsLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const previousKbRef = useRef<string | null>(null);
   const createModal = useOverlayState();
 
   const selectedKb = kbs.find((kb) => kb.id === selectedKbId) ?? null;
@@ -90,36 +92,50 @@ export function KnowledgeBasesView() {
   }, [loadKbs]);
 
   // Documents: load on selection, keep polling while ingestion is running.
-  const polling = hasProcessing(documents);
   useEffect(() => {
     if (!selectedKbId) {
+      previousKbRef.current = null;
       setDocuments([]);
+      setDocsLoading(false);
       return undefined;
     }
     const kbId = selectedKbId;
     let cancelled = false;
+    let timer: number | undefined;
+
+    if (previousKbRef.current !== kbId) {
+      // Never show the previous KB's table under the new selection.
+      previousKbRef.current = kbId;
+      setDocuments([]);
+      setDocsLoading(true);
+    }
+
     async function load(): Promise<void> {
       try {
         const list = await apiFetch<KnowledgeDocument[]>(`/knowledge-bases/${kbId}/documents`);
-        if (!cancelled) {
-          setDocuments(list);
+        if (cancelled) {
+          return;
+        }
+        setDocuments(list);
+        setDocsLoading(false);
+        // One poll in flight at a time: schedule the next only after this
+        // response and only while something is still processing.
+        if (hasProcessing(list)) {
+          timer = window.setTimeout(() => void load(), POLL_INTERVAL_MS);
         }
       } catch (cause) {
         if (!cancelled) {
+          setDocsLoading(false);
           handleError(cause);
         }
       }
     }
     void load();
-    if (!polling) {
-      return undefined;
-    }
-    const timer = window.setInterval(() => void load(), POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
-  }, [selectedKbId, polling, refreshToken, handleError]);
+  }, [selectedKbId, refreshToken, handleError]);
 
   const refreshDocuments = useCallback((): void => {
     setRefreshToken((token) => token + 1);
@@ -398,14 +414,20 @@ export function KnowledgeBasesView() {
                       </Table.Header>
                       <Table.Body
                         items={documents}
-                        renderEmptyState={() => (
-                          <div className="flex flex-col items-center gap-1 py-12 text-center">
-                            <p className="text-sm font-medium">No documents yet</p>
-                            <p className="text-xs text-muted">
-                              Upload a PDF, DOCX, TXT or MD file to ingest it.
-                            </p>
-                          </div>
-                        )}
+                        renderEmptyState={() =>
+                          docsLoading ? (
+                            <div className="flex justify-center py-12">
+                              <Spinner />
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 py-12 text-center">
+                              <p className="text-sm font-medium">No documents yet</p>
+                              <p className="text-xs text-muted">
+                                Upload a PDF, DOCX, TXT or MD file to ingest it.
+                              </p>
+                            </div>
+                          )
+                        }
                       >
                         {(document) => (
                           <Table.Row id={document.id}>
@@ -445,7 +467,7 @@ export function KnowledgeBasesView() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    isDisabled={busy}
+                                    isDisabled={busy || docsLoading}
                                     onPress={() => void onReprocess(document.id)}
                                   >
                                     <RefreshCw className="size-3.5" aria-hidden />
@@ -455,7 +477,7 @@ export function KnowledgeBasesView() {
                                 <Button
                                   size="sm"
                                   variant="danger"
-                                  isDisabled={busy}
+                                  isDisabled={busy || docsLoading}
                                   onPress={() => void onDeleteDocument(document)}
                                 >
                                   <Trash2 className="size-3.5" aria-hidden />

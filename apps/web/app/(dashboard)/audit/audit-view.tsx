@@ -2,7 +2,7 @@
 
 import { Alert, Button, Card, Input, Label, Spinner, Table, TextField } from '@heroui/react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { AuditLogList } from '@support-agent/shared';
 
@@ -45,8 +45,18 @@ export function AuditView() {
     [router],
   );
 
+  const filtersRef = useRef('');
+
   useEffect(() => {
     let cancelled = false;
+
+    // Rows belong to the active filters — don't leave stale ones on screen.
+    const key = `${rangeId}|${action}|${userId}|${offset}`;
+    if (filtersRef.current !== '' && filtersRef.current !== key) {
+      setList(null);
+    }
+    filtersRef.current = key;
+
     setLoading(true);
     setError(null);
 

@@ -33,6 +33,7 @@ export function BindingsView() {
   const [busyInbox, setBusyInbox] = useState<number | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleError = useCallback(
@@ -59,12 +60,14 @@ export function BindingsView() {
       if (bindingsResult.status === 'fulfilled') {
         setBindings(bindingsResult.value);
         setForbidden(false);
+        setLoadFailed(false);
       } else if (
         bindingsResult.reason instanceof ApiError &&
         bindingsResult.reason.status === 403
       ) {
         setForbidden(true);
       } else {
+        setLoadFailed(true);
         handleError(bindingsResult.reason);
       }
       if (kbsResult.status === 'fulfilled') {
@@ -94,6 +97,17 @@ export function BindingsView() {
     );
   }
 
+  function applySaved(saved: InboxBinding): void {
+    setBindings((rows) =>
+      rows.map((row) => (row.chatwootInboxId === saved.chatwootInboxId ? saved : row)),
+    );
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[saved.chatwootInboxId];
+      return next;
+    });
+  }
+
   async function save(binding: InboxBinding): Promise<void> {
     const draft = draftFor(binding);
     setBusyInbox(binding.chatwootInboxId);
@@ -103,15 +117,38 @@ export function BindingsView() {
         method: 'PUT',
         body: JSON.stringify({ kbIds: draft.kbIds, enabled: draft.enabled }),
       });
-      setBindings((rows) =>
-        rows.map((row) => (row.chatwootInboxId === saved.chatwootInboxId ? saved : row)),
-      );
+      applySaved(saved);
+    } catch (cause) {
+      handleError(cause);
+    } finally {
+      setBusyInbox(null);
+    }
+  }
+
+  /**
+   * The kill switch is an emergency control: it saves the moment it flips (with
+   * the current draft KB selection) instead of waiting for the Save button, and
+   * snaps back to the server state when the write fails.
+   */
+  async function toggleEnabled(binding: InboxBinding, enabled: boolean): Promise<void> {
+    const draft = { ...draftFor(binding), enabled };
+    setBusyInbox(binding.chatwootInboxId);
+    setError(null);
+    try {
+      const saved = await apiFetch<InboxBinding>(`/bindings/${binding.chatwootInboxId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ kbIds: draft.kbIds, enabled }),
+      });
+      applySaved(saved);
+    } catch (cause) {
       setDrafts((current) => {
         const next = { ...current };
-        delete next[binding.chatwootInboxId];
+        next[binding.chatwootInboxId] = {
+          enabled: binding.enabled,
+          kbIds: current[binding.chatwootInboxId]?.kbIds ?? binding.kbIds,
+        };
         return next;
       });
-    } catch (cause) {
       handleError(cause);
     } finally {
       setBusyInbox(null);
@@ -122,6 +159,14 @@ export function BindingsView() {
     const id = Number(newInboxId);
     if (!Number.isInteger(id) || id <= 0) {
       setError('Inbox id must be a positive integer');
+      return;
+    }
+    if (bindings.some((binding) => binding.chatwootInboxId === id)) {
+      setError(`Inbox #${id} is already in the list — edit it there instead of re-adding it.`);
+      return;
+    }
+    if (loadFailed) {
+      setError('The binding list failed to load — reload the page before adding an inbox.');
       return;
     }
     setBusyInbox(id);
@@ -211,9 +256,8 @@ export function BindingsView() {
                         <Switch
                           size="sm"
                           isSelected={draft.enabled}
-                          onChange={(enabled) =>
-                            setDraft(binding.chatwootInboxId, { ...draft, enabled })
-                          }
+                          isDisabled={busy}
+                          onChange={(enabled) => void toggleEnabled(binding, enabled)}
                         >
                           <Switch.Control>
                             <Switch.Thumb />
@@ -306,7 +350,7 @@ export function BindingsView() {
                 <Button
                   type="submit"
                   variant="secondary"
-                  isDisabled={newInboxId.trim() === '' || busyInbox !== null}
+                  isDisabled={newInboxId.trim() === '' || busyInbox !== null || loadFailed}
                 >
                   <Plus className="size-4" aria-hidden />
                   Add inbox

@@ -2,7 +2,7 @@
 
 import { Alert, Button, Card, ListBox, Select, Spinner, Table } from '@heroui/react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   ANALYTICS_INTERVALS,
@@ -79,8 +79,21 @@ export function AnalyticsView() {
     };
   }, [router]);
 
+  const filtersRef = useRef('');
+
   useEffect(() => {
     let cancelled = false;
+
+    // Metrics belong to the active filters: clear them instead of leaving the
+    // previous range/inbox numbers under the new controls.
+    const key = `${rangeId}|${interval}|${inboxId}`;
+    if (filtersRef.current !== '' && filtersRef.current !== key) {
+      setOverview(null);
+      setTimeseries(null);
+      setUnanswered([]);
+    }
+    filtersRef.current = key;
+
     setLoading(true);
     setError(null);
 
@@ -112,6 +125,8 @@ export function AnalyticsView() {
       }
       if (timeseriesResult.status === 'fulfilled') {
         setTimeseries(timeseriesResult.value);
+      } else {
+        handleError(timeseriesResult.reason);
       }
 
       if (unansweredResult.status === 'fulfilled') {
@@ -241,7 +256,9 @@ export function AnalyticsView() {
       {timeseries && timeseries.points.length > 0 ? (
         <TimeseriesChart points={timeseries.points} interval={timeseries.interval} />
       ) : null}
-      <UnansweredPanel questions={unanswered} forbidden={unansweredForbidden} />
+      {!loading || unanswered.length > 0 ? (
+        <UnansweredPanel questions={unanswered} forbidden={unansweredForbidden} />
+      ) : null}
     </div>
   );
 }
@@ -373,7 +390,7 @@ function UnansweredPanel({
                   {(question) => (
                     <Table.Row id={question.query}>
                       <Table.Cell>
-                        <span className="text-sm">{question.query}</span>
+                        <span className="break-words text-sm">{question.query}</span>
                       </Table.Cell>
                       <Table.Cell>
                         <span className="text-sm text-muted">{question.count}</span>
