@@ -32,7 +32,7 @@ async function bootstrap(): Promise<void> {
   );
 
   // Make the active model set loud at boot — a silent mock fallback is the
-  // worst failure mode (env.ts rejects it in production without the override).
+  // worst failure mode (env.ts rejects mock mode in production outright).
   const provider = config.get<string>('LLM_PROVIDER');
   if (provider === 'mock') {
     logger.warn(

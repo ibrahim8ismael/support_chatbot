@@ -239,6 +239,11 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Changed
 
+- **No mock in production, period**: the `ALLOW_MOCK_LLM` escape hatch is
+  removed — production refuses to boot in `LLM_PROVIDER=mock` mode. The mock
+  provider stays for local dev, tests and CI. Upgrade note: delete the variable
+  from the production `.env`; a host still set to `mock` now fails fast at boot
+  instead of serving canned replies.
 - **README** rewritten as the open-source setup guide: what works today vs the
   Chatwoot pipeline stub, Docker self-host steps (configure → start → seed the
   first admin → teach it your knowledge bases), local development quick start,

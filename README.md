@@ -18,8 +18,8 @@ monolith** ([ADR-0001](docs/decisions/0001-modular-monolith.md)).
 | Real-model eval numbers                                                     | ⏳ need an OpenAI/OpenRouter key (mock runs are plumbing-only)                                                             |
 
 The `mock` LLM provider runs the whole app offline with deterministic replies
-and no API keys — it is **dev-only**: production refuses to boot with it unless
-`ALLOW_MOCK_LLM=true`.
+and no API keys — it is **dev/test-only**: production refuses to boot in mock
+mode, no override.
 
 ## Setup guide: run your own support agent
 

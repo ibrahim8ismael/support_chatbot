@@ -29,14 +29,6 @@ export const envSchema = z
     CHATWOOT_WEBHOOK_SECRET: optional(z.string().min(8)),
 
     LLM_PROVIDER: z.enum(['openai', 'openrouter', 'mock']).default('mock'),
-    /**
-     * Escape hatch for deliberate offline demos. The mock provider echoes input
-     * and embeds lexically, so production refuses it unless this is `true`.
-     */
-    ALLOW_MOCK_LLM: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
     OPENAI_API_KEY: optional(z.string().min(1)),
     /** Chat via OpenRouter; embeddings stay with OpenAI (D3). */
     OPENROUTER_API_KEY: optional(z.string().min(1)),
@@ -85,12 +77,12 @@ export const envSchema = z
     }
 
     // Production is for real models and real secrets — never copied templates.
-    if (env.LLM_PROVIDER === 'mock' && !env.ALLOW_MOCK_LLM) {
+    if (env.LLM_PROVIDER === 'mock') {
       ctx.addIssue({
         code: 'custom',
         path: ['LLM_PROVIDER'],
         message:
-          'mock is not allowed in production — set openai/openrouter, or ALLOW_MOCK_LLM=true for a deliberate offline demo',
+          'mock is not allowed in production — set LLM_PROVIDER=openai or openrouter (real provider keys required)',
       });
     }
 
