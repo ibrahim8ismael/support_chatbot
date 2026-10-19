@@ -106,7 +106,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       embedding+retrieval caches (fail-open, TTL). Refs FR-4 P0, NFR-1 (≤ 500 ms),
       NFR-9.
       **Done 2026-10-18**: pgvector cosine search with threshold + top-k resolved from
-      settings (per-call overrides), versioned `ret:v1:` cache (15 min, keys include
+      settings (per-call overrides), versioned `ret:v2:` cache (15 min, keys include
       the `kb:{id}:version` counters, so re-ingestion auto-invalidates), embedding
       cache reused from `llm`; per-request trace (timings, bestScore, cacheHit)
       returned by the debug endpoint `POST /knowledge-bases/:id/search` (any

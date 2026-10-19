@@ -188,8 +188,8 @@ One row per bot answer attempt — the analytics and debugging backbone.
 | --- | --- | --- |
 | `id` | uuid PK | |
 | `conversation_id` | uuid FK | |
-| `incoming_message_id` | uuid FK → messages | the question |
-| `outgoing_message_id` | uuid FK → messages NULL | the answer, when posted |
+| `incoming_message_id` | uuid FK → messages | the question; `on delete cascade` (retention boundary rows) |
+| `outgoing_message_id` | uuid FK → messages NULL | the answer, when posted; `on delete set null` |
 | `outcome` | text | `answered \| escalated_low_score \| escalated_guard \| escalated_request \| escalated_classifier \| escalated_repeat \| error` |
 | `query_text` | text | the actual retrieval query (after rewrite) |
 | `top_k` | int, `top_score` | float | best similarity seen |

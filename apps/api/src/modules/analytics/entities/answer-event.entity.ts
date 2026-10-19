@@ -27,9 +27,11 @@ export const answerEvents = pgTable(
     /** The question message. */
     incomingMessageId: uuid('incoming_message_id')
       .notNull()
-      .references(() => messages.id),
+      .references(() => messages.id, { onDelete: 'cascade' }),
     /** The answer message, when posted. */
-    outgoingMessageId: uuid('outgoing_message_id').references(() => messages.id),
+    outgoingMessageId: uuid('outgoing_message_id').references(() => messages.id, {
+      onDelete: 'set null',
+    }),
     outcome: text('outcome').$type<AnswerOutcome>().notNull(),
     /** The actual retrieval query (after rewrite). */
     queryText: text('query_text').notNull(),

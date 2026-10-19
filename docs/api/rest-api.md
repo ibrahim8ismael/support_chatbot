@@ -79,7 +79,7 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 | GET | `/analytics/unanswered` | **admin** (exposes customer question text, security § 4); `?from&to&inboxId?&limit=1..50` (default 10) → `[{ query, count, lastSeen, sampleConversationId }]`, escalation rows in range grouped by query similarity (token Jaccard ≥ 0.6, most recent 500 scanned) |
 | GET | `/analytics/knowledge-bases/:id/usage` | chunks retrieved most/never, per document (P1) |
 
-Filters: `from`/`to` are ISO 8601, the range is half-open `[from, to)`; `to` defaults to now, `from` to 7 days before `to`; `from >= to` → 400. `overview`/`timeseries` follow the security matrix (all signed-in roles).
+Filters: `from`/`to` are ISO 8601, the range is half-open `[from, to)`; `to` defaults to now, `from` to 7 days before `to`; `from >= to` → 400, and windows larger than 366 days → 400 (bounded scans). `overview`/`timeseries` follow the security matrix (all signed-in roles).
 
 ### Metric definitions (contract — do not silently change)
 

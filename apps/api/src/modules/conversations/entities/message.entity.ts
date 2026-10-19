@@ -20,5 +20,9 @@ export const messages = pgTable(
     isPrivate: boolean('is_private').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('messages_conversation_id_idx').on(t.conversationId)],
+  (t) => [
+    index('messages_conversation_id_idx').on(t.conversationId),
+    // Analytics range scans: `where created_at >= … and direction = 'incoming'`.
+    index('messages_created_at_direction_idx').on(t.createdAt, t.direction),
+  ],
 );

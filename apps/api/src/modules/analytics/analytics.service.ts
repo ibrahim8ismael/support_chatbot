@@ -51,6 +51,8 @@ export const ESCALATION_OUTCOMES: readonly AnswerOutcome[] = [
 
 /** Defaults + limits for the read endpoints (rest-api.md § Analytics). */
 const DEFAULT_RANGE_DAYS = 7;
+/** Hard window cap: unbounded ranges drive `generate_series` + full scans. */
+const MAX_RANGE_DAYS = 366;
 /** Escalation rows scanned for the unanswered list before clustering. */
 const UNANSWERED_SCAN_LIMIT = 500;
 
@@ -483,6 +485,9 @@ function resolveFilters(query: AnalyticsQuery): AnalyticsFilters {
     : new Date(to.getTime() - DEFAULT_RANGE_DAYS * 86_400_000);
   if (!(from.getTime() < to.getTime())) {
     throw new BadRequestException('`from` must be before `to`');
+  }
+  if (to.getTime() - from.getTime() > MAX_RANGE_DAYS * 86_400_000) {
+    throw new BadRequestException(`range too large — at most ${MAX_RANGE_DAYS} days`);
   }
   return { from, to, inboxId: query.inboxId };
 }
