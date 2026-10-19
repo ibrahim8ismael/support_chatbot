@@ -65,6 +65,21 @@ export class CacheService {
     }
   }
 
+  /**
+   * Set a short-lived marker only when it does not exist yet (`SET NX EX`).
+   * Returns `true` when this call created the key, `false` when it already
+   * existed and `null` when Redis is unavailable — callers fail open.
+   */
+  async setNx(key: string, ttlSeconds: number): Promise<boolean | null> {
+    try {
+      const result = await this.redis.client.set(key, '1', 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+    } catch (error) {
+      this.logger.warn(`cache setNx failed for key ${key}: ${String(error)}`, CacheService.name);
+      return null;
+    }
+  }
+
   async del(key: string): Promise<void> {
     try {
       await this.redis.client.del(key);

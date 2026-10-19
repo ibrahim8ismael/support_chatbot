@@ -7,13 +7,13 @@ import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
 import type { AnalyticsService } from '../analytics/analytics.service';
 import type { CacheService } from '../infra/cache.service';
-import { LOGIN_BURST_LIMIT, LOGIN_IP_LIMIT, LOGIN_MAX_FAILURES } from './auth.constants';
+import { LOGIN_BURST_LIMIT, LOGIN_IP_LIMIT, LOGIN_MAX_FAILURES, SESSION_TTL_MS } from './auth.constants';
 import { AuthService } from './auth.service';
 import type { PasswordService } from './password.service';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const SESSION_ID = '22222222-2222-4222-8222-222222222222';
-const FAIL_KEY = 'login:fail:user@example.com';
+const FAIL_KEY = 'login:fail:user@example.com:unknown';
 
 interface UserRow {
   id: string;
@@ -104,6 +104,13 @@ function buildHarness(
       cacheMap.set(key, next);
       return next;
     }),
+    setNx: vi.fn(async (key: string) => {
+      if (cacheMap.has(key)) {
+        return false;
+      }
+      cacheMap.set(key, 1);
+      return true;
+    }),
   } as unknown as CacheService;
 
   const verify = vi.fn(
@@ -152,7 +159,7 @@ async function statusOf(promise: Promise<unknown>): Promise<number | undefined> 
 
 describe('AuthService.login', () => {
   it('issues a session for valid credentials and clears the failure counter', async () => {
-    const harness = buildHarness();
+    const harness = buildHarness({ cache: new Map([['login:fail:user@example.com:1.2.3.4', 3]]) });
 
     const result = await harness.service.login('User@Example.com', 'correct-password', {
       ip: '1.2.3.4',
@@ -172,8 +179,8 @@ describe('AuthService.login', () => {
     expect(inserted.userId).toBe(USER_ID);
     expect(inserted.expiresAt.getTime()).toBeGreaterThan(Date.now());
 
-    // Counters keyed by lowercased email; cleared on success.
-    expect(harness.cacheMap.has(FAIL_KEY)).toBe(false);
+    // Counters keyed by lowercased email + address; cleared on success.
+    expect(harness.cacheMap.has('login:fail:user@example.com:1.2.3.4')).toBe(false);
   });
 
   it('rejects a wrong password, counts the failure and delays the answer', async () => {
@@ -238,7 +245,7 @@ describe('AuthService.login', () => {
 
     expect(harness.verify).toHaveBeenCalledOnce();
     expect(harness.verify.mock.calls[0]?.[0]).toMatch(/^\$argon2id\$/);
-    expect(harness.cacheMap.get('login:fail:ghost@example.com')).toBe(1);
+    expect(harness.cacheMap.get('login:fail:ghost@example.com:unknown')).toBe(1);
   });
 
   it('treats deactivated users as invalid credentials', async () => {
@@ -311,6 +318,19 @@ describe('AuthService.login', () => {
       }),
     );
   });
+
+  it('audits repeated throttled denials only once per window', async () => {
+    const harness = buildHarness({ cache: new Map([['login:ip:9.9.9.9', LOGIN_IP_LIMIT]]) });
+
+    await statusOf(
+      harness.service.login('user@example.com', 'correct-password', { ip: '9.9.9.9' }),
+    );
+    await statusOf(
+      harness.service.login('user@example.com', 'correct-password', { ip: '9.9.9.9' }),
+    );
+
+    expect(harness.recordAuditLog).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('AuthService.resolveSession', () => {
@@ -328,11 +348,26 @@ describe('AuthService.resolveSession', () => {
     const harness = buildHarness({ sessionRow: SESSION_ROW });
 
     await expect(harness.service.resolveSession(SESSION_ID)).resolves.toEqual({
-      id: USER_ID,
-      email: USER_ROW.email,
-      name: USER_ROW.name,
-      role: 'admin',
+      user: {
+        id: USER_ID,
+        email: USER_ROW.email,
+        name: USER_ROW.name,
+        role: 'admin',
+      },
+      slid: true,
     });
+    expect(harness.updateSet).toHaveBeenCalledOnce();
+  });
+
+  it('does not slide a fresh session and reports slid:false', async () => {
+    const harness = buildHarness({
+      sessionRow: { ...SESSION_ROW, expiresAt: new Date(Date.now() + SESSION_TTL_MS) },
+    });
+
+    const result = await harness.service.resolveSession(SESSION_ID);
+
+    expect(result?.slid).toBe(false);
+    expect(harness.updateSet).not.toHaveBeenCalled();
   });
 
   it('deletes expired sessions and returns null', async () => {
