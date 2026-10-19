@@ -165,7 +165,8 @@ escalation works; humans can pause/resume.
 - [ ] **T-201 · Webhook filters + serialization** (M) — full filter matrix
       ([chatwoot doc](../integrations/chatwoot.md)): outgoing/bot/private/assigned/
       paused inboxes/duplicates; deterministic `jobId = reply:<conversation_id>` +
-      re-read-and-requeue on newer messages. Refs FR-5 P0, ADR-0006.
+      re-read-and-requeue on newer messages. Refs FR-5 P0, ADR-0006. **Not
+      started** — today the endpoint is a secret-gate stub answering `501`.
 - [ ] **T-202 · Chatwoot outbound hardening** (M) — axios client with timeout/retry/
       logging interceptors; `sendMessage`, `addPrivateNote`, `addLabel`; failure →
       fallback message + handoff (never lose a reply). Refs FR-5/6, NFR-2.

@@ -29,14 +29,17 @@ Enforced with NestJS guards (`RolesGuard`) at controller level; **every** new en
 
 ## 3. Webhook & integration surface
 
-Chatwoot webhooks are **not cryptographically signed** (as of our version — re-verify on upgrade). Layered mitigations:
+Current Chatwoot versions sign webhook deliveries (`X-Chatwoot-Signature`:
+HMAC-SHA256 over `{X-Chatwoot-Timestamp}.{raw body}`, plus the timestamp
+header) — **our handler does not verify signatures yet** (T-201). Until then,
+and on versions that don't sign at all, these layers are the gate:
 
-1. **Unguessable URL**: `/api/webhooks/chatwoot/<48-char secret>`; wrong secret → `404` (never reveal the endpoint exists).
+1. **Unguessable URL** (implemented): `/api/webhooks/chatwoot/<48-char secret>`; wrong secret → `404` (never reveal the endpoint exists). Until T-201 the endpoint answers `501` after the secret check and has no further side effects.
 2. **Network allowlist**: the reverse proxy only accepts the webhook path from the Chatwoot host / internal network. Public exposure is an explicit ops decision, default is *not public* if Chatwoot is internal.
-3. **Payload validation**: zod schema; unknown shapes rejected; body size cap (1 MB).
-4. **No side effects on secrets**: webhook processing can only create messages/conversations and enqueue jobs — it cannot change settings or users.
-5. **Idempotency** (see [chatwoot doc](../integrations/chatwoot.md)): replays are harmless — this is also an abuse mitigation.
-6. **Optional confirmation fetch** (P1): for suspicious payloads, re-fetch the message from Chatwoot via the API before acting.
+3. **Payload validation** (T-201): zod schema; unknown shapes rejected; body size cap (1 MB).
+4. **No side effects on secrets**: webhook processing can only create messages/conversations and enqueue jobs — it cannot change settings or users. (The stub cannot create anything.)
+5. **Idempotency** (schema in place, insert path with T-201): replays are harmless — this is also an abuse mitigation.
+6. **Signature verification + optional confirmation fetch** (T-201 / P1): verify the HMAC when the Chatwoot version sends one; for suspicious payloads, re-fetch the message from Chatwoot via the API before acting.
 
 Outbound credentials: Chatwoot bot token and provider API keys are env-only, least-privilege, rotated per [deployment runbook](deployment.md#rotate-secrets). Never logged — pino redaction list covers `authorization`, `api_key`, `token`, cookies.
 

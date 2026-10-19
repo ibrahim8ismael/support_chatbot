@@ -6,6 +6,9 @@ import { config as loadEnv } from 'dotenv';
  *
  *   pnpm simulate:webhook [-- --conversation 812]
  *
+ * Expected responses while the pipeline is a stub (T-201): correct secret →
+ * `501 {"status":"not_implemented"}`; wrong secret → `404`. No replies happen.
+ *
  * TODO(chatwoot): replace the inline payload with anonymized captured fixtures
  * (apps/api/test/fixtures/) once the webhook schema is implemented.
  */

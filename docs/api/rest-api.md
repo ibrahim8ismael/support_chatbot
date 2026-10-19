@@ -114,7 +114,7 @@ Keys and defaults: [data-model](../architecture/data-model.md#settings-owner-set
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/webhooks/chatwoot/:secret` | [contract & payload](../integrations/chatwoot.md). Verifies path secret; 200 fast; queues work. Returns 404 for wrong secret (never 401 — do not confirm the endpoint exists) |
+| POST | `/webhooks/chatwoot/:secret` | [contract & payload](../integrations/chatwoot.md). **Stub:** verifies the path secret, then `501 {"status":"not_implemented"}` — the reply pipeline is T-201+. Planned contract: 200 fast + queue, 500 if enqueueing fails. Wrong secret → 404 (never 401 — do not confirm the endpoint exists) |
 
 ## Health (public)
 
