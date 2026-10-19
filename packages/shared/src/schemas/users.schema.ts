@@ -9,7 +9,7 @@ import { newPasswordSchema } from './auth.schema';
 
 /** `POST /users` body — create a user (admin). */
 export const userCreateSchema = z.strictObject({
-  email: z.email(),
+  email: z.email().max(254),
   name: z.string().trim().min(1).max(120),
   role: z.enum(USER_ROLES),
   password: newPasswordSchema,

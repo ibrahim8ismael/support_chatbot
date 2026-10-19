@@ -45,6 +45,26 @@ export class CacheService {
     }
   }
 
+  /**
+   * Atomically increment a counter and set its TTL on the first write (one Lua
+   * script, so a crash between `INCR` and `EXPIRE` cannot leave a TTL-less key
+   * behind). Returns the new value, or `null` when Redis is unavailable so
+   * callers can fail open. Used by the login throttle (security.md § 1).
+   */
+  async incrWithTtl(key: string, ttlSeconds: number): Promise<number | null> {
+    const script =
+      "local value = redis.call('INCR', KEYS[1])\n" +
+      "if value == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end\n" +
+      'return value';
+    try {
+      const result: unknown = await this.redis.client.eval(script, 1, key, ttlSeconds);
+      return typeof result === 'number' ? result : Number(result);
+    } catch (error) {
+      this.logger.warn(`cache incr failed for key ${key}: ${String(error)}`, CacheService.name);
+      return null;
+    }
+  }
+
   async del(key: string): Promise<void> {
     try {
       await this.redis.client.del(key);

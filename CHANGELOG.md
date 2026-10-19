@@ -244,6 +244,11 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   `Acme Support` company name or default database credentials; the active model set
   is logged at boot. Eval runs refuse to target `NODE_ENV=production` without
   `--allow-production` and write artifacts next to the script.
+- **Login throttling** now uses atomic Redis counters (Lua `INCR`+`EXPIRE`)
+  instead of read-modify-write, adds a per-account burst cap (5 checks / 10 s)
+  that bounds parallel password guessing and argon2id CPU use, caps login email
+  length (254) and persisted user-agent length (512), and trusts exactly one
+  proxy hop so per-IP limiting works behind Caddy.
 - Settings writes now allow editor/admin per the capability matrix in
   [security](docs/operations/security.md) (T-205 shipped admin-only, contradicting the
   documented roles).

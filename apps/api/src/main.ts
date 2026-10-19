@@ -24,6 +24,13 @@ async function bootstrap(): Promise<void> {
   app.enableCors({ origin: config.get<string>('APP_URL'), credentials: true });
   app.enableShutdownHooks();
 
+  // Behind the prod compose Caddy: exactly one proxy hop, so `request.ip` is
+  // the client. Without this, per-IP login limiting collapses into one bucket.
+  (app.getHttpAdapter().getInstance() as { set: (key: string, value: number) => void }).set(
+    'trust proxy',
+    1,
+  );
+
   // Make the active model set loud at boot — a silent mock fallback is the
   // worst failure mode (env.ts rejects it in production without the override).
   const provider = config.get<string>('LLM_PROVIDER');
