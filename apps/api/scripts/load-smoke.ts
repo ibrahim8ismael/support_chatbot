@@ -20,6 +20,7 @@ import {
   evaluate,
   findRepoRoot,
   formatEvaluation,
+  isLocalHost,
   mapConcurrent,
   maskRedisUrl,
 } from './load-smoke.helpers';
@@ -46,8 +47,10 @@ import {
  *
  * Exits non-zero on any assertion failure — usable as an ops gate. Safe on a
  * production host: it never touches real queues (see LOAD_SMOKE_QUEUE) and the
- * burst is side-effect-free until the reply pipeline lands (T-201+), after
- * which run it against a test inbox or with bindings disabled.
+ * burst cannot write mock traffic into a live inbox — against non-local
+ * targets the script checks the target inbox's bindings and refuses an
+ * enabled (bound) inbox, or anything it cannot verify, unless
+ * `--allow-live-burst` is passed explicitly (assertBurstTargetSafe below).
  *
  * `--insecure` accepts self-signed certs (e.g. Caddy's internal CA).
  */
@@ -75,6 +78,7 @@ interface CliOptions {
   skipRestart: boolean;
   skipPipeline: boolean;
   insecure: boolean;
+  allowLiveBurst: boolean;
 }
 
 function argValue(name: string): string | undefined {
@@ -111,6 +115,7 @@ function parseArgs(): CliOptions {
     skipRestart: process.argv.includes('--skip-restart'),
     skipPipeline: process.argv.includes('--skip-pipeline'),
     insecure: process.argv.includes('--insecure'),
+    allowLiveBurst: process.argv.includes('--allow-live-burst'),
   };
 }
 
@@ -155,7 +160,52 @@ interface WebhookPhase {
   warmup: number;
 }
 
+/**
+ * The webhook burst must never create mock traffic on a live inbox. Localhost
+ * is always fine; remote targets are refused when the target inbox has an
+ * enabled binding (once T-201 lands, synthetic `message_created` events would
+ * become real conversations and bot replies). Targets we cannot verify fail
+ * closed; `--allow-live-burst` is the deliberate override for drills.
+ */
+async function assertBurstTargetSafe(options: CliOptions): Promise<void> {
+  if (isLocalHost(options.baseUrl)) {
+    return;
+  }
+  if (options.allowLiveBurst) {
+    console.warn(
+      `warning: webhook burst against ${options.baseUrl} allowed via --allow-live-burst`,
+    );
+    return;
+  }
+  if (!options.email || !options.password) {
+    throw new Error(
+      `refusing the webhook burst against non-local ${options.baseUrl}: pass --email/--password so the target inbox's bindings can be checked, or --allow-live-burst to override`,
+    );
+  }
+
+  const cookie = await login(options);
+  const response = await apiFetch(options, '/api/bindings', { method: 'GET', cookie });
+  if (!response.ok) {
+    throw new Error(
+      `refusing the webhook burst: could not read bindings from ${options.baseUrl} (HTTP ${response.status}) — pass --allow-live-burst to override`,
+    );
+  }
+  const bindings = (await response.json()) as Array<{
+    chatwootInboxId?: number;
+    enabled?: boolean;
+  }>;
+  const bound = bindings.some(
+    (binding) => binding.chatwootInboxId === options.inboxId && binding.enabled === true,
+  );
+  if (bound) {
+    throw new Error(
+      `refusing the webhook burst: inbox ${options.inboxId} has an enabled binding on ${options.baseUrl} — synthetic events would produce real conversations/replies once the pipeline lands; use an unbound test inbox or pass --allow-live-burst`,
+    );
+  }
+}
+
 async function runWebhookBurst(options: CliOptions): Promise<WebhookPhase> {
+  await assertBurstTargetSafe(options);
   const payloads = Array.from({ length: options.burst }, (_, index) =>
     buildChatwootWebhookPayload(index, { accountId: options.accountId, inboxId: options.inboxId }),
   );

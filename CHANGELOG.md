@@ -251,6 +251,12 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Synthetic scripts can't touch live inboxes**: the load-smoke webhook burst
+  refuses non-local targets whose inbox has an enabled binding (and fails
+  closed when the target cannot be verified) unless `--allow-live-burst` is
+  passed; the webhook simulator refuses to run under `NODE_ENV=production`.
+  Mock traffic can no longer leak into a production inbox once the reply
+  pipeline lands.
 - **Redis auth in production**: the prod compose now starts Redis with
   `requirepass` — `REDIS_PASSWORD` is mandatory (fail-fast), the healthcheck
   authenticates via `REDISCLI_AUTH`, the example env and deployment tables are
