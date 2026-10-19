@@ -41,7 +41,7 @@ Every change writes an audit row (`users.create` / `users.update` / `users.passw
 | DELETE | `/knowledge-bases/:id` | editor/admin; 409 if the KB is bound to an inbox. Hard delete: cascades documents + chunks and removes stored files |
 | GET | `/knowledge-bases/:id/documents` | any signed-in role; newest first, with `status`, `error`, `chunkCount` |
 | POST | `/knowledge-bases/:id/documents` | editor/admin; multipart `file` (PDF/DOCX/TXT/MD ≤ 20 MB) → 201 `{ documentId, status: "processing" }`. Content is sniffed, not trusted by extension (bad type → 400 with details, too large → 413, identical content already in the KB → 409). P1: multiple files |
-| POST | `/knowledge-bases/:id/search` | any signed-in role; debug retrieval (T-105): strict `{ query, topK? }`, real embed + cosine search, no generation → `{ chunks: [{ chunkId, documentId, kbId, filename, score, metadata, content }], trace: { normalizedQuery, kbIds, topK, threshold, bestScore, returnedChunks, cacheHit, embeddingMs, searchMs, totalMs } }`; 404 for unknown KBs |
+| POST | `/knowledge-bases/:id/search` | any signed-in role; debug retrieval (T-105): strict `{ query, topK? }`, real embed + cosine search, no generation → `{ chunks: [{ chunkId, documentId, kbId, filename, score, metadata, content }], trace: { normalizedQuery, kbIds, topK, threshold, bestScore, returnedChunks, cacheHit, embeddingMs, searchMs, totalMs } }`; 404 for unknown KBs; 429 over the per-user (30/min) or global daily AI budget |
 | POST | `/documents/:id/reprocess` | editor/admin; resets to `processing` and re-runs parse → chunk → embed |
 | DELETE | `/documents/:id` | editor/admin; removes the document + its chunks + stored file, and bumps the KB version counter (retrieval caches miss) |
 
@@ -51,7 +51,7 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/playground/ask` | any signed-in role (T-106): strict `{ question, kbIds (1–10), history? (≤ 20 turns) }` → the answer path with no Chatwoot: `{ answer, escalated, escalationReason, chunks: [{ id, score, content, document, metadata }], latency: { retrievalMs, generationMs, totalMs }, tokens: { input, output }, model, promptVersion }`; 404 for unknown KBs |
+| POST | `/playground/ask` | any signed-in role (T-106): strict `{ question, kbIds (1–10), history? (≤ 20 turns) }` → the answer path with no Chatwoot: `{ answer, escalated, escalationReason, chunks: [{ id, score, content, document, metadata }], latency: { retrievalMs, generationMs, totalMs }, tokens: { input, output }, model, promptVersion }`; 404 for unknown KBs; 429 over the per-user (30/min) or global daily AI budget |
 
 ## Bindings (`bindings`, editor/admin)
 

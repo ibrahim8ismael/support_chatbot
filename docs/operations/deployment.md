@@ -66,6 +66,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt; required in production (the default is rejected) |
+| `LLM_DAILY_REQUEST_LIMIT` | `3000` | global daily cap on paid dashboard AI requests (playground ask, KB search); `0` disables; per-user cap is 30/min |
 | `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |
 | `RETENTION_DAYS` | `365` | messages/events retention window in days (NFR-7); documents/KBs are never purged |
 | `ALERT_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | ops channel for threshold alerts (see below); Slack-compatible `{"text": …}`; unset → `warn` log lines |

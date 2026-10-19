@@ -37,6 +37,9 @@ export const envSchema = z
     /** Substituted into the answer prompt's `{{company_name}}`. */
     COMPANY_NAME: z.string().min(1).max(120).default('Acme Support'),
 
+    /** Global daily cap on paid dashboard AI requests (playground/search); 0 disables. */
+    LLM_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(3000),
+
     /** Weekly top-unanswered digest webhook (T-305); unset = logged, not posted. */
     DIGEST_WEBHOOK_URL: optional(z.url()),
 

@@ -1,13 +1,20 @@
-import { NotFoundException } from '@nestjs/common';
+import { HttpException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AgentAnswer } from '@support-agent/shared';
+import type { AgentAnswer, SessionUser } from '@support-agent/shared';
 
+import type { LlmQuotaService } from '../infra/llm-quota.service';
 import type { KnowledgeBaseService } from '../knowledge-base/knowledge-base.service';
 import type { AgentService } from './agent.service';
 import { PlaygroundController } from './playground.controller';
 
 const KB_ID = '11111111-1111-4111-8111-111111111111';
+const USER: SessionUser = {
+  id: '22222222-2222-4222-8222-222222222222',
+  email: 'editor@example.com',
+  name: 'Ed',
+  role: 'editor',
+};
 
 const ANSWER: AgentAnswer = {
   answer: 'Reset via Settings.',
@@ -27,17 +34,26 @@ function buildHarness() {
   const getSummary = vi.fn(async (_id: string) => ({ id: KB_ID }));
   const knowledgeBase = { getSummary } as unknown as KnowledgeBaseService;
 
-  return { controller: new PlaygroundController(agent, knowledgeBase), ask, getSummary };
+  const enforce = vi.fn(async (_userId: string) => undefined);
+  const quota = { enforce } as unknown as LlmQuotaService;
+
+  return {
+    controller: new PlaygroundController(agent, knowledgeBase, quota),
+    ask,
+    getSummary,
+    enforce,
+  };
 }
 
 describe('PlaygroundController.ask', () => {
   it('validates each KB once, then answers with defaults', async () => {
-    const { controller, ask, getSummary } = buildHarness();
+    const { controller, ask, getSummary, enforce } = buildHarness();
 
     await expect(
-      controller.ask({ question: 'How do I reset?', kbIds: [KB_ID, KB_ID] }),
+      controller.ask({ question: 'How do I reset?', kbIds: [KB_ID, KB_ID] }, USER),
     ).resolves.toBe(ANSWER);
 
+    expect(enforce).toHaveBeenCalledWith(USER.id);
     expect(getSummary).toHaveBeenCalledTimes(1);
     expect(getSummary).toHaveBeenCalledWith(KB_ID);
     expect(ask).toHaveBeenCalledWith({
@@ -47,11 +63,22 @@ describe('PlaygroundController.ask', () => {
     });
   });
 
+  it('rejects over-quota callers before any paid work', async () => {
+    const { controller, ask, getSummary, enforce } = buildHarness();
+    enforce.mockRejectedValueOnce(new HttpException('quota', 429));
+
+    await expect(controller.ask({ question: 'q', kbIds: [KB_ID] }, USER)).rejects.toBeInstanceOf(
+      HttpException,
+    );
+    expect(getSummary).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
+  });
+
   it('404s on an unknown KB without answering', async () => {
     const { controller, ask, getSummary } = buildHarness();
     getSummary.mockRejectedValueOnce(new NotFoundException('Knowledge base not found'));
 
-    await expect(controller.ask({ question: 'q', kbIds: [KB_ID] })).rejects.toThrow(
+    await expect(controller.ask({ question: 'q', kbIds: [KB_ID] }, USER)).rejects.toThrow(
       NotFoundException,
     );
     expect(ask).not.toHaveBeenCalled();
@@ -61,7 +88,7 @@ describe('PlaygroundController.ask', () => {
     const { controller, ask } = buildHarness();
     const history = [{ role: 'user' as const, content: 'earlier' }];
 
-    await controller.ask({ question: 'and now?', kbIds: [KB_ID], history });
+    await controller.ask({ question: 'and now?', kbIds: [KB_ID], history }, USER);
 
     expect(ask).toHaveBeenCalledWith({ question: 'and now?', kbIds: [KB_ID], history });
   });
