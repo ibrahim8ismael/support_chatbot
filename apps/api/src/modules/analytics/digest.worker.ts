@@ -9,7 +9,7 @@ import { AppLogger } from '../../common/logger/app-logger.service';
 import { redisOptions } from '../infra/redis-options';
 import { DIGEST_JOB_NAME, DigestService } from './digest';
 
-/** One digest at a time; it is a weekly singleton, not a throughput path. */
+/** One digest at a time; it is a weekly singleton, not a throughput path (`WORKER_CONCURRENCY` tunes the ingest pool only). */
 const WORKER_CONCURRENCY = 1;
 const WORKER_NAME = 'DigestWorker';
 

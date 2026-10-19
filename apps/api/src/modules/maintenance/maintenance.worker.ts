@@ -12,7 +12,7 @@ import { AlertingService } from '../alerting/alerting.service';
 import { RETENTION_JOB_NAME, formatRetentionSummary } from '../retention/retention';
 import { RetentionService } from '../retention/retention.service';
 
-/** Cron work is serial — neither job is a throughput path. */
+/** Cron work is serial — neither job is a throughput path (`WORKER_CONCURRENCY` tunes the ingest pool only). */
 const WORKER_CONCURRENCY = 1;
 const WORKER_NAME = 'MaintenanceWorker';
 
