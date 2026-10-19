@@ -16,6 +16,7 @@ import type {
 } from '../knowledge-base/knowledge-base.service';
 import type { LlmService } from '../llm/llm.service';
 import { chunks } from './entities/chunk.entity';
+import { InProcessParseRunner } from './in-process-parse-runner';
 import { IngestionService } from './ingestion.service';
 import { DOCX_MIME_TYPE } from './parsers';
 
@@ -88,7 +89,15 @@ function buildHarness(options: { document?: IngestionDocument | null } = {}) {
     get: vi.fn((key: string) => (key === 'UPLOAD_DIR' ? uploadDir : undefined)),
   } as unknown as ConfigService;
 
-  const service = new IngestionService(database, knowledgeBase, llm, cache, logger, config);
+  const service = new IngestionService(
+    database,
+    knowledgeBase,
+    llm,
+    cache,
+    logger,
+    new InProcessParseRunner(),
+    config,
+  );
 
   return {
     service,
