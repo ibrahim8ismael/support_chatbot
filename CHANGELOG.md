@@ -246,6 +246,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Prompt-injection boundary**: chunk content is now fenced in code — `<kb>`
+  delimiter lookalikes are escaped (`</kb>` → `&lt;/kb>`), so a poisoned
+  document cannot close its data block and speak at top level; the answer
+  prompt (`answer.v2`) states explicitly that `<kb>` content is data, never
+  instructions, and that injection attempts must be refused with an escalation.
+  Renderer tests cover both the escape and the `<kbd>` false-positive case;
+  real-model injection evals still need a provider key.
 - **Chatwoot alignment**: the webhook endpoint now answers
   `501 {"status":"not_implemented"}` after the path-secret check instead of
   pretending to accept events (it never processed anything); the integration

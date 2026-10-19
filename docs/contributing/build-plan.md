@@ -121,7 +121,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       **Done 2026-10-18**: `agent` module — `ask()` = query build (message + recent
       customer turns while referential) → retrieval → threshold gate (below → fallback
       message, escalated `low_score`, no generation) → versioned prompt (settings
-      `system_prompt`, seeded from `answer.v1`: grounding rules, language matching,
+      `system_prompt`, seeded from `answer.v2`: grounding rules, language matching,
       knowledge as `<kb>` data blocks) → `generateReply` → output guard (length cap,
       internals blocklist, filenames, non-KB URLs → escalate `guard`). Trace returned:
       grounded chunks + scores, token usage, latency split, model, prompt version.
@@ -181,7 +181,7 @@ escalation works; humans can pause/resume.
       + invalidation, admin endpoints; global kill switch + thresholds + prompts + model
       names. Refs FR-8 P0, caching doc. **Done 2026-10-18**: GET/PUT `/settings` +
       `/settings/health-llm`, zod-validated partial writes, Redis snapshot cache;
-      `system_prompt` defaults to the versioned `agent/prompts/answer.v1.ts`.
+      `system_prompt` defaults to the versioned `agent/prompts/answer.v2.ts`.
 - [x] **T-206 · Bindings module** (M) — inbox ↔ KB mapping CRUD, `enabled` per-inbox
       kill switch, `getBoundKbIdsForInbox()` cached, `display_name` cache from Chatwoot.
       Refs FR-5 P0. **Done 2026-10-18**: list/upsert API (editor/admin), per-inbox

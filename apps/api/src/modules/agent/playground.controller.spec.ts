@@ -17,7 +17,7 @@ const ANSWER: AgentAnswer = {
   latency: { retrievalMs: 1, generationMs: 2, totalMs: 3 },
   tokens: { input: 4, output: 5 },
   model: 'mock-chat',
-  promptVersion: 'answer.v1',
+  promptVersion: 'answer.v2',
 };
 
 function buildHarness() {

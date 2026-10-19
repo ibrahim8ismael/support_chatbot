@@ -22,7 +22,7 @@ const KB_BLOCK = /<kb id="\{\{chunk_id\}\}">\n?\{\{chunk_content\}\}\n?<\/kb>\n?
 const SCALAR_PLACEHOLDER = /\{\{(company_name|max_reply_chars|last_turns|message)\}\}/g;
 
 export interface AnswerPromptInput {
-  /** `settings.system_prompt` (seeded from `answer.v1`). */
+  /** `settings.system_prompt` (falls back to `answer.v2`). */
   template: string;
   companyName: string;
   maxReplyChars: number;
@@ -49,13 +49,24 @@ export function renderAnswerPrompt(input: AnswerPromptInput): string {
 }
 
 /**
+ * Neutralize `<kb>`-delimiter lookalikes inside chunk content so a poisoned
+ * document cannot close its data block and smuggle top-level instructions
+ * (prompt-injection boundary — docs/operations/security.md). Textual only:
+ * the model reads `&lt;/kb>` as ordinary content.
+ */
+function escapeKbMarkers(content: string): string {
+  // Lookahead keeps legitimate tags like `<kbd>` untouched.
+  return content.replace(/<\/?kb(?=[\s>]|$)/gi, (match) => `&lt;${match.slice(1)}`);
+}
+
+/**
  * Replace the template's `<kb>` block with one block per chunk. A template
  * edited beyond recognition still gets the knowledge appended: grounding must
  * never silently disappear.
  */
 export function fillKnowledge(template: string, chunks: RetrievedChunk[]): string {
   const blocks = chunks
-    .map((chunk) => `<kb id="${chunk.chunkId}">\n${chunk.content}\n</kb>`)
+    .map((chunk) => `<kb id="${chunk.chunkId}">\n${escapeKbMarkers(chunk.content)}\n</kb>`)
     .join('\n');
   if (KB_BLOCK.test(template)) {
     return template.replace(KB_BLOCK, () => blocks);
