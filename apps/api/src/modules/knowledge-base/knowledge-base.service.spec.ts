@@ -147,7 +147,9 @@ function buildHarness(
           if (options.uniqueViolation && table === documents) {
             throw uniqueViolationError();
           }
-          return [table === knowledgeBases ? { ...kbRow(), ...values } : { ...docRow(), ...values }];
+          return [
+            table === knowledgeBases ? { ...kbRow(), ...values } : { ...docRow(), ...values },
+          ];
         }),
       };
     },

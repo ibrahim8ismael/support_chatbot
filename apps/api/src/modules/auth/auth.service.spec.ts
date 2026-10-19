@@ -7,7 +7,12 @@ import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
 import type { AnalyticsService } from '../analytics/analytics.service';
 import type { CacheService } from '../infra/cache.service';
-import { LOGIN_BURST_LIMIT, LOGIN_IP_LIMIT, LOGIN_MAX_FAILURES, SESSION_TTL_MS } from './auth.constants';
+import {
+  LOGIN_BURST_LIMIT,
+  LOGIN_IP_LIMIT,
+  LOGIN_MAX_FAILURES,
+  SESSION_TTL_MS,
+} from './auth.constants';
 import { AuthService } from './auth.service';
 import type { PasswordService } from './password.service';
 
