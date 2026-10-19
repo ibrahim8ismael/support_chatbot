@@ -1,5 +1,14 @@
 import type { DocumentSourceType, DocumentStatus } from '@support-agent/shared';
-import { index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { users } from '../../auth/entities/user.entity';
 import { knowledgeBases } from './knowledge-base.entity';
 
@@ -30,5 +39,13 @@ export const documents = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index('documents_kb_id_idx').on(t.kbId)],
+  (t) => [
+    index('documents_kb_id_idx').on(t.kbId),
+    // One live copy per (kb, content): the service's pre-check races under
+    // concurrent uploads, so the partial unique index is the real guard
+    // (a `failed` row is not a live copy and may be retried) — audit P2.
+    uniqueIndex('documents_kb_content_hash_unique')
+      .on(t.kbId, t.contentHash)
+      .where(sql`status <> 'failed'`),
+  ],
 );

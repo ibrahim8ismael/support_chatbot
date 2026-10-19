@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "documents_kb_content_hash_unique" ON "documents" USING btree ("kb_id","content_hash") WHERE status <> 'failed';
