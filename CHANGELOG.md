@@ -239,6 +239,15 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Changed
 
+- **Config cleanup**: `AUTH_SESSION_SECRET` is gone — it was validated at boot
+  but never read (sessions are server-side rows), so the schema, examples and
+  docs no longer carry it; `APP_URL` and `REDIS_URL` must now be set explicitly
+  in production (no silent localhost defaults). Upgrade notes: delete
+  `AUTH_SESSION_SECRET` from the production `.env` (harmless if left, but
+  unused), and confirm both URLs are present — the API refuses to boot in
+  production without them. If migration 0002 fails on a pre-existing duplicate
+  live document row (possible only from the old upload race), remove the
+  duplicate first.
 - **No mock in production, period**: the `ALLOW_MOCK_LLM` escape hatch is
   removed — production refuses to boot in `LLM_PROVIDER=mock` mode. The mock
   provider stays for local dev, tests and CI. Upgrade note: delete the variable
@@ -251,6 +260,26 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Audit P2/P3 — auth & session**: login denials are audited at most once per
+  (reason, subject) per minute, so an anonymous flood can no longer grow
+  `audit_logs` one row per rejected request; the 15-minute lockout is scoped to
+  (account, source address) so a stranger cannot lock a known account out with
+  eight spaced attempts; the session cookie is re-issued whenever the session
+  row slides (the cookie used to die 7 days after login while the DB row kept
+  sliding); non-GET requests carrying a foreign `Origin`/`Sec-Fetch-Site`
+  header are rejected with 403 on top of the existing `SameSite=Lax` cookie.
+- **Audit P2/P3 — data, cost and resource guards**: conversation detail reads
+  are capped at the newest 500 messages / 200 answer events, the user list at
+  500 rows and KB document lists at 200; uploads gain a partial unique index on
+  `(kb_id, content_hash)` excluding `failed` rows (migration 0002) that closes
+  the concurrent-upload race — the loser now gets the same 409 — and
+  reprocessing a failed copy whose content went live again 409s instead of
+  corrupting state; playground ask and KB search enforce a per-user 30/min cap
+  plus a global daily budget (`LLM_DAILY_REQUEST_LIMIT`, default 3000,
+  `0` disables); the embedding cache is bounded in size and count (base64
+  float32 ≈ 8 KB/vector, 24 h TTL, ≤ 200 fresh vectors per hour, `emb:v2`
+  namespace); `WORKER_CONCURRENCY` now actually configures the ingest worker
+  (default 2); `estimated_cost_usd` is populated for known chat models.
 - **Synthetic scripts can't touch live inboxes**: the load-smoke webhook burst
   refuses non-local targets whose inbox has an enabled binding (and fails
   closed when the target cannot be verified) unless `--allow-live-burst` is
