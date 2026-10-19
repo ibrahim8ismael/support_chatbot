@@ -54,7 +54,8 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `NODE_ENV` | `production` | |
 | `APP_URL` | `https://support-agent.internal.company` | used in cookies/CORS |
 | `DATABASE_URL` | `postgres://sa:…@postgres:5432/support_agent` | |
-| `REDIS_URL` | `redis://redis:6379` | BullMQ queue (db 0) + cache (db 1) — see [caching](../architecture/caching.md) |
+| `REDIS_PASSWORD` | `openssl rand -hex 32` | required: compose starts Redis with `requirepass`; hex so it is URL-safe |
+| `REDIS_URL` | `redis://:<REDIS_PASSWORD>@redis:6379` | BullMQ queue (db 0) + cache (db 1) — see [caching](../architecture/caching.md); keep in sync with `REDIS_PASSWORD` |
 | `AUTH_SESSION_SECRET` | 64-char random | required at boot (≥32 chars); placeholder values rejected in production |
 | `CHATWOOT_BASE_URL` | `https://chatwoot.internal.company` | |
 | `CHATWOOT_ACCOUNT_ID` | `1` | |
@@ -187,6 +188,7 @@ docker compose --env-file .env -f docker/docker-compose.prod.yml up -d api
 | `AUTH_SESSION_SECRET` | `.env` → recreate `api`. It is validated at boot but does not sign cookies yet, so live sessions are unaffected — to force a global sign-out, delete the session rows: `… exec -T postgres psql -U sa -d support_agent -c 'delete from sessions'` (all cookies answer 401; the team logs in again) |
 | `CHATWOOT_WEBHOOK_SECRET` | `.env` → recreate `api` → update the Agent Bot webhook URL in Chatwoot; the old path answers 404 until then. While the pipeline is a stub (T-201) the correct path answers 501 — a 200/anything else means Chatwoot still points at the old secret |
 | Provider API keys | Rotate at the provider → `.env` → recreate `api` → run the `GET /settings/health-llm` smoke check (Settings screen) |
+| `REDIS_PASSWORD` | `.env` (both `REDIS_PASSWORD` and the `REDIS_URL` copy) → `… up -d redis api web proxy`. Queue and cache are transient by design, so a restart is the whole migration |
 
 ### Restore from backup
 
@@ -209,7 +211,7 @@ Run from the repo root with the dump + uploads tarball in `$PWD`:
      sh -c 'find /data -mindepth 1 -delete && tar xzf /backup/support-agent-uploads-2026-10-18.tgz -C /data && chown -R 1000:1000 /data'
    ```
 
-5. Drop stale queue state + caches (transient by design): `… exec -T redis redis-cli FLUSHALL`
+5. Drop stale queue state + caches (transient by design): `… exec -T redis sh -c 'REDISCLI_AUTH=$REDIS_PASSWORD redis-cli FLUSHALL'`
 6. Start everything: `… up -d` — `migrate` no-ops on the restored schema, then api/web/proxy come back.
 7. Verify `/health`, log in, one playground query; note the restore timestamp for analytics expectations.
 

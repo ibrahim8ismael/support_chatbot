@@ -246,6 +246,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Redis auth in production**: the prod compose now starts Redis with
+  `requirepass` — `REDIS_PASSWORD` is mandatory (fail-fast), the healthcheck
+  authenticates via `REDISCLI_AUTH`, the example env and deployment tables are
+  in sync, and the queue/cache runbook commands authenticate. The security
+  doc's claim of a password-protected prod Redis is now true instead of
+  aspirational. **Existing hosts:** add `REDIS_PASSWORD` and the
+  `redis://:<password>@…` URL form to `.env` before the next `up` — compose
+  refuses to start without them.
 - **Prompt-injection boundary**: chunk content is now fenced in code — `<kb>`
   delimiter lookalikes are escaped (`</kb>` → `&lt;/kb>`), so a poisoned
   document cannot close its data block and speak at top level; the answer

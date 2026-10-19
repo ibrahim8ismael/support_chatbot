@@ -73,7 +73,7 @@ The bot reads **customer text** and **KB content** — both are untrusted input 
 - **Validation everywhere at the edge:** zod for webhook + shared DTOs; docs uploads limited by mime sniffing (not just extension) and size.
 - **Uploads are never served back to customers** — only parsed internally; served to dashboard users via authenticated, filename-sanitized download (P1) or not at all (MVP).
 - **SQL:** parameterized queries only (ORM + raw vector queries with bound params).
-- **Redis is internal-only:** no published ports (compose network only), `requirepass` in prod, and nothing sensitive beyond transient data — cache keys are hashes, values are derived data, job payloads carry ids not message text. Treat it as confidential anyway (same host policies as the DB).
+- **Redis is internal-only:** no published ports (compose network only), `requirepass` in prod (compose requires `REDIS_PASSWORD`; dev compose runs without auth on localhost), and nothing sensitive beyond transient data — cache keys are hashes, values are derived data, job payloads carry ids not message text. Treat it as confidential anyway (same host policies as the DB).
 - **Rate limits:** login (strict), webhook (generous but capped), dashboard API (per session).
 - **Errors:** no stack traces or provider errors to clients; detailed logs server-side with request id.
 - **Dependencies:** lockfile, `pnpm audit` in CI, Docker images pinned by digest in prod, base images rebuilt monthly.
