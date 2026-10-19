@@ -3,7 +3,7 @@ import { USER_ROLES } from '../types/domain';
 
 /** `POST /auth/login` body — see docs/api/rest-api.md. */
 export const loginInputSchema = z.object({
-  email: z.email(),
+  email: z.email().max(254),
   password: z.string().min(1).max(200),
 });
 

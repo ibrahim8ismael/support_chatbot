@@ -9,6 +9,9 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { CacheService } from '../infra/cache.service';
 import {
   INVALID_CREDENTIALS_MESSAGE,
+  LOGIN_ACCOUNT_RATE_LIMITED_MESSAGE,
+  LOGIN_BURST_LIMIT,
+  LOGIN_BURST_WINDOW_SECONDS,
   LOGIN_FAILURE_WINDOW_SECONDS,
   LOGIN_IP_BLOCKED_MESSAGE,
   LOGIN_IP_LIMIT,
@@ -38,7 +41,7 @@ function toSessionUser(row: typeof users.$inferSelect): SessionUser {
 
 /**
  * Auth — owns `users` and `sessions`: argon2id login, server-side sessions,
- * per-IP + per-account login throttling (counters in Redis, fail-open when
+ * per-IP + per-account login throttling (atomic Redis counters, fail-open when
  * Redis is down — availability first, the lock is best-effort). Every login
  * attempt and logout is audited (`audit_logs`, T-301).
  */
@@ -54,6 +57,7 @@ export class AuthService {
 
   async login(email: string, password: string, meta: LoginMeta): Promise<LoginResult> {
     await this.enforceIpLimit(meta.ip, email);
+    await this.enforceAccountBurst(email, meta.ip);
 
     const failKey = `login:fail:${email.toLowerCase()}`;
     const failures = (await this.cache.get<number>(failKey)) ?? 0;
@@ -82,8 +86,9 @@ export class AuthService {
     }
 
     if (!user || !verified || !user.isActive) {
-      const next = failures + 1;
-      await this.cache.set(failKey, next, LOGIN_FAILURE_WINDOW_SECONDS);
+      // Atomic increment — parallel guesses must not overwrite each other's count.
+      const next =
+        (await this.cache.incrWithTtl(failKey, LOGIN_FAILURE_WINDOW_SECONDS)) ?? failures + 1;
       await sleep(loginDelayMs(next));
       this.logger.warn(`failed login for ${email}`, AuthService.name);
       await this.analytics.recordAuditLog({
@@ -209,14 +214,14 @@ export class AuthService {
   }
 
   /**
-   * Fixed-window counter per IP. Read-modify-write is racy on purpose
-   * (approximate limiter); Redis errors fail open — CacheService degrades to
-   * a miss, so login still works when the cache is down.
+   * Fixed-window counter per IP, incremented atomically (Lua `INCR`+`EXPIRE`).
+   * Redis errors fail open — CacheService degrades to a miss, so login still
+   * works when the cache is down.
    */
   private async enforceIpLimit(ip: string | undefined, email: string): Promise<void> {
     const key = `login:ip:${ip ?? 'unknown'}`;
-    const hits = (await this.cache.get<number>(key)) ?? 0;
-    if (hits >= LOGIN_IP_LIMIT) {
+    const hits = await this.cache.incrWithTtl(key, LOGIN_IP_WINDOW_SECONDS);
+    if (hits !== null && hits > LOGIN_IP_LIMIT) {
       this.logger.warn(`login rate limited for ip ${ip ?? 'unknown'}`, AuthService.name);
       await this.analytics.recordAuditLog({
         userId: null,
@@ -226,6 +231,26 @@ export class AuthService {
       });
       throw new HttpException(LOGIN_IP_BLOCKED_MESSAGE, 429);
     }
-    await this.cache.set(key, hits + 1, LOGIN_IP_WINDOW_SECONDS);
+  }
+
+  /**
+   * Second wall for password guessing: one account accepts at most
+   * LOGIN_BURST_LIMIT sign-in checks per burst window, so a parallel burst
+   * cannot race the failure counter or weaponize argon2id as a CPU-exhaustion
+   * vector. Fail-open, like every throttle.
+   */
+  private async enforceAccountBurst(email: string, ip: string | undefined): Promise<void> {
+    const key = `login:burst:${email.toLowerCase()}`;
+    const hits = await this.cache.incrWithTtl(key, LOGIN_BURST_WINDOW_SECONDS);
+    if (hits !== null && hits > LOGIN_BURST_LIMIT) {
+      this.logger.warn(`login burst limited for ${email}`, AuthService.name);
+      await this.analytics.recordAuditLog({
+        userId: null,
+        action: 'auth.login_failed',
+        entity: 'session',
+        data: { email, reason: 'account_rate_limited', ip: ip ?? null },
+      });
+      throw new HttpException(LOGIN_ACCOUNT_RATE_LIMITED_MESSAGE, 429);
+    }
   }
 }

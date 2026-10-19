@@ -7,7 +7,7 @@ import type { AppLogger } from '../../common/logger/app-logger.service';
 import type { DatabaseService } from '../../db/database.service';
 import type { AnalyticsService } from '../analytics/analytics.service';
 import type { CacheService } from '../infra/cache.service';
-import { LOGIN_IP_LIMIT, LOGIN_MAX_FAILURES } from './auth.constants';
+import { LOGIN_BURST_LIMIT, LOGIN_IP_LIMIT, LOGIN_MAX_FAILURES } from './auth.constants';
 import { AuthService } from './auth.service';
 import type { PasswordService } from './password.service';
 
@@ -98,6 +98,11 @@ function buildHarness(
     }),
     del: vi.fn(async (key: string) => {
       cacheMap.delete(key);
+    }),
+    incrWithTtl: vi.fn(async (key: string) => {
+      const next = (cacheMap.get(key) ?? 0) + 1;
+      cacheMap.set(key, next);
+      return next;
     }),
   } as unknown as CacheService;
 
@@ -211,6 +216,17 @@ describe('AuthService.login', () => {
       ),
     ).toBe(429);
     expect(harness.select).not.toHaveBeenCalled();
+  });
+
+  it('caps parallel attempts per account with the burst limiter', async () => {
+    const harness = buildHarness({
+      cache: new Map([['login:burst:user@example.com', LOGIN_BURST_LIMIT]]),
+    });
+
+    expect(await statusOf(harness.service.login('user@example.com', 'correct-password', {}))).toBe(
+      429,
+    );
+    expect(harness.verify).not.toHaveBeenCalled();
   });
 
   it('rejects unknown emails and still verifies against the dummy hash', async () => {
