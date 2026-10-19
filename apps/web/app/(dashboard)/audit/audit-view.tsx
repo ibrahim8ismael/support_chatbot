@@ -17,6 +17,16 @@ import { ApiError, apiFetch } from '@/lib/api';
 
 const PAGE_SIZE = 50;
 
+/** Debounce filter text so typing doesn't fire a request per keystroke (audit P3). */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 /**
  * Audit log (T-304, admin only): newest-first trail of logins, KB/document
  * changes, binding/settings changes and user management. Filters mirror the
@@ -33,6 +43,9 @@ export function AuditView() {
   const [forbidden, setForbidden] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const debouncedAction = useDebouncedValue(action, 300);
+  const debouncedUserId = useDebouncedValue(userId, 300);
 
   const handleError = useCallback(
     (cause: unknown): void => {
@@ -51,7 +64,7 @@ export function AuditView() {
     let cancelled = false;
 
     // Rows belong to the active filters — don't leave stale ones on screen.
-    const key = `${rangeId}|${action}|${userId}|${offset}`;
+    const key = `${rangeId}|${debouncedAction}|${debouncedUserId}|${offset}`;
     if (filtersRef.current !== '' && filtersRef.current !== key) {
       setList(null);
     }
@@ -66,8 +79,8 @@ export function AuditView() {
       to,
       limit: PAGE_SIZE,
       offset,
-      ...(action.trim() === '' ? {} : { action: action.trim() }),
-      ...(userId.trim() === '' ? {} : { userId: userId.trim() }),
+      ...(debouncedAction.trim() === '' ? {} : { action: debouncedAction.trim() }),
+      ...(debouncedUserId.trim() === '' ? {} : { userId: debouncedUserId.trim() }),
     });
     if (!parsed.ok) {
       setError(parsed.error);
@@ -100,7 +113,7 @@ export function AuditView() {
     return () => {
       cancelled = true;
     };
-  }, [rangeId, action, userId, offset, handleError]);
+  }, [rangeId, debouncedAction, debouncedUserId, offset, handleError]);
 
   const shown = list?.items.length ?? 0;
   const total = list?.total ?? 0;
@@ -116,7 +129,7 @@ export function AuditView() {
       </div>
 
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -144,6 +157,7 @@ export function AuditView() {
                   key={preset.id}
                   size="sm"
                   variant={rangeId === preset.id ? 'primary' : 'ghost'}
+                  aria-pressed={rangeId === preset.id}
                   onPress={() => {
                     setRangeId(preset.id);
                     setOffset(0);

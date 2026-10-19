@@ -200,7 +200,7 @@ export function BindingsView() {
       </div>
 
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -299,6 +299,7 @@ export function BindingsView() {
                               key={kb.id}
                               variant="secondary"
                               isSelected={draft.kbIds.includes(kb.id)}
+                              isDisabled={busy}
                               onChange={() =>
                                 setDraft(binding.chatwootInboxId, {
                                   ...draft,

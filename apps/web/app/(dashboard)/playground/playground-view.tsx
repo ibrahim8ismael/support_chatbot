@@ -115,7 +115,7 @@ export function PlaygroundView() {
       </div>
 
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -244,7 +244,7 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
           <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent">
             Q
           </span>
-          <p className="min-w-0 whitespace-pre-wrap text-sm font-medium">{question}</p>
+          <p className="min-w-0 text-sm font-medium break-words whitespace-pre-wrap">{question}</p>
         </div>
 
         <div
@@ -260,7 +260,9 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
               <span className="text-xs text-muted">{escalationLabel(answer.escalationReason)}</span>
             ) : null}
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{answer.answer}</p>
+          <p className="mt-3 text-sm leading-relaxed break-words whitespace-pre-wrap">
+            {answer.answer}
+          </p>
         </div>
 
         {answer.chunks.length > 0 ? (
@@ -277,7 +279,7 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
                       {formatScore(chunk.score)}
                     </Chip>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-foreground/80">
+                  <p className="mt-2 text-sm break-words whitespace-pre-wrap text-foreground/80">
                     {chunk.content}
                   </p>
                 </li>
