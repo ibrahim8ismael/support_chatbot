@@ -95,9 +95,9 @@ describe('validateEnv', () => {
     ).toThrow(/default development credentials/);
     expect(() => validateEnv({ ...base, CHATWOOT_WEBHOOK_SECRET: 'short' })).toThrow(/at least 32/);
 
-    // Explicit offline demos remain possible.
-    expect(() =>
-      validateEnv({ ...base, LLM_PROVIDER: 'mock', ALLOW_MOCK_LLM: 'true' }),
-    ).not.toThrow();
+    // The removed ALLOW_MOCK_LLM escape hatch cannot be smuggled back in.
+    expect(() => validateEnv({ ...base, LLM_PROVIDER: 'mock', ALLOW_MOCK_LLM: 'true' })).toThrow(
+      /mock is not allowed/,
+    );
   });
 });
