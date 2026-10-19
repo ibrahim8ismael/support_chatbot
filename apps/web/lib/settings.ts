@@ -23,7 +23,12 @@ export interface SettingsField {
 
 /** Display order + input type per setting (keys/defaults: data-model § settings). */
 export const SETTINGS_FIELDS: SettingsField[] = [
-  { key: 'bot_enabled', label: 'Bot enabled (global kill switch)', kind: 'boolean' },
+  {
+    key: 'bot_enabled',
+    label: 'Bot enabled (global kill switch)',
+    kind: 'boolean',
+    hint: 'Saves the moment it flips — no separate save needed.',
+  },
   {
     key: 'system_prompt',
     label: 'System prompt',

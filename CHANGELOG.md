@@ -277,7 +277,9 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
   failed session probe with a Retry instead of an endless "Loading…"; uploads
   can be cancelled, in-flight saves lock the row's fields (users/bindings),
   audit filters are debounced (300 ms), "Save changes" is disabled until
-  something changed, and the inbox filter explains itself when bindings are
+  something changed, the global bot kill switch persists the moment it flips
+  (like the per-inbox switch) instead of waiting for Save, and the inbox
+  filter explains itself when bindings are
   editor/admin. Accessibility: async errors are announced (`role="alert"`),
   range presets carry `aria-pressed`, the selected conversation carries
   `aria-current`, the analytics chart exposes its numbers as a screen-reader

@@ -125,6 +125,44 @@ export function SettingsView() {
     }
   }
 
+  /**
+   * The global kill switch is an emergency control: persist the flip right
+   * away (like the per-inbox switch) instead of waiting for "Save changes",
+   * and snap back to the server state when the write fails (audit HIGH).
+   */
+  async function toggleBotEnabled(enabled: boolean): Promise<void> {
+    updateField('bot_enabled', enabled ? 'true' : 'false');
+    setError(null);
+    setNotice(null);
+    setSaving(true);
+    try {
+      const updated = await apiFetch<Settings>('/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ bot_enabled: enabled }),
+      });
+      setSettings(updated);
+      setForm((current) =>
+        current ? { ...current, bot_enabled: String(updated.bot_enabled) } : current,
+      );
+      setNotice(
+        updated.bot_enabled
+          ? 'Bot enabled — new answers resume with the saved settings.'
+          : 'Bot disabled globally — new answers stop immediately.',
+      );
+    } catch (cause) {
+      setForm((current) =>
+        current ? { ...current, bot_enabled: String(settings?.bot_enabled ?? enabled) } : current,
+      );
+      if (cause instanceof ApiError && cause.status === 403) {
+        setError('Settings writes are editor/admin only.');
+      } else {
+        handleError(cause);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function runHealthCheck(): Promise<void> {
     setHealth(null);
     setHealthError(null);
@@ -213,12 +251,19 @@ export function SettingsView() {
             <Card.Content className="flex flex-col gap-5">
               {SETTINGS_FIELDS.map((field) => {
                 if (field.kind === 'boolean') {
+                  const isKillSwitch = field.key === 'bot_enabled';
                   return (
                     <Switch
                       key={field.key}
                       isSelected={form[field.key] === 'true'}
                       isDisabled={saving || !writable}
-                      onChange={(enabled) => updateField(field.key, enabled ? 'true' : 'false')}
+                      onChange={(enabled) => {
+                        if (isKillSwitch) {
+                          void toggleBotEnabled(enabled);
+                        } else {
+                          updateField(field.key, enabled ? 'true' : 'false');
+                        }
+                      }}
                     >
                       <Switch.Control>
                         <Switch.Thumb />
