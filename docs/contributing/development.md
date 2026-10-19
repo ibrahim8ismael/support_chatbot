@@ -83,10 +83,10 @@ Rules of thumb: **no real model calls in CI** (mock provider); every bugfix that
 
 1. Run your local Chatwoot (their official docker-compose) or use the shared staging one.
 2. Expose your local API: `cloudflared tunnel --url http://localhost:3001` (or ngrok).
-3. Create a dev Agent Bot with webhook URL `https://<tunnel>/api/webhooks/chatwoot/<dev-secret>` and assign it to a test inbox.
-4. Message the website widget; watch `pnpm dev` logs: webhook received → filters → retrieval → reply posted.
+3. Create a dev Agent Bot (Settings → Bots) with webhook URL `https://<tunnel>/api/webhooks/chatwoot/<dev-secret>` and bind it to a test inbox (inbox → Bot Configuration).
+4. Message the website widget; in `pnpm dev` logs you will see the stub's `501` (Chatwoot shows failed deliveries) — filters → retrieval → reply arrive with T-201+.
 
-Simulator (no Chatwoot at all): `pnpm simulate:webhook -- --conversation 812` posts a sample `message_created` payload to your local endpoint and checks that the secret gate accepts it. Until the pipeline lands (T-201+) the endpoint only acknowledges events; asserting the outgoing reply needs a mock Chatwoot server (P1, not built yet).
+Simulator (no Chatwoot at all): `pnpm simulate:webhook -- --conversation 812` posts a sample `message_created` payload and checks the secret gate: correct secret → `501 not_implemented`, wrong secret → `404`. Asserting the outgoing reply needs the pipeline (T-201+) and a mock Chatwoot server (P1, not built yet).
 
 ## Dashboard UI (HeroUI)
 

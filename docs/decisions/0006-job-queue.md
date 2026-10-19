@@ -21,7 +21,7 @@ Redis is entering the stack for **caching** regardless (embedding cache, retriev
 - **Per-conversation serialization:** deterministic `jobId = reply:<conversation_id>` (a second enqueue for the same conversation is coalesced) + a Redis lock (`SET NX PX`, renewed) held while processing. The worker re-reads the conversation before finishing and re-enqueues itself if newer messages arrived.
 - **Reliability:** `attempts: 3` with exponential backoff; failed jobs retained for inspection with bounded retention (failed 7 days / 1000; completed 1 day / 1000) so the `noeviction` Redis cannot fill up; queue events feed logs and metrics. AOF persistence on (`appendonly yes`) so queued/running jobs survive restarts.
 - **Caching: same Redis instance, logical databases.** db 0 = queue, db 1 = cache. Prod: `maxmemory` capped, **`noeviction`** — queue keys must never be evicted; every cache key carries a TTL so memory self-bounds.
-- **Failure behavior:** the queue is a hard dependency (if enqueue fails: webhook answers 503 so Chatwoot retries — never lose a message). The cache is **fail-open** (errors are logged and treated as misses; answers degrade to uncached, never to wrong).
+- **Failure behavior:** the queue is a hard dependency (if enqueue fails: webhook answers 500 — Chatwoot's retryable status — so it retries; never lose a message). The cache is **fail-open** (errors are logged and treated as misses; answers degrade to uncached, never to wrong).
 - Workers run inside `apps/api` ([ADR-0001](0001-modular-monolith.md)); extraction to `apps/worker` later is a packaging change.
 
 ## Consequences

@@ -6,13 +6,37 @@ Chatwoot is our **only** channel integration: every channel the company supports
 - Replies: us → Chatwoot REST API (bot token)
 - Ownership of channel specifics: Chatwoot, always.
 
+## Current status (2026-10)
+
+> **The reply pipeline is not implemented yet.** The webhook handler
+> (`apps/api/src/modules/chatwoot/chatwoot.controller.ts`) verifies the path
+> secret and answers `501 not_implemented`; it does not parse, store, or
+> forward anything, and nothing replies to customers. Sections below marked
+> *Target contract* describe the intended design that T-201…T-204 implement
+> ([build-plan](../contributing/build-plan.md)); treat them as a
+> specification, not as behavior. Wiring a dev Chatwoot instance today is a
+> valid connectivity smoke test — expect failed-delivery entries in Chatwoot
+> and no replies. Do not attach an Agent Bot to production inboxes yet.
+
 ## Setup (per environment)
 
-1. In Chatwoot (Agent Bots admin section), create an Agent Bot named e.g. `Support Agent (staging)`.
+1. In Chatwoot, go to **Settings → Bots** (account settings; older versions
+   keep installation-wide bots under Super Admin → Agent Bots) and create an
+   Agent Bot named e.g. `Support Agent (staging)`.
    - Webhook URL: `https://<our-api-host>/api/webhooks/chatwoot/<WEBHOOK_SECRET>` — the secret is a long random path segment and is environment-specific.
+   - Recent Chatwoot versions also generate a **signing secret** for the bot
+     and send signature headers with each delivery (see Security below); our
+     handler does not verify them yet (T-201).
    - Save the generated **bot access token** → `CHATWOOT_BOT_TOKEN`.
-2. Subscribe the bot webhook to events: `message_created` (P0); later `conversation_status_changed`, `conversation_updated` (P1).
-3. Assign the bot to the inboxes it should serve (inbox settings → Agent Bot). Which inboxes get **answers** is then controlled by us in `inbox_bindings` (belt and braces: both must be on).
+2. Agent Bots emit conversation events for the inboxes they are bound to
+   (`message_created` plus conversation updates/status changes on newer
+   versions) — there is no per-event picker like account webhooks have. Our
+   filter matrix ignores everything except `message_created`.
+3. Bind the bot to the inboxes it should serve (inbox settings → Bot
+   Configuration → pick the bot). Which inboxes get **answers** is then
+   controlled by us in `inbox_bindings` (belt and braces: both must be on).
+   Note: inboxes with an Agent Bot show new conversations as `pending` — that
+   is Chatwoot behavior, not a bug.
 4. Config values we need ([deployment § env](../operations/deployment.md)):
 
 | Variable | Meaning |
@@ -24,7 +48,15 @@ Chatwoot is our **only** channel integration: every channel the company supports
 
 ## Incoming: webhook contract
 
-`POST /api/webhooks/chatwoot/:secret` — public endpoint, no session. Handler rules: verify secret path → parse with zod → **respond 200 fast** → process async (queue). Never do model calls inside the webhook request.
+`POST /api/webhooks/chatwoot/:secret` — public endpoint, no session.
+
+**Current handler (stub):** verifies the path secret only; wrong secret → 404,
+otherwise `501 {"status":"not_implemented"}`. No payload is read, nothing is
+persisted or enqueued.
+
+**Target contract (T-201):** verify secret path → parse with zod → **respond
+200 fast** → process async (queue). Never do model calls inside the webhook
+request.
 
 Representative payload (fields abbreviated; verify against our version):
 
@@ -52,6 +84,8 @@ Representative payload (fields abbreviated; verify against our version):
 
 ### Filter matrix (any fail → ignore)
 
+*Target contract — implemented by T-201; none of these filters run today.*
+
 | Condition | Why |
 | --- | --- |
 | `event != "message_created"` | MVP scope (others logged only) |
@@ -68,9 +102,16 @@ Loop safety is a hard requirement: the bot's own replies come back as `outgoing`
 
 ### Idempotency
 
-`messages.chatwoot_message_id` is UNIQUE. Webhook retries hit `ON CONFLICT DO NOTHING` — a message is processed exactly once, whatever Chatwoot does on delivery failures. Reply jobs are keyed per conversation ([message flow](../architecture/message-flow.md#step-by-step-webhook-side)).
+`messages.chatwoot_message_id` is UNIQUE — schema support is in place, but no
+code performs this insert yet (T-201). The target: webhook retries hit
+`ON CONFLICT DO NOTHING`, so a message is processed exactly once, whatever
+Chatwoot does on delivery failures. Reply jobs are keyed per conversation
+([message flow](../architecture/message-flow.md#step-by-step-webhook-side)).
 
 ## Outgoing: replies via the Chatwoot API
+
+*Target contract — T-202. No outbound client exists yet: `ChatwootService`
+makes no HTTP calls.*
 
 All calls use `api_access_token: <CHATWOOT_BOT_TOKEN>` and go through the `chatwoot` module only. In code, every call goes through one shared **axios** instance owned by this module (`baseURL = CHATWOOT_BASE_URL`, `timeout: 10 s`, interceptors add the token header and structured logging). No other module creates HTTP clients for Chatwoot — timeout, retry, and telemetry policy live in one place.
 
@@ -117,8 +158,18 @@ Notes:
 
 ## Reliability
 
-- **Webhook response:** always 200 quickly, even for ignored/duplicate events. Errors during our *processing* go to the queue, not to Chatwoot's retry loop — with one exception: if enqueueing itself fails (Redis unavailable), respond 503 so Chatwoot redelivers instead of the message being lost.
-- **Chatwoot retries** failed deliveries — we are idempotent, so retries are harmless.
+- **Today (stub):** the handler answers `501` after the secret check.
+  Chatwoot's Agent Bot webhook job retries only `429` and `500` responses
+  (3 attempts); `501` is terminal — which is what makes the unimplemented
+  state visible in Chatwoot's job logs instead of a silent success.
+- **Target — webhook response:** always 200 quickly, even for ignored/duplicate
+  events. Errors during our *processing* go to the queue, not to Chatwoot's
+  retry loop — with one exception: if enqueueing itself fails (Redis
+  unavailable), respond **500** (Chatwoot's retryable status) so the message is
+  redelivered instead of lost; redelivery is safe because we are idempotent.
+- **Chatwoot retries:** Agent Bot deliveries retry on `429`/`500` with backoff;
+  chatty 4xx responses (including our current 501) are terminal — verify
+  against your version if this matters to you.
 - **Our outbound calls:** timeout 10 s, retry 2× with backoff (idempotency note: message posts cannot be made idempotent server-side; we accept at-most-once with a double-send guard comparing the last bot message).
 - **Ordering:** guaranteed per conversation by the deterministic BullMQ jobId + a per-conversation Redis lock held while processing ([message flow](../architecture/message-flow.md#step-by-step-webhook-side)).
 - **Rate limits:** self-hosted Chatwoot has none by default; we still send at most one reply per incoming message and use a worker pool of 4.
@@ -126,15 +177,23 @@ Notes:
 
 ## Security (details in [security doc](../operations/security.md))
 
-- **Chatwoot webhooks are not cryptographically signed** (verify for our version — this may change). Mitigations, all applied: long random secret in the path, HTTPS only, network-level access control (only Chatwoot host/IP can reach the endpoint at the proxy), zod validation, and — for high-risk flows — optional re-fetch of the message via the API to confirm it exists before answering.
+- **Signatures:** recent Chatwoot versions sign webhook deliveries —
+  `X-Chatwoot-Signature: sha256=<HMAC-SHA256(secret, "{X-Chatwoot-Timestamp}.{raw body}")>`
+  plus `X-Chatwoot-Timestamp`; Agent Bots get a per-bot signing secret in
+  Settings → Bots. Our handler does **not verify signatures yet** — HMAC
+  verification with a timestamp tolerance is part of the T-201 webhook work.
+  Older versions may not sign at all, so the path secret + network allowlist
+  remain the gate until then.
 - Bot token is environment-scoped and least-privilege (only what the Agent Bot API allows). Rotate by creating a new bot token and updating env (runbook in [deployment](../operations/deployment.md)).
-- Never log full webhook payloads at info level (they contain customer content).
+- Never log full webhook payloads at info level (they contain customer content) — the current stub never reads the body, and the T-201 implementation must keep this rule.
 
 ## Testing the integration
 
-- **Unit/fixtures:** keep real captured payloads (anonymized) in `apps/api/test/fixtures/chatwoot/` and run the filter matrix against them. This is our contract test — it catches version drift early.
-- **Local e2e:** run a dev Chatwoot via its docker-compose, create an Agent Bot pointing to a tunnel (`cloudflared`/`ngrok`) of the local API, use the website widget to send messages.
-- **Webhook simulator:** `POST /api/webhooks/chatwoot/:secret` accepts the same payloads from a script — lets us exercise the full pipeline (retrieval, model calls, reply post) without a live Chatwoot, with the outbound call pointed at a mock server in tests.
+- **Unit/fixtures (target, T-201):** keep real captured payloads (anonymized)
+  in `apps/api/test/fixtures/chatwoot/` and run the filter matrix against them.
+  This is our contract test — it catches version drift early.
+- **Local e2e:** run a dev Chatwoot via its docker-compose, create an Agent Bot pointing to a tunnel (`cloudflared`/`ngrok`) of the local API, use the website widget to send messages. Until T-201 you should expect the stub's 501 (visible as failed deliveries in Chatwoot) — no replies.
+- **Webhook simulator:** `pnpm simulate:webhook` posts a sample `message_created` payload. Correct secret → `501 {"status":"not_implemented"}` (the script's point today is the secret gate); wrong secret → `404`. Once the pipeline lands it exercises the full path (retrieval, model calls, reply post), with the outbound call pointed at a mock server in tests.
 
 ## Open questions
 

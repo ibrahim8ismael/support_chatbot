@@ -170,7 +170,7 @@ Dashboard → KB → document → Reprocess. Behind the scenes: queue job; watch
 
 1. Container: `docker compose ps redis` → restart if unhealthy; check logs for OOM or persistence errors.
 2. Memory: `INFO memory` — `maxmemory-policy` must be `noeviction`; cache keys all carry TTLs, so usage stays bounded. If it filled up anyway: restart (AOF replays), then raise `maxmemory` (512 MB is generous at our volume).
-3. While Redis is down: webhooks answer 503 and Chatwoot retries; dashboards still work (Postgres). After recovery, verify the retried webhooks landed — no duplicate replies (idempotency guards).
+3. While Redis is down: webhooks answer 500 and Chatwoot retries; dashboards still work (Postgres). After recovery, verify the retried webhooks landed — no duplicate replies (idempotency guards).
 4. If pressure keeps recurring: split queue and cache onto separate Redis instances (documented escape hatch in [ADR-0006](../decisions/0006-job-queue.md)).
 
 ### Rotate secrets
@@ -185,7 +185,7 @@ docker compose --env-file .env -f docker/docker-compose.prod.yml up -d api
 | --- | --- |
 | `CHATWOOT_BOT_TOKEN` | Create a new bot token in Chatwoot → `.env` → recreate `api` → verify one answer in a test inbox → delete the old token |
 | `AUTH_SESSION_SECRET` | `.env` → recreate `api`. It is validated at boot but does not sign cookies yet, so live sessions are unaffected — to force a global sign-out, delete the session rows: `… exec -T postgres psql -U sa -d support_agent -c 'delete from sessions'` (all cookies answer 401; the team logs in again) |
-| `CHATWOOT_WEBHOOK_SECRET` | `.env` → recreate `api` → update the Agent Bot webhook URL in Chatwoot; the old path answers 404 until then (a 200 means Chatwoot still points at the old secret) |
+| `CHATWOOT_WEBHOOK_SECRET` | `.env` → recreate `api` → update the Agent Bot webhook URL in Chatwoot; the old path answers 404 until then. While the pipeline is a stub (T-201) the correct path answers 501 — a 200/anything else means Chatwoot still points at the old secret |
 | Provider API keys | Rotate at the provider → `.env` → recreate `api` → run the `GET /settings/health-llm` smoke check (Settings screen) |
 
 ### Restore from backup
@@ -226,7 +226,7 @@ pnpm --filter api load:smoke -- \
   --webhook-secret '<CHATWOOT_WEBHOOK_SECRET>'
 ```
 
-- **Webhook ack** (NFR-1): `--webhook-burst` (default 100) synthetic `message_created` events at `--concurrency` (default 20 — the NFR-8 burst envelope; the 5k conversations/month average is ~7/h). Asserts every request is 2xx and ack p95 ≤ 300 ms after a 10-request warm-up.
+- **Webhook ack** (NFR-1): `--webhook-burst` (default 100) synthetic `message_created` events at `--concurrency` (default 20 — the NFR-8 burst envelope; the 5k conversations/month average is ~7/h). Asserts the documented status — 501 while the pipeline is a stub (T-201), 2xx afterwards — and ack p95 ≤ 300 ms after a 10-request warm-up.
 - **Pipeline latency** (NFR-1): `--pipeline-count` (default 20) playground asks at the same concurrency through the full answer path, against a throwaway KB (`--kb <uuid>` reuses a populated one; KB create/delete needs an admin account). Asserts p95 end-to-end ≤ 15 s and retrieval p95 ≤ 500 ms. Numbers are only meaningful with a real provider key — under `LLM_PROVIDER=mock` it is a plumbing check — and the customer-message → posted-reply path joins the measurement with T-203.
 - **Queue durability** (NFR-2): `--jobs` (default 50) jobs on the dedicated `load-smoke` queue with the ADR-0006 defaults; Redis is restarted mid-flight (`--restart-cmd` overrides the default dev-compose command, `--skip-restart` for managed Redis), then nothing may be lost and every job must complete. The dedicated queue name means a prod run never touches real reply traffic.
 

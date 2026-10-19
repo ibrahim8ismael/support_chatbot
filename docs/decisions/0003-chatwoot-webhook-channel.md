@@ -21,5 +21,5 @@ Integrate with Chatwoot only:
 ## Consequences
 
 - **Easy:** every channel works on day one and any new channel the company adds to Chatwoot works with zero changes here; one place to handle dedupe/ordering; loops prevented centrally.
-- **Hard (accepted):** we inherit Chatwoot's webhook semantics and version quirks — mitigated with fixture contract tests and idempotent handlers; webhooks are unsigned — mitigated per the [security doc](../operations/security.md#3-webhook--integration-surface).
+- **Hard (accepted):** we inherit Chatwoot's webhook semantics and version quirks — mitigated with fixture contract tests and idempotent handlers; webhook signing varies by version (recent versions send `X-Chatwoot-Signature`; older ones don't) — verify per [security doc](../operations/security.md#3-webhook--integration-surface) and T-201.
 - **Risk:** if the company ever leaves Chatwoot, this module is rewritten — isolated and documented exactly for that reason.

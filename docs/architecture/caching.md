@@ -57,7 +57,7 @@ Reply-level caching for exact-repeat questions (same query, same chunks, short T
 ## Failure behavior
 
 - **Fail-open by design:** any cache read/write error is logged (rate-limited to once per minute) and treated as a miss. A broken cache makes us slower and slightly more expensive — never wrong.
-- **Redis fully down:** the caches are moot — the *queue* is also on Redis, so new webhook work is refused (503 → Chatwoot retries) until Redis is back. Dashboard reads keep working from Postgres. Alert + runbook: [deployment § Redis down or full](../operations/deployment.md#redis-down-or-full).
+- **Redis fully down:** the caches are moot — the *queue* is also on Redis, so new webhook work is refused (500 → Chatwoot retries) until Redis is back. Dashboard reads keep working from Postgres. Alert + runbook: [deployment § Redis down or full](../operations/deployment.md#redis-down-or-full).
 - **After a restore/wipe:** the cache warms itself; no warm-up script needed.
 
 ## Ops parameters (prod)

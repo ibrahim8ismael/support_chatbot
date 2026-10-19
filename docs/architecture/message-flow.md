@@ -2,6 +2,10 @@
 
 The lifecycle of one customer conversation, from webhook to reply. This is the highest-traffic path in the system — everything here must be idempotent, ordered, and boring.
 
+> **Status (2026-10):** this is the target contract. Today the webhook is a stub
+> that verifies the path secret and answers `501 not_implemented` — steps 1–5
+> land with T-201+ ([chatwoot doc § Current status](../integrations/chatwoot.md#current-status-2026-10)).
+
 ## Happy path
 
 ```mermaid
@@ -39,7 +43,7 @@ sequenceDiagram
 
 ## Step by step (webhook side)
 
-1. **Receive** `POST /api/webhooks/chatwoot/:secret` ([contract](../integrations/chatwoot.md)). Verify path secret, parse payload with zod, persist, enqueue, then **answer 200** — all sub-second. If the enqueue itself fails (Redis unavailable), answer 503 so Chatwoot redelivers instead of losing the message.
+1. **Receive** `POST /api/webhooks/chatwoot/:secret` ([contract](../integrations/chatwoot.md)). Verify path secret, parse payload with zod, persist, enqueue, then **answer 200** — all sub-second. If the enqueue itself fails (Redis unavailable), answer **500** (Chatwoot's retryable status) so the message is redelivered instead of lost.
 2. **Filter** (any match → stop, log at debug level):
    - event is not `message_created` (MVP);
    - `message_type` is not `incoming`;
@@ -111,7 +115,7 @@ From then on the bot stays silent in that conversation until a human (or the das
 | Job crash mid-run | BullMQ retries (attempts: 3, exponential backoff). Dedupe guards make replays safe |
 | Chat model / embedding API error | Retry 2× with backoff inside `llm` module; then fallback + escalation |
 | Chatwoot API error when posting | Retry with backoff; if still failing, mark job failed + alert (the customer sees nothing — better than a broken half-message) |
-| Redis down | New jobs cannot be enqueued → webhooks answer 503, Chatwoot retries. Running jobs fail and retry after recovery. Dashboard reads unaffected (Postgres). Alert fires — [runbook](../operations/deployment.md#redis-down-or-full) |
+| Redis down | New jobs cannot be enqueued → webhooks answer 500, Chatwoot retries. Running jobs fail and retry after recovery. Dashboard reads unaffected (Postgres). Alert fires — [runbook](../operations/deployment.md#redis-down-or-full) |
 | Everything down during the run | Customer gets nothing from us; conversation stays "unanswered" in Chatwoot → normal human queues apply. Alert fires. |
 
 ## Out of hours & concurrency notes

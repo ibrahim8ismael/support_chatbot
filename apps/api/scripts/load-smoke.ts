@@ -31,7 +31,9 @@ import {
  *
  *   1. webhook ack: `--webhook-burst` synthetic `message_created` events at
  *      `--concurrency` (default 100 @ 20 — the NFR-8 bursts; the 5k
- *      conversations/month average is ~7/h). Asserts all 2xx and p95 ≤ 300 ms.
+ *      conversations/month average is ~7/h). Asserts the documented status
+ *      (501 while the reply pipeline is a stub — T-201; 2xx afterwards) and
+ *      p95 ≤ 300 ms.
  *   2. pipeline latency: `--pipeline-count` playground asks through the full
  *      answer path against a throwaway KB (`--kb <uuid>` to reuse a populated
  *      one; KB create/delete needs an admin account). Asserts p95 ≤ 15 s and
@@ -185,7 +187,9 @@ async function runWebhookBurst(options: CliOptions): Promise<WebhookPhase> {
         method: 'POST',
         body: payload,
       });
-      return { ok: response.ok, status: response.status, ms: performance.now() - started };
+      // The stub answers 501 by design until T-201; the pipeline flips this to 2xx.
+      const ok = response.status === 501 || response.ok;
+      return { ok, status: response.status, ms: performance.now() - started };
     } catch {
       return { ok: false, status: 0, ms: performance.now() - started };
     }

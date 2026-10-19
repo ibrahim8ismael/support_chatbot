@@ -239,6 +239,14 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Chatwoot alignment**: the webhook endpoint now answers
+  `501 {"status":"not_implemented"}` after the path-secret check instead of
+  pretending to accept events (it never processed anything); the integration
+  doc carries a status banner separating current behavior from the target
+  contract, setup steps match current Chatwoot (Settings → Bots, inbox Bot
+  Configuration), retry semantics are corrected (Agent Bot deliveries retry
+  only 429/500), and security guidance covers `X-Chatwoot-Signature`. The
+  webhook simulator, load-smoke expectations and deployment docs follow.
 - **Resource limits**: provider calls (chat, classify, embeddings) now carry
   abort timeouts (60 s / 120 s) so a stalled model API cannot hang requests or
   workers; the embedding cache TTL is bounded at 7 days; PDFs over 500 pages,
