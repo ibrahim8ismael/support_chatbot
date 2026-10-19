@@ -384,7 +384,7 @@ describe('ConversationsService.detailForExplorer', () => {
   it('returns the thread plus ranked answer events with chunks for admins', async () => {
     const harness = buildExplorerHarness([
       [LIST_ROW],
-      [MESSAGE_ROW_1, MESSAGE_ROW_2],
+      [MESSAGE_ROW_2, MESSAGE_ROW_1],
       [ANSWER_EVENT_ROW],
       CHUNK_ROWS,
     ]);

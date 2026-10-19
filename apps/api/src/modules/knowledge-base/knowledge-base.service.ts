@@ -44,6 +44,9 @@ import { knowledgeBases } from './entities/knowledge-base.entity';
 type KbRow = typeof knowledgeBases.$inferSelect;
 type DocumentRow = typeof documents.$inferSelect;
 
+/** Document lists are capped (audit P2) — newest first, older rows fall off. */
+const MAX_DOCUMENT_LIST = 200;
+
 interface StatusCounts {
   processing: number;
   ready: number;
@@ -211,7 +214,8 @@ export class KnowledgeBaseService {
       .select()
       .from(documents)
       .where(eq(documents.kbId, kbId))
-      .orderBy(desc(documents.createdAt));
+      .orderBy(desc(documents.createdAt))
+      .limit(MAX_DOCUMENT_LIST);
     return rows.map(toDocument);
   }
 

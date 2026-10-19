@@ -123,7 +123,7 @@ function buildHarness(
         where: vi.fn(() =>
           Object.assign(Promise.resolve(documentRows), {
             limit: vi.fn(async () => documentRows.slice(0, 1)),
-            orderBy: vi.fn(async () => documentRows),
+            orderBy: vi.fn(() => ({ limit: vi.fn(async () => documentRows) })),
             groupBy: vi.fn(async () => countRows),
           }),
         ),

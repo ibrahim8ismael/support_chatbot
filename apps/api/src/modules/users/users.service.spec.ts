@@ -30,7 +30,9 @@ interface HarnessOptions {
 }
 
 function buildHarness(options: HarnessOptions = {}) {
-  const orderBy = vi.fn(async () => options.listRows ?? [USER_ROW]);
+  const orderBy = vi.fn(() => ({
+    limit: vi.fn(async () => options.listRows ?? [USER_ROW]),
+  }));
   const targetLimit = vi.fn(async () =>
     options.targetRow === null ? [] : [options.targetRow ?? USER_ROW],
   );

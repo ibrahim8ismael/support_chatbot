@@ -15,6 +15,9 @@ import { sessions } from '../auth/entities/session.entity';
 import { users } from '../auth/entities/user.entity';
 import { PasswordService } from '../auth/password.service';
 
+/** Admin list is small by nature; the cap keeps a runaway table from stalling the screen. */
+const MAX_USER_LIST = 500;
+
 function toSummary(row: typeof users.$inferSelect): UserSummary {
   return {
     id: row.id,
@@ -45,12 +48,13 @@ export class UsersService {
     private readonly analytics: AnalyticsService,
   ) {}
 
-  /** Oldest first — stable ordering for the admin screen. */
+  /** Oldest first — stable ordering for the admin screen; capped (audit P2). */
   async list(): Promise<UserSummary[]> {
     const rows = await this.database.db
       .select()
       .from(users)
-      .orderBy(asc(users.createdAt), asc(users.email));
+      .orderBy(asc(users.createdAt), asc(users.email))
+      .limit(MAX_USER_LIST);
     return rows.map(toSummary);
   }
 
