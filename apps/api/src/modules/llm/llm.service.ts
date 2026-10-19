@@ -19,8 +19,16 @@ import type {
 } from './llm.types';
 import { createLlmModels, type LlmModels } from './providers/provider.factory';
 
-/** docs/architecture/caching.md: embedding cache TTL is 30 days. */
-const EMBEDDING_CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
+/** Provider calls must never hang a request or worker (audit HIGH). */
+const CHAT_TIMEOUT_MS = 60_000;
+const EMBEDDING_TIMEOUT_MS = 120_000;
+
+/**
+ * docs/architecture/caching.md: embedding cache TTL. Bounded because the
+ * Redis instance is small and `noeviction` — an unbounded vector cache would
+ * eventually fail every write (audit HIGH).
+ */
+const EMBEDDING_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 /** `emb:v1:{model}:sha256(text)` — caching.md; model-qualified so swaps miss. */
 export function embeddingCacheKey(modelId: string, text: string): string {
@@ -54,12 +62,16 @@ export class LlmService {
 
   /**
    * Every provider call goes through here: the T-404 alert check reads the
-   * success/error counters (process-local) to alert on the LLM error rate.
+   * success/error counters (process-local) to alert on the LLM error rate, and
+   * the abort signal guarantees the call cannot hang forever.
    * Cache-only work never touches this.
    */
-  private async providerCall<T>(call: () => Promise<T>): Promise<T> {
+  private async providerCall<T>(
+    timeoutMs: number,
+    call: (signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
     try {
-      const result = await call();
+      const result = await call(AbortSignal.timeout(timeoutMs));
       this.metrics.recordLlmCall(true);
       return result;
     } catch (error) {
@@ -99,10 +111,11 @@ export class LlmService {
     let tokens = 0;
 
     if (misses.length > 0) {
-      const result = await this.providerCall(() =>
+      const result = await this.providerCall(EMBEDDING_TIMEOUT_MS, (signal) =>
         embedMany({
           model: this.models.embedding,
           values: misses.map((key) => textByKey.get(key) ?? ''),
+          abortSignal: signal,
         }),
       );
       tokens = result.usage.tokens;
@@ -154,7 +167,7 @@ export class LlmService {
   /** Non-streamed reply generation (ADR-0005); the caller owns the prompt. */
   async generateReply(input: GenerateReplyInput): Promise<GenerateReplyResult> {
     const started = Date.now();
-    const result = await this.providerCall(() =>
+    const result = await this.providerCall(CHAT_TIMEOUT_MS, (signal) =>
       generateText({
         model: this.models.chat,
         system: input.system,
@@ -164,6 +177,7 @@ export class LlmService {
         })),
         maxOutputTokens: input.maxOutputTokens,
         temperature: input.temperature,
+        abortSignal: signal,
       }),
     );
 
@@ -184,7 +198,7 @@ export class LlmService {
     input: ClassifyInput<TSchema>,
   ): Promise<ClassifyResult<z.infer<TSchema>>> {
     const started = Date.now();
-    const result = await this.providerCall(() =>
+    const result = await this.providerCall(CHAT_TIMEOUT_MS, (signal) =>
       generateText({
         model: this.models.chat,
         system: input.system,
@@ -195,6 +209,7 @@ export class LlmService {
         // AI SDK v7 successor of `generateObject` (ADR-0005 intent: typed output).
         output: Output.object({ schema: input.schema }),
         maxOutputTokens: input.maxOutputTokens,
+        abortSignal: signal,
       }),
     );
 

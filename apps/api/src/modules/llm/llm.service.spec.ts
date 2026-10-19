@@ -57,7 +57,7 @@ describe('LlmService', () => {
       expect(cache.set).toHaveBeenCalledWith(
         embeddingCacheKey('mock-embedding-1536', 'reset my password'),
         result.embeddings[0],
-        30 * 24 * 60 * 60,
+        7 * 24 * 60 * 60,
       );
     });
 
