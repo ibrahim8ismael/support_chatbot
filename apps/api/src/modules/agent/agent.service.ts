@@ -16,7 +16,7 @@ import type { ChatTurn } from '../llm/llm.types';
 import { LlmService } from '../llm/llm.service';
 import { RetrievalService } from '../retrieval/retrieval.service';
 import { SettingsService } from '../settings/settings.service';
-import { ANSWER_PROMPT_VERSION } from './prompts/answer.v1';
+import { ANSWER_PROMPT_VERSION } from './prompts/answer.v2';
 import { buildRetrievalQuery, renderAnswerPrompt } from './prompt';
 import { guardReply } from './reply-guard';
 

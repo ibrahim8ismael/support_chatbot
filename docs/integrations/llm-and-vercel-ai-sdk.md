@@ -97,7 +97,7 @@ const { object } = await generateObject({ model, schema, prompt });
 
 ## Prompt management
 
-- Prompts live as **versioned files** next to their feature (`apps/api/src/modules/agent/prompts/answer.v1.ts`, `classify.v1.ts`) — reviewed in PRs like code, with the eval results attached for changes ([RAG pipeline § Quality](../architecture/rag-pipeline.md)).
+- Prompts live as **versioned files** next to their feature (`apps/api/src/modules/agent/prompts/answer.v2.ts`, `classify.v1.ts`) — reviewed in PRs like code, with the eval results attached for changes ([RAG pipeline § Quality](../architecture/rag-pipeline.md)).
 - The system prompt is overridable via settings for fast iteration; the file is the source of truth and settings show a diff indicator (P1: DB-backed versions with rollback).
 - Every `answer_events` row stores the prompt version used — so a bad answer can always be traced to an exact template.
 

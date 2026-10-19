@@ -11,7 +11,7 @@ import type { LlmService } from '../llm/llm.service';
 import type { RetrievalService } from '../retrieval/retrieval.service';
 import type { SettingsService } from '../settings/settings.service';
 import { AgentService } from './agent.service';
-import { ANSWER_PROMPT_V1 } from './prompts/answer.v1';
+import { ANSWER_PROMPT_V2 } from './prompts/answer.v2';
 
 const KB = '11111111-1111-4111-8111-111111111111';
 
@@ -57,7 +57,7 @@ function buildHarness(options: HarnessOptions = {}) {
   const settings = {
     get: vi.fn(async () => ({
       bot_enabled: true,
-      system_prompt: options.systemPrompt ?? ANSWER_PROMPT_V1,
+      system_prompt: options.systemPrompt ?? ANSWER_PROMPT_V2,
       fallback_message: 'Fallback answer.',
       retrieval_top_k: 10,
       retrieval_score_threshold: 0.35,
@@ -102,7 +102,7 @@ describe('AgentService.ask', () => {
     expect(result.chunks[0]).toMatchObject({ document: 'guide.pdf', score: 0.8 });
     expect(result.tokens).toEqual({ input: 42, output: 7 });
     expect(result.model).toBe('mock-chat');
-    expect(result.promptVersion).toBe('answer.v1');
+    expect(result.promptVersion).toBe('answer.v2');
     expect(result.latency.totalMs).toBeGreaterThanOrEqual(0);
 
     expect(generateReply).toHaveBeenCalledTimes(1);

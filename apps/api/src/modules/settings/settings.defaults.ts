@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 
 import type { Settings } from '@support-agent/shared';
 
-import { ANSWER_PROMPT_V1 } from '../agent/prompts/answer.v1';
+import { ANSWER_PROMPT_V2 } from '../agent/prompts/answer.v2';
 
 /**
  * Defaults from docs/architecture/data-model.md § settings. Model ids follow
@@ -12,7 +12,7 @@ import { ANSWER_PROMPT_V1 } from '../agent/prompts/answer.v1';
 export function buildSettingsDefaults(config: ConfigService): Settings {
   return {
     bot_enabled: false,
-    system_prompt: ANSWER_PROMPT_V1,
+    system_prompt: ANSWER_PROMPT_V2,
     fallback_message: "I'm not sure about that — let me get a human colleague for you.",
     retrieval_top_k: 10,
     retrieval_score_threshold: 0.35,
