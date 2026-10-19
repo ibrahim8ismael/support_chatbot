@@ -239,6 +239,11 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Changed
 
+- **Dashboard API origin**: `NEXT_PUBLIC_API_URL` is now optional — unset means
+  the dashboard calls the API on its own origin (what the bundled Caddy setup
+  serves); a malformed value fails the build instead of silently sending
+  requests to the wrong host. Local dev keeps setting it to
+  `http://localhost:3001`.
 - **Config cleanup**: `AUTH_SESSION_SECRET` is gone — it was validated at boot
   but never read (sessions are server-side rows), so the schema, examples and
   docs no longer carry it; `APP_URL` and `REDIS_URL` must now be set explicitly
@@ -260,6 +265,25 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Audit P2/P3 — dashboard**: the sidebar hides pages the current role cannot
+  open (bindings/audit/users), settings shows the environment-managed model ids
+  read-only and disables its controls for viewers, and the knowledge-base,
+  user and binding controls go read-only with a banner instead of letting the
+  API answer 403; the users screen blocks self-demote, self-deactivate and
+  removing the last active admin up front, warns that a self password reset
+  signs you out, and resets the create-user role picker after a successful
+  create; the login form parses the API's 429/5xx messages and verifies the
+  session cookie via `/auth/me` before redirecting, and the shell surfaces a
+  failed session probe with a Retry instead of an endless "Loading…"; uploads
+  can be cancelled, in-flight saves lock the row's fields (users/bindings),
+  audit filters are debounced (300 ms), "Save changes" is disabled until
+  something changed, the global bot kill switch persists the moment it flips
+  (like the per-inbox switch) instead of waiting for Save, and the inbox
+  filter explains itself when bindings are
+  editor/admin. Accessibility: async errors are announced (`role="alert"`),
+  range presets carry `aria-pressed`, the selected conversation carries
+  `aria-current`, the analytics chart exposes its numbers as a screen-reader
+  table, and long question/answer text wraps on small screens.
 - **Audit P2/P3 — auth & session**: login denials are audited at most once per
   (reason, subject) per minute, so an anonymous flood can no longer grow
   `audit_logs` one row per rejected request; the 15-minute lockout is scoped to

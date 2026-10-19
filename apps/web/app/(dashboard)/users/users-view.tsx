@@ -25,6 +25,7 @@ import {
   type UserUpdate,
 } from '@support-agent/shared';
 
+import { useSessionUser } from '@/components/session';
 import { USER_ROLE_LABELS } from '@/lib/admin';
 import { ApiError, apiFetch } from '@/lib/api';
 
@@ -61,6 +62,7 @@ function changedPatch(user: UserSummary, draft: RowDraft): UserUpdate {
  */
 export function UsersView() {
   const router = useRouter();
+  const me = useSessionUser();
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [drafts, setDrafts] = useState<Record<string, RowDraft>>({});
   const [resetFor, setResetFor] = useState<string | null>(null);
@@ -140,6 +142,7 @@ export function UsersView() {
       setCreateEmail('');
       setCreateName('');
       setCreatePassword('');
+      setCreateRole('viewer');
       setNotice(`Created ${created.email}.`);
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 403) {
@@ -217,6 +220,8 @@ export function UsersView() {
     }
   }
 
+  const activeAdminCount = users.filter((row) => row.role === 'admin' && row.isActive).length;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="min-w-0">
@@ -228,7 +233,7 @@ export function UsersView() {
       </div>
 
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -237,7 +242,7 @@ export function UsersView() {
         </Alert>
       ) : null}
       {notice ? (
-        <Alert status="success">
+        <Alert status="success" role="status">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Description>{notice}</Alert.Description>
@@ -266,6 +271,17 @@ export function UsersView() {
               const draft = draftFor(user, drafts);
               const dirty = Object.keys(changedPatch(user, draft)).length > 0;
               const busyRow = busy === user.id;
+              // Mirror the server's lockout guards (users.service.ts) in the UI:
+              // no self-demote/deactivate, keep at least one active admin.
+              const isSelf = me !== null && me.id === user.id;
+              const lastActiveAdmin =
+                user.role === 'admin' && user.isActive && activeAdminCount === 1;
+              const lock = isSelf || lastActiveAdmin;
+              const lockNote = isSelf
+                ? 'You cannot change your own role or deactivate your own account.'
+                : lastActiveAdmin
+                  ? 'At least one active admin must remain — promote another admin first.'
+                  : null;
               return (
                 <Card key={user.id}>
                   <Card.Header className="flex flex-row flex-wrap items-start justify-between gap-3">
@@ -279,6 +295,7 @@ export function UsersView() {
                       <Switch
                         size="sm"
                         isSelected={draft.isActive}
+                        isDisabled={busyRow || lock}
                         onChange={(isActive) =>
                           setDrafts((current) => ({
                             ...current,
@@ -321,6 +338,7 @@ export function UsersView() {
                       <TextField
                         className="w-60"
                         value={draft.name}
+                        isDisabled={busyRow}
                         onChange={(name) =>
                           setDrafts((current) => ({
                             ...current,
@@ -335,6 +353,7 @@ export function UsersView() {
                       <Select
                         className="w-40"
                         value={draft.role}
+                        isDisabled={busyRow || lock}
                         onChange={(role) => {
                           if (typeof role !== 'string') {
                             return;
@@ -363,6 +382,8 @@ export function UsersView() {
                       </Select>
                     </div>
 
+                    {lockNote ? <p className="text-xs text-muted">{lockNote}</p> : null}
+
                     {resetFor === user.id ? (
                       <form
                         className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-surface-secondary/50 p-3"
@@ -374,6 +395,7 @@ export function UsersView() {
                         <TextField
                           className="w-64"
                           value={resetPassword}
+                          isDisabled={busyRow}
                           onChange={setResetPassword}
                         >
                           <Label>New password</Label>
@@ -386,6 +408,11 @@ export function UsersView() {
                         <Button type="submit" size="sm" isPending={busyRow}>
                           Confirm reset
                         </Button>
+                        {isSelf ? (
+                          <p className="w-full text-xs text-muted">
+                            This signs out every session of your account, including this one.
+                          </p>
+                        ) : null}
                       </form>
                     ) : null}
                   </Card.Content>

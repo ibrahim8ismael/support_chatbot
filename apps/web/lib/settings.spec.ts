@@ -60,6 +60,24 @@ describe('buildSettingsPatch', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('never submits environment-managed (read-only) model fields', () => {
+    const form = settingsToForm(SETTINGS);
+    form.chat_model = 'gpt-4.1-nano';
+    form.embedding_model = 'text-embedding-3-large';
+
+    // Only read-only fields changed → nothing to save.
+    expect(buildSettingsPatch(SETTINGS, form)).toEqual({
+      ok: false,
+      error: 'no changes to save',
+    });
+
+    form.retrieval_top_k = '12';
+    expect(buildSettingsPatch(SETTINGS, form)).toEqual({
+      ok: true,
+      patch: { retrieval_top_k: 12 },
+    });
+  });
+
   it('rejects an emptied prompt (schema minimum)', () => {
     const form = settingsToForm(SETTINGS);
     form.system_prompt = '';

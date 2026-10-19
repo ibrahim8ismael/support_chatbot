@@ -13,11 +13,22 @@ export interface SettingsField {
   min?: number;
   max?: number;
   step?: number;
+  /**
+   * Values the API stores but never reads: the active model ids come from the
+   * server environment (`LLM_PROVIDER` + model variables). Shown read-only so
+   * the dashboard cannot pretend to change them (frontend audit P2).
+   */
+  readOnly?: boolean;
 }
 
 /** Display order + input type per setting (keys/defaults: data-model § settings). */
 export const SETTINGS_FIELDS: SettingsField[] = [
-  { key: 'bot_enabled', label: 'Bot enabled (global kill switch)', kind: 'boolean' },
+  {
+    key: 'bot_enabled',
+    label: 'Bot enabled (global kill switch)',
+    kind: 'boolean',
+    hint: 'Saves the moment it flips — no separate save needed.',
+  },
   {
     key: 'system_prompt',
     label: 'System prompt',
@@ -41,8 +52,20 @@ export const SETTINGS_FIELDS: SettingsField[] = [
   },
   { key: 'context_chunks', label: 'Context chunks', kind: 'number', min: 1, max: 20 },
   { key: 'max_reply_chars', label: 'Max reply chars', kind: 'number', min: 100, max: 4_000 },
-  { key: 'embedding_model', label: 'Embedding model', kind: 'text' },
-  { key: 'chat_model', label: 'Chat model', kind: 'text' },
+  {
+    key: 'embedding_model',
+    label: 'Embedding model',
+    kind: 'text',
+    readOnly: true,
+    hint: 'Set via the server environment (EMBEDDING_MODEL) — informational only.',
+  },
+  {
+    key: 'chat_model',
+    label: 'Chat model',
+    kind: 'text',
+    readOnly: true,
+    hint: 'Set via the server environment (CHAT_MODEL) — informational only.',
+  },
 ];
 
 export type SettingsForm = Record<keyof Settings, string>;
@@ -68,6 +91,10 @@ export function buildSettingsPatch(
   const patch: Record<string, unknown> = {};
 
   for (const field of SETTINGS_FIELDS) {
+    if (field.readOnly) {
+      // Never submit environment-managed values, even if the form drifts.
+      continue;
+    }
     const current: string | number | boolean = original[field.key];
     const raw = form[field.key];
 

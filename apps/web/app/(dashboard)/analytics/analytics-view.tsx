@@ -42,6 +42,7 @@ export function AnalyticsView() {
   const [interval, setIntervalValue] = useState<AnalyticsInterval>('day');
   const [inboxId, setInboxId] = useState('');
   const [inboxes, setInboxes] = useState<InboxBinding[]>([]);
+  const [inboxFilterRestricted, setInboxFilterRestricted] = useState(false);
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
   const [timeseries, setTimeseries] = useState<AnalyticsTimeseries | null>(null);
   const [unanswered, setUnanswered] = useState<UnansweredQuestion[]>([]);
@@ -60,18 +61,25 @@ export function AnalyticsView() {
     [router],
   );
 
-  // Inbox filter options — bindings are editor/admin; viewers keep "All inboxes".
+  // Inbox filter options — bindings are editor/admin; viewers keep "All
+  // inboxes" and get a note instead of a silently empty picker (audit P3).
   useEffect(() => {
     let cancelled = false;
     apiFetch<InboxBinding[]>('/bindings')
       .then((rows) => {
         if (!cancelled) {
           setInboxes(rows);
+          setInboxFilterRestricted(false);
         }
       })
       .catch((cause: unknown) => {
-        if (!cancelled && cause instanceof ApiError && cause.status === 401) {
+        if (cancelled) {
+          return;
+        }
+        if (cause instanceof ApiError && cause.status === 401) {
           router.push('/login');
+        } else if (cause instanceof ApiError && cause.status === 403) {
+          setInboxFilterRestricted(true);
         }
       });
     return () => {
@@ -167,6 +175,7 @@ export function AnalyticsView() {
               key={preset.id}
               size="sm"
               variant={rangeId === preset.id ? 'primary' : 'ghost'}
+              aria-pressed={rangeId === preset.id}
               onPress={() => setRangeId(preset.id)}
             >
               {preset.label}
@@ -204,38 +213,42 @@ export function AnalyticsView() {
               </Select.Popover>
             </Select>
 
-            <Select
-              aria-label="Inbox"
-              className="w-48"
-              value={inboxId === '' ? 'all' : inboxId}
-              onChange={(value) => {
-                const next = typeof value === 'string' ? value : 'all';
-                setInboxId(next === 'all' ? '' : next);
-              }}
-            >
-              <Select.Trigger>
-                <Select.Value />
-                <Select.Indicator />
-              </Select.Trigger>
-              <Select.Popover>
-                <ListBox>
-                  <ListBox.Item id="all" textValue="All inboxes">
-                    All inboxes
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                  {inboxes.map((binding) => (
-                    <ListBox.Item
-                      key={binding.chatwootInboxId}
-                      id={String(binding.chatwootInboxId)}
-                      textValue={binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
-                    >
-                      {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+            {inboxFilterRestricted ? (
+              <span className="text-xs text-muted">Inbox filter is editor/admin</span>
+            ) : (
+              <Select
+                aria-label="Inbox"
+                className="w-48"
+                value={inboxId === '' ? 'all' : inboxId}
+                onChange={(value) => {
+                  const next = typeof value === 'string' ? value : 'all';
+                  setInboxId(next === 'all' ? '' : next);
+                }}
+              >
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="all" textValue="All inboxes">
+                      All inboxes
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
-                  ))}
-                </ListBox>
-              </Select.Popover>
-            </Select>
+                    {inboxes.map((binding) => (
+                      <ListBox.Item
+                        key={binding.chatwootInboxId}
+                        id={String(binding.chatwootInboxId)}
+                        textValue={binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                      >
+                        {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            )}
 
             {loading ? <Spinner size="sm" /> : null}
           </div>
@@ -243,7 +256,7 @@ export function AnalyticsView() {
       </Card>
 
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -321,7 +334,7 @@ function TimeseriesChart({
           </span>
         </div>
 
-        <div className="flex items-end gap-1 overflow-x-auto pb-1">
+        <div aria-hidden className="flex items-end gap-1 overflow-x-auto pb-1">
           {points.map((point) => (
             <div
               key={point.bucket}
@@ -344,6 +357,32 @@ function TimeseriesChart({
             </div>
           ))}
         </div>
+
+        {/* Bars are decorative; screen readers get the same numbers as a table. */}
+        <table className="sr-only">
+          <caption>
+            Conversations vs bot answers, bucketed by{' '}
+            {ANALYTICS_INTERVAL_LABELS[interval].toLowerCase()}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Bucket</th>
+              <th scope="col">Conversations</th>
+              <th scope="col">Bot-answered</th>
+              <th scope="col">Deflection rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {points.map((point) => (
+              <tr key={point.bucket}>
+                <th scope="row">{bucketLabel(point.bucket, interval)}</th>
+                <td>{formatCount(point.conversations)}</td>
+                <td>{formatCount(point.botAnswered)}</td>
+                <td>{formatRate(point.deflectionRate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Card.Content>
     </Card>
   );

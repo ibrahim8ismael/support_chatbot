@@ -26,6 +26,7 @@ import type {
   KnowledgeDocument,
 } from '@support-agent/shared';
 
+import { canWrite, useSessionUser } from '@/components/session';
 import { ApiError, apiFetch, apiUpload } from '@/lib/api';
 import {
   DOCUMENT_ACCEPT,
@@ -46,6 +47,8 @@ const STATUS_COLORS: Record<DocumentStatus, 'success' | 'danger' | 'warning'> = 
 
 export function KnowledgeBasesView() {
   const router = useRouter();
+  const user = useSessionUser();
+  const writable = canWrite(user?.role);
   const [kbs, setKbs] = useState<KnowledgeBaseSummary[]>([]);
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -59,6 +62,7 @@ export function KnowledgeBasesView() {
   const [busy, setBusy] = useState(false);
   const [docsLoading, setDocsLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const uploadAbort = useRef<AbortController | null>(null);
   const previousKbRef = useRef<string | null>(null);
   const createModal = useOverlayState();
 
@@ -193,23 +197,33 @@ export function KnowledgeBasesView() {
 
     setUploading(true);
     setUploadError(null);
+    const controller = new AbortController();
+    uploadAbort.current = controller;
     try {
       await apiUpload<{ documentId: string; status: DocumentStatus }>(
         `/knowledge-bases/${selectedKbId}/documents`,
         file,
+        controller.signal,
       );
       refreshDocuments();
       await loadKbs();
     } catch (cause) {
-      if (cause instanceof ApiError && cause.status === 401) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') {
+        // Cancelled by the user — not an error to report.
+      } else if (cause instanceof ApiError && cause.status === 401) {
         router.push('/login');
       } else {
         setUploadError(cause instanceof Error ? cause.message : 'Upload failed');
       }
     } finally {
+      uploadAbort.current = null;
       setUploading(false);
       input.value = '';
     }
+  }
+
+  function cancelUpload(): void {
+    uploadAbort.current?.abort();
   }
 
   async function onReprocess(documentId: string): Promise<void> {
@@ -250,19 +264,34 @@ export function KnowledgeBasesView() {
             playground answer from the chunks produced here.
           </p>
         </div>
-        <Button
-          onPress={() => {
-            setCreateError(null);
-            createModal.open();
-          }}
-        >
-          <Plus className="size-4" aria-hidden />
-          New knowledge base
-        </Button>
+        {writable ? (
+          <Button
+            onPress={() => {
+              setCreateError(null);
+              createModal.open();
+            }}
+          >
+            <Plus className="size-4" aria-hidden />
+            New knowledge base
+          </Button>
+        ) : null}
       </div>
 
+      {user && !writable ? (
+        <Alert status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Read-only for your role</Alert.Title>
+            <Alert.Description>
+              Viewers can browse knowledge bases and documents — uploads, edits and deletions are
+              editor/admin.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -292,10 +321,12 @@ export function KnowledgeBasesView() {
                     Create the first one to start uploading documents.
                   </p>
                 </div>
-                <Button size="sm" variant="secondary" onPress={createModal.open}>
-                  <Plus className="size-4" aria-hidden />
-                  Create knowledge base
-                </Button>
+                {writable ? (
+                  <Button size="sm" variant="secondary" onPress={createModal.open}>
+                    <Plus className="size-4" aria-hidden />
+                    Create knowledge base
+                  </Button>
+                ) : null}
               </Card.Content>
             </Card>
           ) : (
@@ -380,20 +411,27 @@ export function KnowledgeBasesView() {
                   onChange={(event) => void onUpload(event)}
                   disabled={uploading}
                 />
-                <Button
-                  variant="secondary"
-                  isPending={uploading}
-                  onPress={() => fileInput.current?.click()}
-                >
-                  <Upload className="size-4" aria-hidden />
-                  Upload document
-                </Button>
+                {writable ? (
+                  <Button
+                    variant="secondary"
+                    isPending={uploading}
+                    onPress={() => fileInput.current?.click()}
+                  >
+                    <Upload className="size-4" aria-hidden />
+                    Upload document
+                  </Button>
+                ) : null}
+                {uploading ? (
+                  <Button variant="ghost" onPress={cancelUpload}>
+                    Cancel
+                  </Button>
+                ) : null}
               </Card.Header>
 
               <Card.Content className="flex flex-col gap-3 p-0">
                 {uploadError ? (
                   <div className="px-4 pt-4">
-                    <Alert status="danger">
+                    <Alert status="danger" role="alert">
                       <Alert.Indicator />
                       <Alert.Content>
                         <Alert.Description>{uploadError}</Alert.Description>
@@ -410,7 +448,9 @@ export function KnowledgeBasesView() {
                         <Table.Column>Status</Table.Column>
                         <Table.Column>Size</Table.Column>
                         <Table.Column>Chunks</Table.Column>
-                        <Table.Column className="text-right">Actions</Table.Column>
+                        {writable ? (
+                          <Table.Column className="text-right">Actions</Table.Column>
+                        ) : null}
                       </Table.Header>
                       <Table.Body
                         items={documents}
@@ -461,30 +501,32 @@ export function KnowledgeBasesView() {
                                 {document.status === 'ready' ? document.chunkCount : '—'}
                               </span>
                             </Table.Cell>
-                            <Table.Cell>
-                              <div className="flex justify-end gap-1">
-                                {document.status !== 'processing' ? (
+                            {writable ? (
+                              <Table.Cell>
+                                <div className="flex justify-end gap-1">
+                                  {document.status !== 'processing' ? (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      isDisabled={busy || docsLoading}
+                                      onPress={() => void onReprocess(document.id)}
+                                    >
+                                      <RefreshCw className="size-3.5" aria-hidden />
+                                      Reprocess
+                                    </Button>
+                                  ) : null}
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="danger"
                                     isDisabled={busy || docsLoading}
-                                    onPress={() => void onReprocess(document.id)}
+                                    onPress={() => void onDeleteDocument(document)}
                                   >
-                                    <RefreshCw className="size-3.5" aria-hidden />
-                                    Reprocess
+                                    <Trash2 className="size-3.5" aria-hidden />
+                                    Delete
                                   </Button>
-                                ) : null}
-                                <Button
-                                  size="sm"
-                                  variant="danger"
-                                  isDisabled={busy || docsLoading}
-                                  onPress={() => void onDeleteDocument(document)}
-                                >
-                                  <Trash2 className="size-3.5" aria-hidden />
-                                  Delete
-                                </Button>
-                              </div>
-                            </Table.Cell>
+                                </div>
+                              </Table.Cell>
+                            ) : null}
                           </Table.Row>
                         )}
                       </Table.Body>
@@ -525,7 +567,7 @@ export function KnowledgeBasesView() {
                   </TextField>
 
                   {createError ? (
-                    <Alert status="danger">
+                    <Alert status="danger" role="alert">
                       <Alert.Indicator />
                       <Alert.Content>
                         <Alert.Description>{createError}</Alert.Description>

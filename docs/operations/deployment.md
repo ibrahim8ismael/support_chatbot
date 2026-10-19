@@ -78,7 +78,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 
 Secrets live in `.env` **only on the host** (or docker secrets) — never in the repo, never in the settings table. The `.env.example` files carry development-only placeholders (dev webhook secret, `mock` provider, `Acme Support`); production rejects known placeholder values at boot.
 
-Compose-level values live in the same repo-root `.env` (template: `docker/.env.prod.example`): `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`, `SITE_ADDRESS` (the Caddy site address + TLS certificate name) and `NEXT_PUBLIC_API_URL` (public dashboard origin, baked into the web build — rebuilding `web` is required when it changes).
+Compose-level values live in the same repo-root `.env` (template: `docker/.env.prod.example`): `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`, `SITE_ADDRESS` (the Caddy site address + TLS certificate name) and `NEXT_PUBLIC_API_URL` (public dashboard origin, baked into the web build — rebuilding `web` is required when it changes; leave it unset to call the API on the dashboard's own origin).
 
 ## Scheduled jobs
 

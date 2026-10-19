@@ -53,6 +53,7 @@ export function ConversationsView() {
   const [botState, setBotState] = useState('');
   const [inboxId, setInboxId] = useState('');
   const [inboxes, setInboxes] = useState<InboxBinding[]>([]);
+  const [inboxFilterRestricted, setInboxFilterRestricted] = useState(false);
   const [offset, setOffset] = useState(0);
   const [list, setList] = useState<ConversationList | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -73,18 +74,25 @@ export function ConversationsView() {
     [router],
   );
 
-  // Inbox filter options — bindings are editor/admin; viewers keep "All inboxes".
+  // Inbox filter options — bindings are editor/admin; viewers keep "All
+  // inboxes" and get a note instead of a silently empty picker (audit P3).
   useEffect(() => {
     let cancelled = false;
     apiFetch<InboxBinding[]>('/bindings')
       .then((rows) => {
         if (!cancelled) {
           setInboxes(rows);
+          setInboxFilterRestricted(false);
         }
       })
       .catch((cause: unknown) => {
-        if (!cancelled && cause instanceof ApiError && cause.status === 401) {
+        if (cancelled) {
+          return;
+        }
+        if (cause instanceof ApiError && cause.status === 401) {
           router.push('/login');
+        } else if (cause instanceof ApiError && cause.status === 403) {
+          setInboxFilterRestricted(true);
         }
       });
     return () => {
@@ -209,6 +217,7 @@ export function ConversationsView() {
                 key={preset.id}
                 size="sm"
                 variant={rangeId === preset.id ? 'primary' : 'ghost'}
+                aria-pressed={rangeId === preset.id}
                 onPress={() => {
                   setRangeId(preset.id);
                   setOffset(0);
@@ -249,39 +258,43 @@ export function ConversationsView() {
                 </Select.Popover>
               </Select>
 
-              <Select
-                aria-label="Inbox"
-                className="w-48"
-                value={inboxId === '' ? 'all' : inboxId}
-                onChange={(value) => {
-                  const next = typeof value === 'string' ? value : 'all';
-                  setInboxId(next === 'all' ? '' : next);
-                  setOffset(0);
-                }}
-              >
-                <Select.Trigger>
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                <Select.Popover>
-                  <ListBox>
-                    <ListBox.Item id="all" textValue="All inboxes">
-                      All inboxes
-                      <ListBox.ItemIndicator />
-                    </ListBox.Item>
-                    {inboxes.map((binding) => (
-                      <ListBox.Item
-                        key={binding.chatwootInboxId}
-                        id={String(binding.chatwootInboxId)}
-                        textValue={binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
-                      >
-                        {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+              {inboxFilterRestricted ? (
+                <span className="text-xs text-muted">Inbox filter is editor/admin</span>
+              ) : (
+                <Select
+                  aria-label="Inbox"
+                  className="w-48"
+                  value={inboxId === '' ? 'all' : inboxId}
+                  onChange={(value) => {
+                    const next = typeof value === 'string' ? value : 'all';
+                    setInboxId(next === 'all' ? '' : next);
+                    setOffset(0);
+                  }}
+                >
+                  <Select.Trigger>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      <ListBox.Item id="all" textValue="All inboxes">
+                        All inboxes
                         <ListBox.ItemIndicator />
                       </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
+                      {inboxes.map((binding) => (
+                        <ListBox.Item
+                          key={binding.chatwootInboxId}
+                          id={String(binding.chatwootInboxId)}
+                          textValue={binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                        >
+                          {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              )}
 
               <Button
                 size="sm"
@@ -298,7 +311,7 @@ export function ConversationsView() {
       </Card>
 
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -331,6 +344,7 @@ export function ConversationsView() {
                       key={item.id}
                       type="button"
                       onClick={() => setSelectedId(item.id)}
+                      aria-current={active ? 'true' : undefined}
                       className={`w-full rounded-xl border p-3 text-left transition-colors ${
                         active
                           ? 'border-accent bg-accent/5 ring-1 ring-accent'

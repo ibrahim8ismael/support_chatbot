@@ -1,7 +1,25 @@
 import type { HealthResponse } from '@support-agent/shared';
 
-/** Nest API origin — docker/dev default. The /api prefix is added below. */
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+/**
+ * Resolve the Nest API origin. Unset means same-origin (`''`): Caddy serves the
+ * dashboard and the API from one host, so relative `/api/...` calls just work
+ * without a build-time URL; local dev sets `NEXT_PUBLIC_API_URL` in `.env.local`.
+ * A set-but-malformed value fails fast instead of silently pointing the
+ * dashboard at a typo (frontend audit P2).
+ */
+export function normalizeApiOrigin(raw: string | undefined): string {
+  const trimmed = raw?.trim() ?? '';
+  if (trimmed === '') {
+    return '';
+  }
+  const origin = trimmed.replace(/\/+$/, '');
+  if (!/^https?:\/\/[^/]+/.test(origin)) {
+    throw new Error(`NEXT_PUBLIC_API_URL must be an absolute http(s) origin, got "${trimmed}"`);
+  }
+  return origin;
+}
+
+const API_ORIGIN = normalizeApiOrigin(process.env.NEXT_PUBLIC_API_URL);
 
 export const API_BASE_URL = `${API_ORIGIN}/api`;
 
@@ -116,11 +134,11 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 /** Multipart upload — the browser sets the multipart content type + boundary. */
-export async function apiUpload<T>(path: string, file: File): Promise<T> {
+export async function apiUpload<T>(path: string, file: File, signal?: AbortSignal): Promise<T> {
   const body = new FormData();
   body.append('file', file);
 
-  const response = await request(path, { method: 'POST', body }, UPLOAD_TIMEOUT_MS);
+  const response = await request(path, { method: 'POST', body, signal }, UPLOAD_TIMEOUT_MS);
 
   if (!response.ok) {
     throw await apiError(response, path);

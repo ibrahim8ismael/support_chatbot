@@ -6,6 +6,31 @@ import { useState, type FormEvent } from 'react';
 
 import { API_BASE_URL } from '@/lib/api';
 
+/** Parse the API's error body; fall back to a status-appropriate message. */
+async function loginErrorMessage(response: Response): Promise<string> {
+  let detail = '';
+  try {
+    const body = (await response.json()) as { message?: unknown };
+    if (typeof body.message === 'string') {
+      detail = body.message;
+    } else if (Array.isArray(body.message)) {
+      detail = body.message.join('; ');
+    }
+  } catch {
+    // Not JSON.
+  }
+
+  if (response.status === 429) {
+    return detail || 'Too many attempts — wait a minute and try again.';
+  }
+  if (response.status >= 500) {
+    return detail
+      ? `The API hit an internal error: ${detail}`
+      : `The API hit an internal error (${response.status}) — try again shortly.`;
+  }
+  return 'Invalid email or password.';
+}
+
 /**
  * Client form → `POST /auth/login` (session cookie flow — docs/api/rest-api.md).
  * The cookie is httpOnly, so the browser sends it automatically afterwards.
@@ -29,21 +54,28 @@ export function LoginForm() {
         body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
       });
 
-      if (response.ok) {
-        router.push('/');
-        router.refresh();
+      if (!response.ok) {
+        setError(await loginErrorMessage(response));
         return;
       }
 
-      setError(
-        response.status === 429
-          ? 'Too many attempts — wait a minute and try again.'
-          : 'Invalid email or password.',
-      );
+      // Confirm the cookie actually stuck before redirecting — a cookie that
+      // the browser drops would otherwise bounce the dashboard back to /login.
+      const me = await fetch(`${API_BASE_URL}/auth/me`, { credentials: 'include' });
+      if (!me.ok) {
+        setError(
+          'Signed in, but the session cookie was not accepted — check that the dashboard and API share a site (or use HTTPS).',
+        );
+        return;
+      }
+
+      router.push('/');
+      router.refresh();
     } catch {
       setError('Cannot reach the API — is it running?');
+    } finally {
+      setPending(false);
     }
-    setPending(false);
   }
 
   return (
@@ -68,7 +100,7 @@ export function LoginForm() {
           </TextField>
 
           {error ? (
-            <Alert status="danger">
+            <Alert status="danger" role="alert">
               <Alert.Indicator />
               <Alert.Content>
                 <Alert.Title>Sign-in failed</Alert.Title>

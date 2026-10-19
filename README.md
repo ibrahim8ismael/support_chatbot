@@ -43,13 +43,13 @@ cp docker/.env.prod.example .env
 Fill in `.env` — the API validates everything at boot and rejects placeholder
 secrets, so mistakes surface immediately rather than at 3 AM:
 
-| Variable                                                    | Notes                                                                                                |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `SITE_ADDRESS`, `APP_URL`, `NEXT_PUBLIC_API_URL`            | dashboard hostname, e.g. `https://support.example.com` (`NEXT_PUBLIC_*` is baked into the web build) |
-| `POSTGRES_PASSWORD` + `DATABASE_URL`                        | use the same password in both                                                                        |
-| `LLM_PROVIDER` + `OPENAI_API_KEY` (or `OPENROUTER_API_KEY`) | `openai` or `openrouter`                                                                             |
-| `COMPANY_NAME`                                              | your company name — fills the answer prompt; the scaffold default is rejected in production          |
-| `CHATWOOT_*`                                                | optional until the pipeline lands — see the [Chatwoot doc](docs/integrations/chatwoot.md)            |
+| Variable                                                    | Notes                                                                                                                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_ADDRESS`, `APP_URL`, `NEXT_PUBLIC_API_URL`            | dashboard hostname, e.g. `https://support.example.com` (`NEXT_PUBLIC_*` is baked into the web build; unset = the API is called on the dashboard's own origin) |
+| `POSTGRES_PASSWORD` + `DATABASE_URL`                        | use the same password in both                                                                                                                                 |
+| `LLM_PROVIDER` + `OPENAI_API_KEY` (or `OPENROUTER_API_KEY`) | `openai` or `openrouter`                                                                                                                                      |
+| `COMPANY_NAME`                                              | your company name — fills the answer prompt; the scaffold default is rejected in production                                                                   |
+| `CHATWOOT_*`                                                | optional until the pipeline lands — see the [Chatwoot doc](docs/integrations/chatwoot.md)                                                                     |
 
 The full list with defaults and the secret-rotation runbook lives in
 [docs/operations/deployment.md](docs/operations/deployment.md).
