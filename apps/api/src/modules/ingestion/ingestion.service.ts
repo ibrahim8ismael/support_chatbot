@@ -28,6 +28,14 @@ export const EMBED_BATCH_SIZE = 100;
 const CHUNK_INSERT_BATCH = 50;
 
 /**
+ * Resource guards (audit HIGH): a crafted document must not exhaust the API
+ * process. Extracted text is capped before chunking and chunks before
+ * embedding, so pathological inputs fail fast and visibly.
+ */
+export const MAX_EXTRACTED_TEXT_CHARS = 2_000_000;
+export const MAX_CHUNKS_PER_DOCUMENT = 2000;
+
+/**
  * Ingestion — owns `chunks`. The `ingest-document` worker calls `ingest()`:
  * parse → clean → chunk → embed → replace chunks. Idempotent by design
  * (BullMQ delivers at least once): a document that is already `ready` with
@@ -75,9 +83,20 @@ export class IngestionService {
 
     const buffer = await readFile(resolveUploadPath(this.uploadDir, document.storagePath));
     const blocks = cleanBlocks(await parseDocument(buffer, document.mimeType));
+    const extractedChars = blocks.reduce((sum, block) => sum + block.text.length, 0);
+    if (extractedChars > MAX_EXTRACTED_TEXT_CHARS) {
+      throw new Error(
+        `document extracts ${extractedChars} characters — the limit is ${MAX_EXTRACTED_TEXT_CHARS}`,
+      );
+    }
     const drafts = chunkBlocks(blocks);
     if (drafts.length === 0) {
       throw new Error('no extractable text found in the document');
+    }
+    if (drafts.length > MAX_CHUNKS_PER_DOCUMENT) {
+      throw new Error(
+        `document produces ${drafts.length} chunks — the limit is ${MAX_CHUNKS_PER_DOCUMENT}`,
+      );
     }
 
     const vectors = await this.embedInBatches(drafts.map((draft) => draft.content));

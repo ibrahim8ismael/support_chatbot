@@ -38,7 +38,12 @@ export class QueueService implements OnApplicationShutdown {
           defaultJobOptions: {
             attempts: 3,
             backoff: { type: 'exponential', delay: 1000 },
-            removeOnFail: false,
+            // Bounded retention (audit HIGH): Redis runs noeviction here, and
+            // unbounded completed/failed history would eventually block every
+            // write (login counters, cache). Failed jobs stay inspectable for a
+            // week — enough to debug, small enough to survive.
+            removeOnComplete: { age: 24 * 60 * 60, count: 1000 },
+            removeOnFail: { age: 7 * 24 * 60 * 60, count: 1000 },
           },
         }),
       );

@@ -21,6 +21,8 @@ export const DIGEST_SCHEDULER_ID = 'weekly-digest';
 export const DIGEST_CRON = '0 9 * * 1';
 export const DIGEST_WINDOW_DAYS = 7;
 export const DIGEST_MAX_ITEMS = 10;
+/** The webhook POST must not hang the analytics-followup worker. */
+const DIGEST_TIMEOUT_MS = 10_000;
 
 const QUERY_MAX_CHARS = 120;
 const SERVICE_NAME = 'DigestService';
@@ -78,7 +80,12 @@ export class DigestService {
 
     const webhookUrl = this.config.get<string>('DIGEST_WEBHOOK_URL');
     if (!webhookUrl) {
-      this.logger.warn(`DIGEST_WEBHOOK_URL is not set — digest not posted:\n${text}`, SERVICE_NAME);
+      // Question text stays out of the log (customer PII, security.md § 4) —
+      // counts only; the digest content goes through the webhook or nowhere.
+      this.logger.warn(
+        `DIGEST_WEBHOOK_URL is not set — digest not posted (${items.length} unanswered question(s) in the window)`,
+        SERVICE_NAME,
+      );
       return { itemCount: items.length, posted: false };
     }
 
@@ -86,6 +93,7 @@ export class DigestService {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text }),
+      signal: AbortSignal.timeout(DIGEST_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new Error(`digest webhook responded ${response.status}`);

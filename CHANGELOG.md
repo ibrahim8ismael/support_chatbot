@@ -239,6 +239,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Resource limits**: provider calls (chat, classify, embeddings) now carry
+  abort timeouts (60 s / 120 s) so a stalled model API cannot hang requests or
+  workers; the embedding cache TTL is bounded at 7 days; PDFs over 500 pages,
+  documents extracting over 2M characters or producing over 2000 chunks fail
+  cleanly; the digest webhook has a 10 s timeout and question text is no longer
+  written to logs when it isn't posted; BullMQ job history is bounded (failed
+  7 days / 1000, completed 1 day / 1000) so `noeviction` Redis cannot fill up.
 - **API data guards**: analytics windows are capped at 366 days (400 beyond);
   bindings reject unknown knowledge-base ids; user updates refuse self-demotion/
   self-deactivation and removing the last active admin, and password resets now

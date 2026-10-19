@@ -100,7 +100,9 @@ describe('DigestService.run', () => {
     expect(DIGEST_WINDOW_DAYS).toBe(7);
     const [message] = harness.warn.mock.calls[0] ?? [];
     expect(String(message)).toContain('DIGEST_WEBHOOK_URL is not set');
-    expect(String(message)).toContain('1. "How do I reset my password?" — 4×');
+    expect(String(message)).toContain('1 unanswered question(s)');
+    // Customer question text never reaches the logs — webhook or nowhere.
+    expect(String(message)).not.toContain('How do I reset my password?');
   });
 
   it('posts a Slack-compatible payload when the webhook is configured', async () => {
@@ -118,6 +120,7 @@ describe('DigestService.run', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text: formatDigest([question()], WINDOW) }),
+      signal: expect.any(AbortSignal),
     });
     expect(harness.logger.log).toHaveBeenCalledWith(
       expect.stringContaining('digest posted'),

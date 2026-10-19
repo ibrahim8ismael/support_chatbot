@@ -18,7 +18,7 @@ flowchart LR
 Steps:
 
 1. **Store the original** on the uploads volume; create the `documents` row with `status=processing`.
-2. **Parse** by mime type: PDF (`pdfjs`), DOCX (`mammoth`), TXT/MD (direct). Keep page numbers where the parser provides them.
+2. **Parse** by mime type: PDF (`pdfjs`), DOCX (`mammoth`), TXT/MD (direct). Keep page numbers where the parser provides them. Resource guards: PDFs over 500 pages, extracted text over 2 000 000 characters, or chunk sets over 2000 fail the document with a readable error instead of exhausting the API process.
 3. **Clean**: strip repeated headers/footers, fix hyphenation and whitespace, drop empty lines. Keep the document's own structure (headings), because chunking uses it.
 4. **Chunk** (see below). Each chunk keeps `metadata = { heading, page }` when known.
 5. **Embed** in batches of 100 texts with retries (3 attempts, exponential backoff); texts already in the Redis embedding cache (same sha256) skip the provider call — night-and-day difference when reprocessing a document. Abort the whole document on repeated failure → `status=failed` with a readable `error`.
