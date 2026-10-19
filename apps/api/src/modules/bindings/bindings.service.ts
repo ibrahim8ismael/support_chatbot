@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, inArray, sql } from 'drizzle-orm';
 
 import type { BindingUpdate, InboxBinding } from '@support-agent/shared';
 
@@ -8,6 +8,7 @@ import { AppLogger } from '../../common/logger/app-logger.service';
 import { DatabaseService } from '../../db/database.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { CacheService } from '../infra/cache.service';
+import { knowledgeBases } from '../knowledge-base/entities/knowledge-base.entity';
 import { inboxBindings } from './entities/inbox-binding.entity';
 
 export const BINDING_CACHE_TTL_SECONDS = 60;
@@ -65,6 +66,20 @@ export class BindingsService {
     input: BindingUpdate,
     userId: string,
   ): Promise<InboxBinding> {
+    // Reference integrity: a binding must never point at KBs that don't exist —
+    // retrieval would silently return nothing.
+    if (input.kbIds.length > 0) {
+      const found = await this.database.db
+        .select({ id: knowledgeBases.id })
+        .from(knowledgeBases)
+        .where(inArray(knowledgeBases.id, input.kbIds));
+      const known = new Set(found.map((row) => row.id));
+      const missing = input.kbIds.filter((kbId) => !known.has(kbId));
+      if (missing.length > 0) {
+        throw new BadRequestException(`unknown knowledge base(s): ${missing.join(', ')}`);
+      }
+    }
+
     const [row] = await this.database.db
       .insert(inboxBindings)
       .values({

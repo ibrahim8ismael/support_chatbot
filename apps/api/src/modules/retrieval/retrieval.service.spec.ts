@@ -26,7 +26,10 @@ function buildHarness(options: HarnessOptions = {}) {
   const limit = vi.fn(async (_count: number) => options.rows ?? []);
   const orderBy = vi.fn((..._args: unknown[]) => ({ limit }));
   const where = vi.fn((..._args: unknown[]) => ({ orderBy }));
-  const innerJoin = vi.fn((..._args: unknown[]) => ({ where }));
+  const innerJoin = vi.fn((): { where: typeof where; innerJoin: unknown } => ({
+    where,
+    innerJoin,
+  }));
   const from = vi.fn((..._args: unknown[]) => ({ innerJoin }));
   const select = vi.fn((..._args: unknown[]) => ({ from }));
   const database = { db: { select } } as unknown as DatabaseService;
@@ -102,7 +105,7 @@ describe('RetrievalService.retrieve', () => {
 
     expect(set).toHaveBeenCalledTimes(1);
     const [key, value, ttl] = set.mock.calls[0] ?? [];
-    expect(String(key)).toMatch(new RegExp(`^ret:v1:${KB_A}=0:[0-9a-f]{64}$`));
+    expect(String(key)).toMatch(new RegExp(`^ret:v2:10:0.35:${KB_A}=0:[0-9a-f]{64}$`));
     expect(ttl).toBe(900);
     expect(value).toHaveLength(2);
   });
@@ -131,7 +134,7 @@ describe('RetrievalService.retrieve', () => {
     expect(select).not.toHaveBeenCalled();
     expect(get).toHaveBeenCalledWith(kbVersionKey(KB_A));
     const keys = get.mock.calls.map(([key]) => key);
-    expect(keys.some((key) => key.includes(`ret:v1:${KB_A}=7:`))).toBe(true);
+    expect(keys.some((key) => key.includes(`ret:v2:10:0.35:${KB_A}=7:`))).toBe(true);
   });
 
   it('honors per-call overrides and dedupes/sorts KB ids', async () => {

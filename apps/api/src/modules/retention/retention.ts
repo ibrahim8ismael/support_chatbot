@@ -27,7 +27,9 @@ export interface RetentionTarget {
 /**
  * FK-safe delete order: answer_events reference messages, messages reference
  * conversations — so events go first, then messages, then conversations.
- * `audit_logs` is independent. Documents/KBs are deliberately absent.
+ * `answer_events.incoming_message_id` cascades on message delete as a safety
+ * net for boundary rows, so a batch can never violate the FK. `audit_logs` is
+ * independent. Documents/KBs are deliberately absent.
  */
 export const RETENTION_TARGETS: readonly RetentionTarget[] = [
   { name: 'answer_events', ageColumn: 'created_at' },

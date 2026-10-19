@@ -23,11 +23,21 @@ interface HarnessOptions {
   insertedRow?: typeof USER_ROW | null;
   updatedRow?: typeof USER_ROW | null;
   passwordRow?: { id: string; email: string } | null;
+  /** Row returned by the lockout guard's role lookup. */
+  targetRow?: { role: string } | null;
+  /** Other active admins — empty means the target is the last one. */
+  remainingAdmins?: Array<{ id: string }>;
 }
 
 function buildHarness(options: HarnessOptions = {}) {
   const orderBy = vi.fn(async () => options.listRows ?? [USER_ROW]);
-  const select = vi.fn(() => ({ from: () => ({ orderBy }) }));
+  const targetLimit = vi.fn(async () =>
+    options.targetRow === null ? [] : [options.targetRow ?? USER_ROW],
+  );
+  const where = vi.fn(() =>
+    Object.assign([...(options.remainingAdmins ?? [USER_ROW])], { limit: targetLimit }),
+  );
+  const select = vi.fn(() => ({ from: () => ({ orderBy, where }) }));
 
   const insertReturning = vi.fn(async () =>
     options.insertedRow === null ? [] : [options.insertedRow ?? USER_ROW],
@@ -47,7 +57,14 @@ function buildHarness(options: HarnessOptions = {}) {
   const set = vi.fn(() => ({ where: () => ({ returning: updateReturning }) }));
   const update = vi.fn(() => ({ set }));
 
-  const database = { db: { insert, select, update } } as unknown as DatabaseService;
+  const deleteWhere = vi.fn(async () => undefined);
+  const remove = vi.fn(() => ({ where: deleteWhere }));
+  const tx = { update, delete: remove };
+  const transaction = vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
+
+  const database = {
+    db: { insert, select, update, delete: remove, transaction },
+  } as unknown as DatabaseService;
   const passwords = {
     hash: vi.fn(async (password: string) => `hashed:${password}`),
   } as unknown as PasswordService;
@@ -58,6 +75,7 @@ function buildHarness(options: HarnessOptions = {}) {
     service: new UsersService(database, passwords, auth, analytics),
     values,
     set,
+    deleteWhere,
     passwords,
     auth,
     analytics,
@@ -160,16 +178,40 @@ describe('UsersService.update', () => {
       BadRequestException,
     );
   });
+
+  it('refuses self-demotion and self-deactivation', async () => {
+    const harness = buildHarness();
+
+    await expect(
+      harness.service.update(USER_ROW.id, { role: 'viewer' }, USER_ROW.id),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      harness.service.update(USER_ROW.id, { isActive: false }, USER_ROW.id),
+    ).rejects.toThrow(BadRequestException);
+    expect(harness.set).not.toHaveBeenCalled();
+  });
+
+  it('refuses removing the last active admin', async () => {
+    const harness = buildHarness({
+      targetRow: { role: 'admin' },
+      remainingAdmins: [],
+    });
+
+    await expect(
+      harness.service.update(USER_ROW.id, { role: 'viewer' }, 'actor-1'),
+    ).rejects.toThrow(BadRequestException);
+    expect(harness.set).not.toHaveBeenCalled();
+  });
 });
 
 describe('UsersService.resetPassword', () => {
-  it('stores the new hash, kills sessions and audits', async () => {
+  it('stores the new hash and drops sessions in one transaction', async () => {
     const harness = buildHarness();
 
     await harness.service.resetPassword(USER_ROW.id, 'correct horse battery', 'actor-1');
 
     expect(harness.set).toHaveBeenCalledWith({ passwordHash: 'hashed:correct horse battery' });
-    expect(harness.auth.invalidateSessions).toHaveBeenCalledWith(USER_ROW.id);
+    expect(harness.deleteWhere).toHaveBeenCalledTimes(1);
     expect(harness.analytics.recordAuditLog).toHaveBeenCalledWith({
       userId: 'actor-1',
       action: 'users.password_reset',
@@ -185,6 +227,7 @@ describe('UsersService.resetPassword', () => {
     await expect(
       harness.service.resetPassword(USER_ROW.id, 'correct horse battery', 'actor-1'),
     ).rejects.toThrow(NotFoundException);
-    expect(harness.auth.invalidateSessions).not.toHaveBeenCalled();
+    expect(harness.deleteWhere).not.toHaveBeenCalled();
+    expect(harness.analytics.recordAuditLog).not.toHaveBeenCalled();
   });
 });

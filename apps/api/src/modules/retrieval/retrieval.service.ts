@@ -15,6 +15,7 @@ import { DatabaseService } from '../../db/database.service';
 import { chunks } from '../ingestion/entities/chunk.entity';
 import { CacheService } from '../infra/cache.service';
 import { documents } from '../knowledge-base/entities/document.entity';
+import { knowledgeBases } from '../knowledge-base/entities/knowledge-base.entity';
 import { LlmService } from '../llm/llm.service';
 import { SettingsService } from '../settings/settings.service';
 
@@ -81,7 +82,7 @@ export class RetrievalService {
       return finish([]);
     }
 
-    const cacheKey = await this.retrievalCacheKey(normalizedQuery, uniqueKbIds);
+    const cacheKey = await this.retrievalCacheKey(normalizedQuery, uniqueKbIds, topK, threshold);
     const cached = await this.cache.get<RetrievedChunk[]>(cacheKey);
     if (cached) {
       trace.cacheHit = true;
@@ -113,7 +114,15 @@ export class RetrievalService {
       })
       .from(chunks)
       .innerJoin(documents, eq(documents.id, chunks.documentId))
-      .where(and(inArray(chunks.kbId, uniqueKbIds), sql`${similarity} >= ${threshold}`))
+      .innerJoin(knowledgeBases, eq(knowledgeBases.id, chunks.kbId))
+      .where(
+        and(
+          inArray(chunks.kbId, uniqueKbIds),
+          eq(documents.status, 'ready'),
+          eq(knowledgeBases.status, 'active'),
+          sql`${similarity} >= ${threshold}`,
+        ),
+      )
       .orderBy(sql`${chunks.embedding} <=> ${vector}::vector`)
       .limit(topK);
     trace.searchMs = Date.now() - searchStarted;
@@ -133,11 +142,17 @@ export class RetrievalService {
   }
 
   /**
-   * `ret:v1:{kbId=version,…}:sha256(query)` — the KB version counters are part
-   * of the key, so re-ingesting or deleting a document invalidates results
-   * without explicit busting (caching.md).
+   * `ret:v2:{topK}:{threshold}:{kbId=version,…}:sha256(query)` — options and the
+   * KB version counters are part of the key, so custom `topK`/threshold calls
+   * never collide with each other and re-ingesting invalidates results without
+   * explicit busting (caching.md).
    */
-  private async retrievalCacheKey(normalizedQuery: string, kbIds: string[]): Promise<string> {
+  private async retrievalCacheKey(
+    normalizedQuery: string,
+    kbIds: string[],
+    topK: number,
+    threshold: number,
+  ): Promise<string> {
     const versions = await Promise.all(
       kbIds.map(async (kbId) => {
         const version = await this.cache.get<number>(kbVersionKey(kbId));
@@ -145,7 +160,7 @@ export class RetrievalService {
       }),
     );
     const queryHash = createHash('sha256').update(normalizedQuery, 'utf8').digest('hex');
-    return `ret:v1:${versions.join(',')}:${queryHash}`;
+    return `ret:v2:${topK}:${threshold}:${versions.join(',')}:${queryHash}`;
   }
 }
 

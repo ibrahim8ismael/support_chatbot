@@ -239,6 +239,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **API data guards**: analytics windows are capped at 366 days (400 beyond);
+  bindings reject unknown knowledge-base ids; user updates refuse self-demotion/
+  self-deactivation and removing the last active admin, and password resets now
+  update the hash and drop sessions in one transaction; retrieval only cites
+  `ready` documents in active KBs and caches per `topK`/threshold; a composite
+  `messages(created_at, direction)` index backs range scans, and `answer_events`
+  message FKs cascade/set null so retention batches cannot fail on boundary rows.
 - **Web data integrity**: sign-out now only redirects after the API confirms it
   (errors keep you signed in with a visible explanation); inbox bindings refuse
   duplicate adds and list-load failures; KB documents clear when the selection

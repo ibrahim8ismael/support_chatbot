@@ -1,4 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
+import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AppLogger } from '../../common/logger/app-logger.service';
@@ -37,12 +38,19 @@ function row(overrides: Partial<BindingRow> = {}): BindingRow {
   };
 }
 
-function buildHarness(rows: BindingRow[] = [], options: { accountId?: number } = {}) {
-  const select = vi.fn(() => ({
+function buildHarness(
+  rows: BindingRow[] = [],
+  options: { accountId?: number; kbIds?: string[] } = {},
+) {
+  // KBs that exist; upsert validates its kbIds against these.
+  const knownKbIds = options.kbIds ?? [KB_A, KB_B];
+  const select = vi.fn((selection?: unknown) => ({
     from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        limit: vi.fn(async () => rows.slice(0, 1)),
-      })),
+      where: vi.fn(() =>
+        Object.assign(selection === undefined ? [...rows] : knownKbIds.map((id) => ({ id })), {
+          limit: vi.fn(async () => rows.slice(0, 1)),
+        }),
+      ),
       orderBy: vi.fn(async () => rows),
     })),
   }));
@@ -140,6 +148,14 @@ describe('BindingsService', () => {
       entityId: '9',
       data: { kbIds: [KB_A], enabled: false },
     });
+  });
+
+  it('rejects bindings that reference unknown knowledge bases', async () => {
+    const { service } = buildHarness([], { kbIds: [] });
+
+    await expect(service.upsert(9, { kbIds: [KB_A], enabled: true }, ACTOR_ID)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('defaults to Chatwoot account 1 with a warning when env is missing', async () => {
