@@ -15,13 +15,13 @@ const optional = <T extends z.ZodTypeAny>(schema: T) =>
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    APP_URL: z.url().default('http://localhost:3000'),
+    /** Dashboard origin: cookies/CORS + cross-site request checks. Required in production. */
+    APP_URL: optional(z.url()),
     PORT: z.coerce.number().int().positive().default(3001),
 
     DATABASE_URL: z.string().min(1).default('postgres://sa:sa@localhost:5432/support_agent'),
-    REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
-
-    AUTH_SESSION_SECRET: z.string().min(32),
+    /** Required in production — a defaulted value would point at localhost. */
+    REDIS_URL: optional(z.string().min(1)),
 
     CHATWOOT_BASE_URL: optional(z.url()),
     CHATWOOT_ACCOUNT_ID: optional(z.coerce.number().int().positive()),
@@ -37,6 +37,9 @@ export const envSchema = z
     /** Substituted into the answer prompt's `{{company_name}}`. */
     COMPANY_NAME: z.string().min(1).max(120).default('Acme Support'),
 
+    /** Global daily cap on paid dashboard AI requests (playground/search); 0 disables. */
+    LLM_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(0).default(3000),
+
     /** Weekly top-unanswered digest webhook (T-305); unset = logged, not posted. */
     DIGEST_WEBHOOK_URL: optional(z.url()),
 
@@ -51,7 +54,7 @@ export const envSchema = z
 
     UPLOAD_DIR: z.string().min(1).default('./data/uploads'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-    WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
+    WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),
   })
   .superRefine((env, ctx) => {
     // Which keys each provider needs. openrouter needs OpenAI too: embeddings
@@ -76,6 +79,18 @@ export const envSchema = z
       return;
     }
 
+    // Production must name its own origins: a silently-defaulted APP_URL would
+    // break cookies/CORS, a defaulted REDIS_URL would point at localhost.
+    for (const key of ['APP_URL', 'REDIS_URL'] as const) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'must be set explicitly in production (no default is applied)',
+        });
+      }
+    }
+
     // Production is for real models and real secrets — never copied templates.
     if (env.LLM_PROVIDER === 'mock') {
       ctx.addIssue({
@@ -87,15 +102,15 @@ export const envSchema = z
     }
 
     const placeholder = /change[-_]?me|dev-only|dev-webhook|placeholder|example/i;
-    for (const key of ['AUTH_SESSION_SECRET', 'CHATWOOT_WEBHOOK_SECRET'] as const) {
-      const value = env[key];
-      if (typeof value === 'string' && placeholder.test(value)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: [key],
-          message: 'placeholder value — generate a real secret (openssl rand -hex 32)',
-        });
-      }
+    if (
+      typeof env.CHATWOOT_WEBHOOK_SECRET === 'string' &&
+      placeholder.test(env.CHATWOOT_WEBHOOK_SECRET)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['CHATWOOT_WEBHOOK_SECRET'],
+        message: 'placeholder value — generate a real secret (openssl rand -hex 32)',
+      });
     }
 
     if (env.CHATWOOT_WEBHOOK_SECRET && env.CHATWOOT_WEBHOOK_SECRET.length < 32) {
@@ -121,7 +136,12 @@ export const envSchema = z
         message: 'default development credentials are not allowed in production',
       });
     }
-  });
+  })
+  .transform((env) => ({
+    ...env,
+    APP_URL: env.APP_URL ?? 'http://localhost:3000',
+    REDIS_URL: env.REDIS_URL ?? 'redis://localhost:6379',
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 

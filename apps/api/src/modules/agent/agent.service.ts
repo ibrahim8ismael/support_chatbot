@@ -14,6 +14,7 @@ import { AppLogger } from '../../common/logger/app-logger.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import type { ChatTurn } from '../llm/llm.types';
 import { LlmService } from '../llm/llm.service';
+import { estimateCostUsd, toCostString } from '../llm/pricing';
 import { RetrievalService } from '../retrieval/retrieval.service';
 import { SettingsService } from '../settings/settings.service';
 import { ANSWER_PROMPT_VERSION } from './prompts/answer.v2';
@@ -177,6 +178,9 @@ export class AgentService {
       chatModel: answer.model,
       tokensIn: answer.tokens.input,
       tokensOut: answer.tokens.output,
+      estimatedCostUsd: toCostString(
+        estimateCostUsd(answer.model, answer.tokens.input, answer.tokens.output),
+      ),
     });
   }
 }

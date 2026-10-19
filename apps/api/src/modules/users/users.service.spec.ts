@@ -30,7 +30,9 @@ interface HarnessOptions {
 }
 
 function buildHarness(options: HarnessOptions = {}) {
-  const orderBy = vi.fn(async () => options.listRows ?? [USER_ROW]);
+  const orderBy = vi.fn(() => ({
+    limit: vi.fn(async () => options.listRows ?? [USER_ROW]),
+  }));
   const targetLimit = vi.fn(async () =>
     options.targetRow === null ? [] : [options.targetRow ?? USER_ROW],
   );
@@ -59,7 +61,8 @@ function buildHarness(options: HarnessOptions = {}) {
 
   const deleteWhere = vi.fn(async () => undefined);
   const remove = vi.fn(() => ({ where: deleteWhere }));
-  const tx = { update, delete: remove };
+  const execute = vi.fn(async () => []);
+  const tx = { update, delete: remove, select, execute };
   const transaction = vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx));
 
   const database = {
@@ -199,6 +202,19 @@ describe('UsersService.update', () => {
 
     await expect(
       harness.service.update(USER_ROW.id, { role: 'viewer' }, 'actor-1'),
+    ).rejects.toThrow(BadRequestException);
+    expect(harness.set).not.toHaveBeenCalled();
+  });
+
+  it('normalizes id case when comparing the actor to the target', async () => {
+    const harness = buildHarness();
+
+    await expect(
+      harness.service.update(
+        'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        { role: 'viewer' },
+        'AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE',
+      ),
     ).rejects.toThrow(BadRequestException);
     expect(harness.set).not.toHaveBeenCalled();
   });

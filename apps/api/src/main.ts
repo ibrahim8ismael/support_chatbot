@@ -8,6 +8,7 @@ import { API_PREFIX } from '@support-agent/shared';
 
 import { AppModule } from './app.module';
 import { AppLogger } from './common/logger/app-logger.service';
+import { csrfOriginMiddleware } from './common/middleware/csrf-origin';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -21,6 +22,8 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(API_PREFIX, { exclude: ['health'] });
 
   const config = app.get(ConfigService);
+  // Cross-site write guard (audit P3) — SameSite=Lax plus an Origin check.
+  app.use(csrfOriginMiddleware(config.getOrThrow<string>('APP_URL')));
   app.enableCors({ origin: config.get<string>('APP_URL'), credentials: true });
   app.enableShutdownHooks();
 

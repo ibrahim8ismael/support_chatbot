@@ -8,7 +8,7 @@ Threat model in one line: an internal tool that ingests **confidential company k
 | --- | --- |
 | Passwords | argon2id hashes; minimum length 12; breached-password check (P1) |
 | Sessions | server-side session rows; cookie `httpOnly`, `secure`, `sameSite=lax`, sliding 7-day expiry; logout kills the row |
-| Login throttling | atomic Redis counters (Lua `INCR`+`EXPIRE`, fail-open): per-IP 10 attempts / 60 s, per-account burst cap 5 / 10 s, lockout 15 min after 8 failures + exponential delay (100 ms → 1 s); `trust proxy` trusts exactly one hop (compose Caddy); locked accounts surfaced by T-404 alerting |
+| Login throttling | atomic Redis counters (Lua `INCR`+`EXPIRE`, fail-open): per-IP 10 attempts / 60 s, per-account burst cap 5 / 10 s, lockout 15 min after 8 failures **per (account, source address)** + exponential delay (100 ms → 1 s); denials are audited at most once per reason+subject per minute so a flood cannot grow `audit_logs`; `trust proxy` trusts exactly one hop (compose Caddy); locked accounts surfaced by T-404 alerting |
 | SSO | [D4](../open-decisions.md) — adds OIDC later behind the same session layer |
 | Session hygiene | invalidate all sessions when a user is deactivated or their password changes |
 

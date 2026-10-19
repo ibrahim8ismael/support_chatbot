@@ -24,16 +24,40 @@ const CHAT_TIMEOUT_MS = 60_000;
 const EMBEDDING_TIMEOUT_MS = 120_000;
 
 /**
- * docs/architecture/caching.md: embedding cache TTL. Bounded because the
- * Redis instance is small and `noeviction` — an unbounded vector cache would
- * eventually fail every write (audit HIGH).
+ * docs/architecture/caching.md: embedding cache TTL + write budget. Vectors are
+ * stored as base64 float32 (~8 KB for 1536 dims instead of ~30 KB of JSON) with
+ * a short TTL and an hourly write budget — the shared Redis is small and
+ * `noeviction`, so the cache must stay bounded in size *and* count (audit HIGH).
  */
-const EMBEDDING_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
+const EMBEDDING_CACHE_TTL_SECONDS = 24 * 60 * 60;
+const EMBEDDING_CACHE_WRITES_PER_HOUR = 200;
 
-/** `emb:v1:{model}:sha256(text)` — caching.md; model-qualified so swaps miss. */
+/** `emb:v2:{model}:sha256(text)` — caching.md; model or format change misses. */
 export function embeddingCacheKey(modelId: string, text: string): string {
   const hash = createHash('sha256').update(text, 'utf8').digest('hex');
-  return `emb:v1:${modelId}:${hash}`;
+  return `emb:v2:${modelId}:${hash}`;
+}
+
+/** float32 base64 — provider output precision, small footprint. */
+export function encodeEmbedding(vector: number[]): string {
+  return Buffer.from(new Float32Array(vector).buffer).toString('base64');
+}
+
+/** `null` for anything that is not a base64 float32 vector (treated as a miss). */
+export function decodeEmbedding(value: unknown): number[] | null {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+  try {
+    const buffer = Buffer.from(value, 'base64');
+    if (buffer.byteLength === 0 || buffer.byteLength % 4 !== 0) {
+      return null;
+    }
+    const floats = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4);
+    return Array.from(floats);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -99,9 +123,10 @@ export class LlmService {
     });
 
     const byKey = new Map<string, number[]>();
-    const cached = await Promise.all(keys.map((key) => this.cache.get<number[]>(key)));
-    cached.forEach((vector, index) => {
+    const cached = await Promise.all(keys.map((key) => this.cache.get<unknown>(key)));
+    cached.forEach((raw, index) => {
       const key = keys[index];
+      const vector = decodeEmbedding(raw);
       if (vector && key) {
         byKey.set(key, vector);
       }
@@ -120,6 +145,22 @@ export class LlmService {
       );
       tokens = result.usage.tokens;
 
+      // Bounded writes: at most EMBEDDING_CACHE_WRITES_PER_HOUR fresh vectors
+      // per hour; overflow is still answered, just not cached.
+      const hourBucket = new Date().toISOString().slice(0, 13);
+      const writes = await this.cache.incrByWithTtl(
+        `emb:writes:${hourBucket}`,
+        misses.length,
+        3600,
+      );
+      const cacheable = writes === null || writes <= EMBEDDING_CACHE_WRITES_PER_HOUR;
+      if (!cacheable) {
+        this.logger.warn(
+          `embedding cache write budget reached (${writes}/${EMBEDDING_CACHE_WRITES_PER_HOUR} this hour) — serving fresh vectors uncached`,
+          LlmService.name,
+        );
+      }
+
       await Promise.all(
         misses.map(async (key, index) => {
           const embedding = result.embeddings[index];
@@ -135,7 +176,9 @@ export class LlmService {
             );
           }
           byKey.set(key, embedding);
-          await this.cache.set(key, embedding, EMBEDDING_CACHE_TTL_SECONDS);
+          if (cacheable) {
+            await this.cache.set(key, encodeEmbedding(embedding), EMBEDDING_CACHE_TTL_SECONDS);
+          }
         }),
       );
     }

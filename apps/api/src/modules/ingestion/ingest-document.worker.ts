@@ -10,8 +10,8 @@ import { redisOptions } from '../infra/redis-options';
 import { KnowledgeBaseService } from '../knowledge-base/knowledge-base.service';
 import { IngestionService } from './ingestion.service';
 
-/** Parsing is CPU-heavy, embeddings are I/O — 2 keeps the API host responsive. */
-const WORKER_CONCURRENCY = 2;
+/** Parsing is CPU-heavy, embeddings are I/O — default 2 keeps the API host responsive. */
+const DEFAULT_WORKER_CONCURRENCY = 2;
 const WORKER_NAME = 'IngestDocumentWorker';
 
 export interface IngestJobDeps {
@@ -79,6 +79,7 @@ function readableError(error: unknown): string {
 @Injectable()
 export class IngestDocumentWorker implements OnModuleInit, OnApplicationShutdown {
   private readonly redisUrl: string;
+  private readonly concurrency: number;
   private worker?: Worker<IngestDocumentJob>;
 
   constructor(
@@ -88,6 +89,8 @@ export class IngestDocumentWorker implements OnModuleInit, OnApplicationShutdown
     private readonly logger: AppLogger,
   ) {
     this.redisUrl = config.getOrThrow<string>('REDIS_URL');
+    // The one knob operators tune for queue backlog (deployment.md env table).
+    this.concurrency = config.get<number>('WORKER_CONCURRENCY') ?? DEFAULT_WORKER_CONCURRENCY;
   }
 
   onModuleInit(): void {
@@ -105,11 +108,11 @@ export class IngestDocumentWorker implements OnModuleInit, OnApplicationShutdown
           knowledgeBase: this.knowledgeBase,
           logger: this.logger,
         }),
-      { connection, concurrency: WORKER_CONCURRENCY },
+      { connection, concurrency: this.concurrency },
     );
 
     this.logger.log(
-      `worker online: ${QUEUES.ingestDocument} (concurrency ${WORKER_CONCURRENCY})`,
+      `worker online: ${QUEUES.ingestDocument} (concurrency ${this.concurrency})`,
       WORKER_NAME,
     );
   }

@@ -20,3 +20,11 @@ export function getSessionCookie(request: Request): string | undefined {
   const cookies = (request as Request & { cookies?: Record<string, string | undefined> }).cookies;
   return cookies?.[SESSION_COOKIE_NAME];
 }
+
+/**
+ * `secure` cookies only outside development (localhost is plain http) —
+ * shared by the login controller and the sliding-cookie re-issue in AuthGuard.
+ */
+export function sessionCookieIsSecure(nodeEnv: string | undefined): boolean {
+  return nodeEnv === 'production';
+}

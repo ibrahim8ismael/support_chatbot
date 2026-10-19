@@ -15,6 +15,13 @@
       "when": 1792372848635,
       "tag": "0001_omniscient_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792403988488,
+      "tag": "0002_lyrical_carnage",
+      "breakpoints": true
     }
   ]
 }

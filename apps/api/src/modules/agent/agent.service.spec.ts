@@ -223,6 +223,8 @@ describe('AgentService.ask', () => {
         chatModel: 'mock-chat',
         tokensIn: 42,
         tokensOut: 7,
+        // No price entry for the mock model — estimate stays null, not zero.
+        estimatedCostUsd: null,
       }),
     );
   });

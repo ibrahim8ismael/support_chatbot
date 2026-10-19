@@ -14,7 +14,7 @@ import { SESSION_COOKIE_NAME } from './auth.constants';
 import { CurrentUser, Public, Roles } from './auth.decorators';
 import type { AuthenticatedRequest } from './auth.types';
 import { AuthService } from './auth.service';
-import { getSessionCookie, sessionCookieOptions } from './session-cookie';
+import { getSessionCookie, sessionCookieIsSecure, sessionCookieOptions } from './session-cookie';
 
 /** Persisted in `sessions`/`audit_logs` — cap the attacker-controlled header. */
 const MAX_USER_AGENT_LENGTH = 512;
@@ -70,6 +70,6 @@ export class AuthController {
   }
 
   private secure(): boolean {
-    return this.config.get<string>('NODE_ENV') === 'production';
+    return sessionCookieIsSecure(this.config.get<string>('NODE_ENV'));
   }
 }

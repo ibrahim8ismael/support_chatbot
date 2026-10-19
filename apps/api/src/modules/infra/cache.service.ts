@@ -65,6 +65,39 @@ export class CacheService {
     }
   }
 
+  /**
+   * Set a short-lived marker only when it does not exist yet (`SET NX EX`).
+   * Returns `true` when this call created the key, `false` when it already
+   * existed and `null` when Redis is unavailable — callers fail open.
+   */
+  async setNx(key: string, ttlSeconds: number): Promise<boolean | null> {
+    try {
+      const result = await this.redis.client.set(key, '1', 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+    } catch (error) {
+      this.logger.warn(`cache setNx failed for key ${key}: ${String(error)}`, CacheService.name);
+      return null;
+    }
+  }
+
+  /**
+   * Like `incrWithTtl`, but adds `amount` at once (batch write budgets).
+   * Returns the new value, or `null` when Redis is unavailable.
+   */
+  async incrByWithTtl(key: string, amount: number, ttlSeconds: number): Promise<number | null> {
+    const script =
+      "local value = redis.call('INCRBY', KEYS[1], ARGV[1])\n" +
+      "if value == tonumber(ARGV[1]) then redis.call('EXPIRE', KEYS[1], ARGV[2]) end\n" +
+      'return value';
+    try {
+      const result: unknown = await this.redis.client.eval(script, 1, key, amount, ttlSeconds);
+      return typeof result === 'number' ? result : Number(result);
+    } catch (error) {
+      this.logger.warn(`cache incr failed for key ${key}: ${String(error)}`, CacheService.name);
+      return null;
+    }
+  }
+
   async del(key: string): Promise<void> {
     try {
       await this.redis.client.del(key);

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, eq, ne } from 'drizzle-orm';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
 
 import type { UserCreate, UserSummary, UserUpdate } from '@support-agent/shared';
 
@@ -14,6 +14,9 @@ import { AuthService } from '../auth/auth.service';
 import { sessions } from '../auth/entities/session.entity';
 import { users } from '../auth/entities/user.entity';
 import { PasswordService } from '../auth/password.service';
+
+/** Admin list is small by nature; the cap keeps a runaway table from stalling the screen. */
+const MAX_USER_LIST = 500;
 
 function toSummary(row: typeof users.$inferSelect): UserSummary {
   return {
@@ -45,12 +48,13 @@ export class UsersService {
     private readonly analytics: AnalyticsService,
   ) {}
 
-  /** Oldest first — stable ordering for the admin screen. */
+  /** Oldest first — stable ordering for the admin screen; capped (audit P2). */
   async list(): Promise<UserSummary[]> {
     const rows = await this.database.db
       .select()
       .from(users)
-      .orderBy(asc(users.createdAt), asc(users.email));
+      .orderBy(asc(users.createdAt), asc(users.email))
+      .limit(MAX_USER_LIST);
     return rows.map(toSummary);
   }
 
@@ -98,8 +102,10 @@ export class UsersService {
     }
 
     // Lockout guards (frontend audit HIGH): an admin must never remove their own
-    // access, and the deployment must always keep one active admin.
-    if (id === actorId) {
+    // access, and the deployment must always keep one active admin. The ids are
+    // compared case-insensitively — Postgres does the same, so a cased variant
+    // of your own id must not slip past the guard (final sweep MEDIUM).
+    if (id.toLowerCase() === actorId.toLowerCase()) {
       if (input.role !== undefined && input.role !== 'admin') {
         throw new BadRequestException('you cannot demote your own account');
       }
@@ -110,31 +116,36 @@ export class UsersService {
 
     const removesAdmin =
       (input.role !== undefined && input.role !== 'admin') || input.isActive === false;
-    if (removesAdmin) {
-      const [target] = await this.database.db
-        .select({ role: users.role })
-        .from(users)
-        .where(eq(users.id, id))
-        .limit(1);
-      if (!target) {
-        throw new NotFoundException(`user ${id} not found`);
-      }
-      if (target.role === 'admin') {
-        const remaining = await this.database.db
-          .select({ id: users.id })
+
+    // The last-admin check and the write share one transaction under an
+    // advisory lock: without it, two admins demoting each other concurrently
+    // could both pass the check and leave zero admins (final sweep MEDIUM).
+    const row = await this.database.db.transaction(async (tx) => {
+      if (removesAdmin) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('admin-invariant'))`);
+
+        const [target] = await tx
+          .select({ role: users.role })
           .from(users)
-          .where(and(eq(users.role, 'admin'), eq(users.isActive, true), ne(users.id, id)));
-        if (remaining.length === 0) {
-          throw new BadRequestException('at least one active admin must remain');
+          .where(eq(users.id, id))
+          .limit(1);
+        if (!target) {
+          throw new NotFoundException(`user ${id} not found`);
+        }
+        if (target.role === 'admin') {
+          const remaining = await tx
+            .select({ id: users.id })
+            .from(users)
+            .where(and(eq(users.role, 'admin'), eq(users.isActive, true), ne(users.id, id)));
+          if (remaining.length === 0) {
+            throw new BadRequestException('at least one active admin must remain');
+          }
         }
       }
-    }
 
-    const [row] = await this.database.db
-      .update(users)
-      .set(patch)
-      .where(eq(users.id, id))
-      .returning();
+      const [updated] = await tx.update(users).set(patch).where(eq(users.id, id)).returning();
+      return updated ?? null;
+    });
 
     if (!row) {
       throw new NotFoundException(`user ${id} not found`);

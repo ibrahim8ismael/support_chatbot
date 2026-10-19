@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { InfraModule } from '../infra/infra.module';
 import { KnowledgeBaseModule } from '../knowledge-base/knowledge-base.module';
 import { LlmModule } from '../llm/llm.module';
 import { RetrievalModule } from '../retrieval/retrieval.module';
@@ -16,7 +17,14 @@ import { PlaygroundController } from './playground.controller';
  * (T-203/T-204) through the analytics writer.
  */
 @Module({
-  imports: [AnalyticsModule, KnowledgeBaseModule, LlmModule, RetrievalModule, SettingsModule],
+  imports: [
+    AnalyticsModule,
+    InfraModule,
+    KnowledgeBaseModule,
+    LlmModule,
+    RetrievalModule,
+    SettingsModule,
+  ],
   controllers: [PlaygroundController],
   providers: [AgentService],
   exports: [AgentService],

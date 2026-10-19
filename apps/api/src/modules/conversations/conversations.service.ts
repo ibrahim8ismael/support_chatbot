@@ -45,6 +45,14 @@ export interface RecentMessagesOptions {
   includePrivate?: boolean;
 }
 
+/**
+ * Detail reads are capped (audit P2): threads and event histories grow without
+ * bound, and the explorer only ever inspects the newest slice. Latest first in
+ * SQL, then flipped back to chronological order for display.
+ */
+const DETAIL_MESSAGE_LIMIT = 500;
+const DETAIL_ANSWER_EVENT_LIMIT = 200;
+
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 
@@ -244,7 +252,8 @@ export class ConversationsService {
       select id, direction, sender_type, content, is_private, created_at
       from messages
       where conversation_id = ${id}::uuid
-      order by created_at asc, chatwoot_message_id asc
+      order by created_at desc, chatwoot_message_id desc
+      limit ${DETAIL_MESSAGE_LIMIT}
     `);
 
     let answerEvents: ConversationAnswerEvent[] = [];
@@ -269,7 +278,8 @@ export class ConversationsService {
           created_at
         from answer_events
         where conversation_id = ${id}::uuid
-        order by created_at asc
+        order by created_at desc
+        limit ${DETAIL_ANSWER_EVENT_LIMIT}
       `);
 
       const chunkIds = [
@@ -290,12 +300,12 @@ export class ConversationsService {
       const chunksById = new Map(
         chunkRows.map((row) => [String(row.id), toConversationChunk(row)] as const),
       );
-      answerEvents = eventRows.map((row) => toAnswerEvent(row, chunksById));
+      answerEvents = [...eventRows].reverse().map((row) => toAnswerEvent(row, chunksById));
     }
 
     return {
       conversation: toConversationSummary(conversationRow),
-      messages: messageRows.map((row) => toMessage(row)),
+      messages: [...messageRows].reverse().map((row) => toMessage(row)),
       answerEvents,
       answerEventsRestricted: !options.includeAnswerEvents,
     };

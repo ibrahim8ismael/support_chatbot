@@ -6,7 +6,7 @@ Redis has two jobs in this system: the **BullMQ job queue** ([ADR-0006](../decis
 
 | Cache | Key | Value | TTL | Invalidated by |
 | --- | --- | --- | --- | --- |
-| **Embedding** | `emb:v1:{model}:sha256(text)` | vector (float array) | 7 days | Model change (new namespace) or text change (new hash). No explicit deletion needed; bounded TTL keeps the `noeviction` Redis from filling up |
+| **Embedding** | `emb:v2:{model}:sha256(text)` | vector (float32, base64 — ~8 KB per 1536-dim vector) | 24 h | Model/format change (new namespace) or text change (new hash). Additionally bounded by an hourly write budget (≤200 fresh vectors/h); overflow is answered fresh and not cached. Keeps the `noeviction` Redis bounded in both size and count |
 | **Retrieval** | `ret:v2:{topK}:{threshold}:{kb_versions}:sha256(normalized query)` | scored chunks (content + metadata included, ready for prompting) | 15 min | KB version bump (see below) |
 | **Settings** | `settings:v1` | settings snapshot | 60 s + explicit bust on write | Any settings update |
 | **Bindings** | `bind:v1:{chatwoot_inbox_id}` | kb ids for the inbox (`[]` = bot off) | 60 s + explicit bust on write | Binding upsert |
@@ -33,6 +33,9 @@ interface CacheService {
   get<T>(key: string): Promise<T | undefined>;  // errors logged, treated as misses
   set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
   incr(key: string): Promise<void>;  // KB version counters (no TTL)
+  incrWithTtl(key: string, ttlSeconds: number): Promise<number | null>;  // throttles
+  incrByWithTtl(key: string, amount: number, ttlSeconds: number): Promise<number | null>;  // budgets
+  setNx(key: string, ttlSeconds: number): Promise<boolean | null>;  // once-per-window markers
   del(key: string): Promise<void>;
 }
 ```

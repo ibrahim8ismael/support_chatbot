@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { CacheService } from './cache.service';
+import { LlmQuotaService } from './llm-quota.service';
 import { LockService } from './lock.service';
 import { QueueService } from './queue.service';
 import { RedisService } from './redis.service';
@@ -11,7 +12,7 @@ import { RedisService } from './redis.service';
  * (repo-structure.md).
  */
 @Module({
-  providers: [RedisService, CacheService, LockService, QueueService],
-  exports: [RedisService, CacheService, LockService, QueueService],
+  providers: [RedisService, CacheService, LlmQuotaService, LockService, QueueService],
+  exports: [RedisService, CacheService, LlmQuotaService, LockService, QueueService],
 })
 export class InfraModule {}

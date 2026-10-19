@@ -12,6 +12,7 @@ import {
   LOGIN_ACCOUNT_RATE_LIMITED_MESSAGE,
   LOGIN_BURST_LIMIT,
   LOGIN_BURST_WINDOW_SECONDS,
+  LOGIN_DENIAL_AUDIT_WINDOW_SECONDS,
   LOGIN_FAILURE_WINDOW_SECONDS,
   LOGIN_IP_BLOCKED_MESSAGE,
   LOGIN_IP_LIMIT,
@@ -59,15 +60,14 @@ export class AuthService {
     await this.enforceIpLimit(meta.ip, email);
     await this.enforceAccountBurst(email, meta.ip);
 
-    const failKey = `login:fail:${email.toLowerCase()}`;
+    const subject = `${email.toLowerCase()}:${meta.ip ?? 'unknown'}`;
+    const failKey = `login:fail:${subject}`;
     const failures = (await this.cache.get<number>(failKey)) ?? 0;
     if (isLoginLocked(failures)) {
       this.logger.warn(`login locked for ${email}`, AuthService.name);
-      await this.analytics.recordAuditLog({
-        userId: null,
-        action: 'auth.login_failed',
-        entity: 'session',
-        data: { email, reason: 'account_locked', ip: meta.ip ?? null },
+      await this.recordDenialAudit('account_locked', subject, {
+        email,
+        ip: meta.ip ?? null,
       });
       throw new HttpException(LOGIN_LOCKED_MESSAGE, 429);
     }
@@ -118,8 +118,15 @@ export class AuthService {
     return { user: toSessionUser(user), sessionId };
   }
 
-  /** Validates a cookie value and slides the expiry; `null` when signed out. */
-  async resolveSession(sessionId: string | undefined): Promise<SessionUser | null> {
+  /**
+   * Validates a cookie value and slides the expiry; `null` when signed out.
+   * Reports whether the row was slid so the caller can re-issue the cookie —
+   * otherwise the browser cookie dies at its original 7-day mark while the DB
+   * row lives on (audit P2: a stale-value replay window).
+   */
+  async resolveSession(
+    sessionId: string | undefined,
+  ): Promise<{ user: SessionUser; slid: boolean } | null> {
     if (!sessionId || !UUID_RE.test(sessionId)) {
       return null;
     }
@@ -148,13 +155,15 @@ export class AuthService {
       await this.deleteSession(row.sessionId);
       return null;
     }
+    let slid = false;
     if (remaining < SESSION_TTL_MS - SESSION_SLIDE_THRESHOLD_MS) {
       await this.database.db
         .update(sessions)
         .set({ expiresAt: new Date(Date.now() + SESSION_TTL_MS) })
         .where(eq(sessions.id, row.sessionId));
+      slid = true;
     }
-    return { id: row.userId, email: row.email, name: row.name, role: row.role };
+    return { user: { id: row.userId, email: row.email, name: row.name, role: row.role }, slid };
   }
 
   /**
@@ -223,11 +232,9 @@ export class AuthService {
     const hits = await this.cache.incrWithTtl(key, LOGIN_IP_WINDOW_SECONDS);
     if (hits !== null && hits > LOGIN_IP_LIMIT) {
       this.logger.warn(`login rate limited for ip ${ip ?? 'unknown'}`, AuthService.name);
-      await this.analytics.recordAuditLog({
-        userId: null,
-        action: 'auth.login_failed',
-        entity: 'session',
-        data: { email, reason: 'ip_rate_limited', ip: ip ?? null },
+      await this.recordDenialAudit('ip_rate_limited', ip ?? 'unknown', {
+        email,
+        ip: ip ?? null,
       });
       throw new HttpException(LOGIN_IP_BLOCKED_MESSAGE, 429);
     }
@@ -244,13 +251,37 @@ export class AuthService {
     const hits = await this.cache.incrWithTtl(key, LOGIN_BURST_WINDOW_SECONDS);
     if (hits !== null && hits > LOGIN_BURST_LIMIT) {
       this.logger.warn(`login burst limited for ${email}`, AuthService.name);
-      await this.analytics.recordAuditLog({
-        userId: null,
-        action: 'auth.login_failed',
-        entity: 'session',
-        data: { email, reason: 'account_rate_limited', ip: ip ?? null },
+      await this.recordDenialAudit('account_rate_limited', email.toLowerCase(), {
+        email,
+        ip: ip ?? null,
       });
       throw new HttpException(LOGIN_ACCOUNT_RATE_LIMITED_MESSAGE, 429);
     }
+  }
+
+  /**
+   * Denials at/above a throttle threshold are cheap to trigger, so each
+   * (reason, subject) pair is audited at most once per window — an anonymous
+   * flood cannot grow `audit_logs` one row per request (audit P2). When Redis
+   * is down the marker fails open and every denial is audited.
+   */
+  private async recordDenialAudit(
+    reason: string,
+    subject: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const first = await this.cache.setNx(
+      `login:audit:${reason}:${subject}`,
+      LOGIN_DENIAL_AUDIT_WINDOW_SECONDS,
+    );
+    if (first === false) {
+      return;
+    }
+    await this.analytics.recordAuditLog({
+      userId: null,
+      action: 'auth.login_failed',
+      entity: 'session',
+      data: { ...data, reason },
+    });
   }
 }

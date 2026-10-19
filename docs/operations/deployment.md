@@ -52,11 +52,10 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | Variable | Example | Notes |
 | --- | --- | --- |
 | `NODE_ENV` | `production` | |
-| `APP_URL` | `https://support-agent.internal.company` | used in cookies/CORS |
+| `APP_URL` | `https://support-agent.internal.company` | required in production (no default); used in cookies/CORS + cross-site request checks |
 | `DATABASE_URL` | `postgres://sa:…@postgres:5432/support_agent` | |
 | `REDIS_PASSWORD` | `openssl rand -hex 32` | required: compose starts Redis with `requirepass`; hex so it is URL-safe |
-| `REDIS_URL` | `redis://:<REDIS_PASSWORD>@redis:6379` | BullMQ queue (db 0) + cache (db 1) — see [caching](../architecture/caching.md); keep in sync with `REDIS_PASSWORD` |
-| `AUTH_SESSION_SECRET` | 64-char random | required at boot (≥32 chars); placeholder values rejected in production |
+| `REDIS_URL` | `redis://:<REDIS_PASSWORD>@redis:6379` | required in production; BullMQ queue (db 0) + cache (db 1) — see [caching](../architecture/caching.md); keep in sync with `REDIS_PASSWORD` |
 | `CHATWOOT_BASE_URL` | `https://chatwoot.internal.company` | |
 | `CHATWOOT_ACCOUNT_ID` | `1` | |
 | `CHATWOOT_BOT_TOKEN` | `xxxxx` | Agent Bot token |
@@ -67,6 +66,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
 | `CHAT_MODEL` | `gpt-4.1-mini` | |
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt; required in production (the default is rejected) |
+| `LLM_DAILY_REQUEST_LIMIT` | `3000` | global daily cap on paid dashboard AI requests (playground ask, KB search); `0` disables; per-user cap is 30/min |
 | `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |
 | `RETENTION_DAYS` | `365` | messages/events retention window in days (NFR-7); documents/KBs are never purged |
 | `ALERT_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | ops channel for threshold alerts (see below); Slack-compatible `{"text": …}`; unset → `warn` log lines |
@@ -74,7 +74,7 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `ALERT_REDIS_MEMORY_MB` | `460` | Redis memory alert cap when `maxmemory` is unset (512 MB box, ADR-0006) |
 | `UPLOAD_DIR` | `/data/uploads` | mounted volume |
 | `LOG_LEVEL` | `info` | |
-| `WORKER_CONCURRENCY` | `4` | reply job pool size |
+| `WORKER_CONCURRENCY` | `4` | ingest worker pool size (default 2; raise when the queue backs up) |
 
 Secrets live in `.env` **only on the host** (or docker secrets) — never in the repo, never in the settings table. The `.env.example` files carry development-only placeholders (dev webhook secret, `mock` provider, `Acme Support`); production rejects known placeholder values at boot.
 
@@ -184,7 +184,7 @@ docker compose --env-file .env -f docker/docker-compose.prod.yml up -d api
 | Secret | Steps |
 | --- | --- |
 | `CHATWOOT_BOT_TOKEN` | Create a new bot token in Chatwoot → `.env` → recreate `api` → verify one answer in a test inbox → delete the old token |
-| `AUTH_SESSION_SECRET` | `.env` → recreate `api`. It is validated at boot but does not sign cookies yet, so live sessions are unaffected — to force a global sign-out, delete the session rows: `… exec -T postgres psql -U sa -d support_agent -c 'delete from sessions'` (all cookies answer 401; the team logs in again) |
+| `AUTH_SESSION_SECRET` *(removed)* | No longer exists — sessions are server-side DB rows. To force a global sign-out, delete the session rows: `… exec -T postgres psql -U sa -d support_agent -c 'delete from sessions'` (all cookies answer 401; the team logs in again) |
 | `CHATWOOT_WEBHOOK_SECRET` | `.env` → recreate `api` → update the Agent Bot webhook URL in Chatwoot; the old path answers 404 until then. While the pipeline is a stub (T-201) the correct path answers 501 — a 200/anything else means Chatwoot still points at the old secret |
 | Provider API keys | Rotate at the provider → `.env` → recreate `api` → run the `GET /settings/health-llm` smoke check (Settings screen) |
 | `REDIS_PASSWORD` | `.env` (both `REDIS_PASSWORD` and the `REDIS_URL` copy) → `… up -d redis api web proxy`. Queue and cache are transient by design, so a restart is the whole migration |

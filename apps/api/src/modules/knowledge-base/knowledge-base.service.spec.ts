@@ -103,7 +103,13 @@ function docRow(overrides: Partial<DocumentRow> = {}): DocumentRow {
 
 function buildHarness(
   fixtures: { kbRows?: KbRow[]; documentRows?: DocumentRow[]; countRows?: CountRow[] } = {},
-  options: { uploadDir: string; bound?: boolean; emptyUpdateReturn?: boolean },
+  options: {
+    uploadDir: string;
+    bound?: boolean;
+    emptyUpdateReturn?: boolean;
+    /** Makes document inserts/updates fail with SQLSTATE 23505 (unique index). */
+    uniqueViolation?: boolean;
+  },
 ) {
   const kbRows = fixtures.kbRows ?? [];
   const documentRows = fixtures.documentRows ?? [];
@@ -123,7 +129,7 @@ function buildHarness(
         where: vi.fn(() =>
           Object.assign(Promise.resolve(documentRows), {
             limit: vi.fn(async () => documentRows.slice(0, 1)),
-            orderBy: vi.fn(async () => documentRows),
+            orderBy: vi.fn(() => ({ limit: vi.fn(async () => documentRows) })),
             groupBy: vi.fn(async () => countRows),
           }),
         ),
@@ -137,9 +143,14 @@ function buildHarness(
     values: (values: Record<string, unknown>) => {
       inserted.push({ table, values });
       return {
-        returning: vi.fn(async () => [
-          table === knowledgeBases ? { ...kbRow(), ...values } : { ...docRow(), ...values },
-        ]),
+        returning: vi.fn(async () => {
+          if (options.uniqueViolation && table === documents) {
+            throw uniqueViolationError();
+          }
+          return [
+            table === knowledgeBases ? { ...kbRow(), ...values } : { ...docRow(), ...values },
+          ];
+        }),
       };
     },
   }));
@@ -150,11 +161,14 @@ function buildHarness(
       updated.push({ table, values });
       return {
         where: vi.fn(() => ({
-          returning: vi.fn(async () =>
-            options.emptyUpdateReturn
+          returning: vi.fn(async () => {
+            if (options.uniqueViolation) {
+              throw uniqueViolationError();
+            }
+            return options.emptyUpdateReturn
               ? []
-              : [{ ...(table === knowledgeBases ? kbRow() : docRow()), ...values }],
-          ),
+              : [{ ...(table === knowledgeBases ? kbRow() : docRow()), ...values }];
+          }),
         })),
       };
     },
@@ -212,6 +226,12 @@ function buildHarness(
     logger,
     recordAuditLog,
   };
+}
+
+function uniqueViolationError(): Error & { code: string } {
+  return Object.assign(new Error('duplicate key value violates unique constraint'), {
+    code: '23505',
+  });
 }
 
 let uploadDir: string;
@@ -493,6 +513,20 @@ describe('KnowledgeBaseService', () => {
       expect(inserted).toHaveLength(0);
     });
 
+    it('409s when a concurrent upload wins the dedupe race (unique index)', async () => {
+      const { service, inserted } = buildHarness(
+        { kbRows: [kbRow()] },
+        { uploadDir, uniqueViolation: true },
+      );
+
+      await expect(service.uploadDocument(KB_ID, pdfFile(), USER_ID)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(inserted).toHaveLength(1);
+      // The losing upload cleans up its stored copy of the file.
+      expect(await readdir(uploadDir)).toHaveLength(0);
+    });
+
     it('marks the document failed when the queue is down but keeps the file', async () => {
       const { service, enqueue, updated } = buildHarness({ kbRows: [kbRow()] }, { uploadDir });
       enqueue.mockRejectedValueOnce(new Error('redis down'));
@@ -544,6 +578,17 @@ describe('KnowledgeBaseService', () => {
 
       await expect(service.reprocessDocument(DOC_ID, USER_ID)).rejects.toBeInstanceOf(
         NotFoundException,
+      );
+    });
+
+    it('409s when a live copy of the content already exists', async () => {
+      const { service } = buildHarness(
+        { documentRows: [docRow({ status: 'failed' })] },
+        { uploadDir, uniqueViolation: true },
+      );
+
+      await expect(service.reprocessDocument(DOC_ID, USER_ID)).rejects.toBeInstanceOf(
+        ConflictException,
       );
     });
   });

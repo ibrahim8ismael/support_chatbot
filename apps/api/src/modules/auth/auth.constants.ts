@@ -11,9 +11,17 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Only rewrite `sessions.expires_at` when the last slide is older than this. */
 export const SESSION_SLIDE_THRESHOLD_MS = 60 * 1000;
 
-/** Failed logins per account before the account is temporarily locked. */
+/**
+ * Failed logins per (account, address) pair before that pair is temporarily
+ * locked. Scoping the lock to the source address keeps a stranger from locking
+ * a known account out (audit P3: a global counter made 8 spaced attempts a
+ * cheap denial-of-service against any user).
+ */
 export const LOGIN_MAX_FAILURES = 8;
 export const LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60;
+
+/** Repeated denials are audited at most once per (reason, subject) window. */
+export const LOGIN_DENIAL_AUDIT_WINDOW_SECONDS = 60;
 
 /** Sign-in hits per IP inside the window (failures and successes alike). */
 export const LOGIN_IP_LIMIT = 10;

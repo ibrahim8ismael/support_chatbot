@@ -44,6 +44,9 @@ import { knowledgeBases } from './entities/knowledge-base.entity';
 type KbRow = typeof knowledgeBases.$inferSelect;
 type DocumentRow = typeof documents.$inferSelect;
 
+/** Document lists are capped (audit P2) — newest first, older rows fall off. */
+const MAX_DOCUMENT_LIST = 200;
+
 interface StatusCounts {
   processing: number;
   ready: number;
@@ -211,7 +214,8 @@ export class KnowledgeBaseService {
       .select()
       .from(documents)
       .where(eq(documents.kbId, kbId))
-      .orderBy(desc(documents.createdAt));
+      .orderBy(desc(documents.createdAt))
+      .limit(MAX_DOCUMENT_LIST);
     return rows.map(toDocument);
   }
 
@@ -249,12 +253,7 @@ export class KnowledgeBaseService {
       .limit(1);
 
     if (duplicate) {
-      throw new ConflictException({
-        statusCode: 409,
-        error: 'Conflict',
-        message: 'identical document already exists in this knowledge base',
-        details: [{ path: 'file', message: `same content as document ${duplicate.id}` }],
-      });
+      throw duplicateDocumentConflict(`same content as document ${duplicate.id}`);
     }
 
     const storageName = `${randomUUID()}${extension}`;
@@ -281,6 +280,10 @@ export class KnowledgeBaseService {
         .returning();
     } catch (error) {
       await unlink(absolutePath).catch(() => undefined);
+      if (isUniqueViolation(error)) {
+        // Lost the race against a concurrent upload of the same content.
+        throw duplicateDocumentConflict('the same content was uploaded concurrently');
+      }
       throw error;
     }
 
@@ -323,11 +326,22 @@ export class KnowledgeBaseService {
   async reprocessDocument(documentId: string, userId: string): Promise<KnowledgeDocument> {
     await this.loadDocument(documentId);
 
-    const [row] = await this.database.db
-      .update(documents)
-      .set({ status: 'processing', error: null, chunkCount: 0 })
-      .where(eq(documents.id, documentId))
-      .returning();
+    let row: DocumentRow | undefined;
+    try {
+      [row] = await this.database.db
+        .update(documents)
+        .set({ status: 'processing', error: null, chunkCount: 0 })
+        .where(eq(documents.id, documentId))
+        .returning();
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        // A live document already holds this content (partial unique index).
+        throw duplicateDocumentConflict(
+          'a live document already holds this content — delete it first',
+        );
+      }
+      throw error;
+    }
 
     if (!row) {
       throw new NotFoundException(`document ${documentId} not found`);
@@ -507,4 +521,23 @@ function toDocument(row: DocumentRow): KnowledgeDocument {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function duplicateDocumentConflict(detail: string): ConflictException {
+  return new ConflictException({
+    statusCode: 409,
+    error: 'Conflict',
+    message: 'identical document already exists in this knowledge base',
+    details: [{ path: 'file', message: detail }],
+  });
+}
+
+/** PostgreSQL unique-violation SQLSTATE — the concurrency guard behind uploads. */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === '23505'
+  );
 }
