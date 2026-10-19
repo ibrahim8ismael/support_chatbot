@@ -20,16 +20,19 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 
-import type { SessionUser } from '@support-agent/shared';
+import type { SessionUser, UserRole } from '@support-agent/shared';
 
 import { ApiError, apiFetch } from '@/lib/api';
 
+import { SessionProvider } from './session';
 import { ThemeToggle } from './theme-toggle';
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Roles allowed to open the page; omitted = every signed-in role. */
+  roles?: readonly UserRole[];
 }
 
 interface NavGroup {
@@ -49,26 +52,36 @@ const NAV: NavGroup[] = [
     label: 'Operations',
     items: [
       { href: '/conversations', label: 'Conversations', icon: MessagesSquare },
-      { href: '/bindings', label: 'Inbox bindings', icon: Inbox },
+      // Bindings reads are editor/admin on the API (security.md § 2).
+      { href: '/bindings', label: 'Inbox bindings', icon: Inbox, roles: ['editor', 'admin'] },
     ],
   },
   {
     label: 'Insights',
     items: [
       { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-      { href: '/audit', label: 'Audit log', icon: ScrollText },
+      { href: '/audit', label: 'Audit log', icon: ScrollText, roles: ['admin'] },
     ],
   },
   {
     label: 'Admin',
     items: [
       { href: '/settings', label: 'Settings', icon: Settings },
-      { href: '/users', label: 'Users', icon: Users },
+      { href: '/users', label: 'Users', icon: Users, roles: ['admin'] },
     ],
   },
 ];
 
 const ALL_ITEMS = NAV.flatMap((group) => group.items);
+
+/** Hide pages the current role cannot open; unknown role = gated items hidden. */
+function visibleGroups(user: SessionUser | null): NavGroup[] {
+  const canOpen = (item: NavItem): boolean =>
+    item.roles === undefined || (user !== null && item.roles.includes(user.role));
+  return NAV.map((group) => ({ ...group, items: group.items.filter(canOpen) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -98,10 +111,18 @@ function Brand({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarNav({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function SidebarNav({
+  pathname,
+  user,
+  onNavigate,
+}: {
+  pathname: string;
+  user: SessionUser | null;
+  onNavigate?: () => void;
+}) {
   return (
     <nav aria-label="Dashboard" className="flex flex-col gap-6">
-      {NAV.map((group) => (
+      {visibleGroups(user).map((group) => (
         <div key={group.label}>
           <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wider text-muted uppercase">
             {group.label}
@@ -192,24 +213,35 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const drawer = useOverlayState();
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
+    setSessionError(null);
     apiFetch<{ user: SessionUser }>('/auth/me')
       .then((response) => {
         if (active) setUser(response.user);
       })
       .catch((cause: unknown) => {
+        if (!active) return;
         if (cause instanceof ApiError && cause.status === 401) {
           router.replace('/login');
+          return;
         }
+        // Surface the failure instead of showing "Loading…" forever.
+        setSessionError(
+          cause instanceof Error && cause.message.length > 0
+            ? cause.message
+            : 'The session check failed.',
+        );
       });
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, sessionToken]);
 
   const current = ALL_ITEMS.find((item) => isActive(pathname, item.href));
 
@@ -239,7 +271,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <Brand />
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          <SidebarNav pathname={pathname} />
+          <SidebarNav pathname={pathname} user={user} />
         </div>
         <div className="border-t border-separator px-5 py-4">
           <p className="text-[11px] font-medium tracking-wider text-muted uppercase">Role</p>
@@ -266,9 +298,30 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <AccountMenu user={user} signingOut={signingOut} onSignOut={() => void signOut()} />
         </header>
 
+        {sessionError ? (
+          <div className="px-4 pt-4 lg:px-8">
+            <Alert status="danger" role="alert">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>Session check failed</Alert.Title>
+                <Alert.Description>{sessionError}</Alert.Description>
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onPress={() => setSessionToken((token) => token + 1)}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </Alert.Content>
+            </Alert>
+          </div>
+        ) : null}
+
         {signOutError ? (
           <div className="px-4 pt-4 lg:px-8">
-            <Alert status="danger">
+            <Alert status="danger" role="alert">
               <Alert.Indicator />
               <Alert.Content>
                 <Alert.Title>Sign out failed — you are still signed in</Alert.Title>
@@ -278,7 +331,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
 
-        <main className="flex-1 px-4 py-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-6 lg:px-8">
+          <SessionProvider value={user}>{children}</SessionProvider>
+        </main>
       </div>
 
       <Drawer state={drawer}>
@@ -289,7 +344,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 <Brand onNavigate={drawer.close} />
               </Drawer.Header>
               <Drawer.Body className="overflow-y-auto p-3">
-                <SidebarNav pathname={pathname} onNavigate={drawer.close} />
+                <SidebarNav pathname={pathname} user={user} onNavigate={drawer.close} />
               </Drawer.Body>
               <Drawer.Footer className="border-t border-separator">
                 <div className="flex w-full items-center gap-2.5">

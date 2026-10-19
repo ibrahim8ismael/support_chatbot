@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { Settings } from '@support-agent/shared';
 
+import { canWrite, useSessionUser } from '@/components/session';
 import { ApiError, apiFetch } from '@/lib/api';
 import {
   SETTINGS_FIELDS,
@@ -36,11 +37,15 @@ interface LlmHealthCheck {
 /**
  * Settings (T-304): typed runtime tunables (data-model § settings). Reads are
  * open to every signed-in role; writes are editor/admin, and the LLM smoke
- * check is admin-only (security.md § 2) — both are surfaced as inline notes
- * when the API answers 403.
+ * check is admin-only (security.md § 2) — controls are gated up front and
+ * `403`s are still surfaced as inline notes. Model ids are read-only here:
+ * the active models come from the server environment (frontend audit P2).
  */
 export function SettingsView() {
   const router = useRouter();
+  const user = useSessionUser();
+  const writable = canWrite(user?.role);
+  const canHealth = user?.role === 'admin';
   const [settings, setSettings] = useState<Settings | null>(null);
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,18 +149,38 @@ export function SettingsView() {
     setNotice(null);
   }
 
+  // Buttons mirror the patch builder: nothing to save → disabled, invalid
+  // values stay enabled so pressing surfaces the exact error (audit P3).
+  const patchState = settings && form ? buildSettingsPatch(settings, form) : null;
+  const noChanges =
+    patchState !== null && !patchState.ok && patchState.error === 'no changes to save';
+
   return (
     <div className="flex flex-col gap-6">
       <div className="min-w-0">
         <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">
-          Runtime tuning: kill switch, retrieval thresholds, prompts and models. Secrets (API keys,
-          Chatwoot tokens) are environment-only and never appear here.
+          Runtime tuning: kill switch, retrieval thresholds and prompts. Model ids come from the
+          server environment. Secrets (API keys, Chatwoot tokens) are environment-only and never
+          appear here.
         </p>
       </div>
 
+      {user && !writable ? (
+        <Alert status="warning" className="max-w-3xl">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Read-only for your role</Alert.Title>
+            <Alert.Description>
+              Settings changes are editor/admin — ask an admin for a role if you need to change
+              them.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+
       {error ? (
-        <Alert status="danger">
+        <Alert status="danger" role="alert">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>Request failed</Alert.Title>
@@ -164,7 +189,7 @@ export function SettingsView() {
         </Alert>
       ) : null}
       {notice ? (
-        <Alert status="success">
+        <Alert status="success" role="status">
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Description>{notice}</Alert.Description>
@@ -192,6 +217,7 @@ export function SettingsView() {
                     <Switch
                       key={field.key}
                       isSelected={form[field.key] === 'true'}
+                      isDisabled={saving || !writable}
                       onChange={(enabled) => updateField(field.key, enabled ? 'true' : 'false')}
                     >
                       <Switch.Control>
@@ -209,7 +235,13 @@ export function SettingsView() {
                   <TextField
                     key={field.key}
                     value={form[field.key]}
-                    onChange={(value) => updateField(field.key, value)}
+                    isReadOnly={field.readOnly === true}
+                    isDisabled={field.readOnly !== true && (saving || !writable)}
+                    onChange={(value) => {
+                      if (field.readOnly !== true) {
+                        updateField(field.key, value);
+                      }
+                    }}
                   >
                     <Label>{field.label}</Label>
                     {field.kind === 'textarea' ? (
@@ -228,17 +260,25 @@ export function SettingsView() {
               })}
             </Card.Content>
             <Card.Footer className="flex flex-wrap items-center gap-3">
-              <Button isPending={saving} onPress={() => void save()}>
+              <Button
+                isPending={saving}
+                isDisabled={saving || !writable || noChanges}
+                onPress={() => void save()}
+              >
                 Save changes
               </Button>
               <Button
                 variant="secondary"
                 isPending={healthBusy}
+                isDisabled={user !== null && !canHealth}
                 onPress={() => void runHealthCheck()}
               >
                 <Stethoscope className="size-4" aria-hidden />
                 Run LLM health check
               </Button>
+              {user !== null && !canHealth ? (
+                <span className="text-xs text-muted">The LLM health check is admin-only.</span>
+              ) : null}
             </Card.Footer>
           </Card>
 
@@ -255,7 +295,7 @@ export function SettingsView() {
             </Alert>
           ) : null}
           {healthError ? (
-            <Alert status="danger" className="max-w-3xl">
+            <Alert status="danger" role="alert" className="max-w-3xl">
               <Alert.Indicator />
               <Alert.Content>
                 <Alert.Description>{healthError}</Alert.Description>
