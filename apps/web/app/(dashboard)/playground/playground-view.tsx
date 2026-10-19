@@ -84,13 +84,15 @@ export function PlaygroundView() {
 
     setAsking(true);
     setError(null);
+    const asked = question.trim();
     try {
       const answer = await apiFetch<AgentAnswer>('/playground/ask', {
         method: 'POST',
         body: JSON.stringify(built.payload),
       });
-      setExchanges((current) => [...current, { question: question.trim(), answer }]);
-      setQuestion('');
+      setExchanges((current) => [...current, { question: asked, answer }]);
+      // Only clear the draft if the user hasn't typed a new question meanwhile.
+      setQuestion((current) => (current.trim() === asked ? '' : current));
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 401) {
         router.push('/login');
@@ -182,7 +184,12 @@ export function PlaygroundView() {
               <form onSubmit={onAsk} className="flex flex-col gap-3">
                 <TextField value={question} onChange={setQuestion} isRequired>
                   <Label>Question</Label>
-                  <TextArea rows={4} maxLength={2000} placeholder="How do I reset my password?" />
+                  <TextArea
+                    rows={4}
+                    maxLength={2000}
+                    disabled={asking}
+                    placeholder="How do I reset my password?"
+                  />
                 </TextField>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs text-muted">{question.length}/2000</span>

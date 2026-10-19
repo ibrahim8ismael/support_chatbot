@@ -239,6 +239,16 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Web data integrity**: sign-out now only redirects after the API confirms it
+  (errors keep you signed in with a visible explanation); inbox bindings refuse
+  duplicate adds and list-load failures; KB documents clear when the selection
+  changes and poll with one in-flight request instead of a stacking interval;
+  conversation/analytics/audit views clear stale results when filters change and
+  surface every request error; conversation and playground views no longer pair
+  a new selection/draft with the previous transcript or answer.
+- **API client**: 15 s timeout on JSON calls (120 s uploads) with a friendly
+  timeout error, zod `details` rendered per field, and JSON content type only on
+  requests with a body. Added a dashboard `error.tsx` boundary and `not-found.tsx`.
 - **Production guards**: the API refuses to boot in production with the mock LLM
   provider (unless `ALLOW_MOCK_LLM=true`), known placeholder secrets, the default
   `Acme Support` company name or default database credentials; the active model set

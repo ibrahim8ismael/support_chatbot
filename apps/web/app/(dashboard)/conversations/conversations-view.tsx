@@ -3,7 +3,7 @@
 import { Alert, Button, Card, Chip, ListBox, Select, Spinner } from '@heroui/react';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type {
   AnswerOutcome,
@@ -92,8 +92,20 @@ export function ConversationsView() {
     };
   }, [router]);
 
+  const filtersRef = useRef('');
+
   useEffect(() => {
     let cancelled = false;
+
+    // Rows belong to the active filters: clear them (and the selection) instead
+    // of leaving the previous filter's results under the new controls.
+    const key = `${rangeId}|${botState}|${inboxId}|${offset}`;
+    if (filtersRef.current !== '' && filtersRef.current !== key) {
+      setList(null);
+      setSelectedId(null);
+    }
+    filtersRef.current = key;
+
     setLoading(true);
     setError(null);
 
@@ -134,10 +146,18 @@ export function ConversationsView() {
     };
   }, [rangeId, botState, inboxId, offset, reloadToken, handleError]);
 
+  const selectedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (selectedId === null) {
+      selectedRef.current = null;
       setDetail(null);
-      return;
+      return undefined;
+    }
+    // Selecting a different conversation must never show the previous thread.
+    if (selectedRef.current !== selectedId) {
+      selectedRef.current = selectedId;
+      setDetail(null);
     }
     let cancelled = false;
     setDetailLoading(true);
@@ -436,7 +456,9 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
                         {formatTimestamp(message.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-1.5 whitespace-pre-wrap text-sm">{message.content}</p>
+                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm">
+                      {message.content}
+                    </p>
                   </div>
                 );
               })}
@@ -506,7 +528,7 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
                         <p className="mb-1 text-muted">
                           {chunk.documentFilename ?? 'document'} · chunk {chunk.chunkIndex}
                         </p>
-                        <p className="whitespace-pre-wrap">{chunk.content}</p>
+                        <p className="whitespace-pre-wrap break-words">{chunk.content}</p>
                       </div>
                     ))}
                   </div>
