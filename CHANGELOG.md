@@ -237,6 +237,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 - **Build plan**: ticket-level execution list for M0–M4 in
   [docs/contributing/build-plan.md](docs/contributing/build-plan.md).
 
+### Changed
+
+- **README** rewritten as the open-source setup guide: what works today vs the
+  Chatwoot pipeline stub, Docker self-host steps (configure → start → seed the
+  first admin → teach it your knowledge bases), local development quick start,
+  config highlights and a docs index.
+
 ### Fixed
 
 - **Chatwoot alignment**: the webhook endpoint now answers
