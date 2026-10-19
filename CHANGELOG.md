@@ -265,6 +265,13 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ### Fixed
 
+- **Decompression-bomb hardening**: document parsing now runs in a child
+  process the API supervises (512 MiB memory budget, 120 s wall clock, 32 MiB
+  output cap). A crafted DOCX/PDF can inflate to gigabytes _before_ any
+  text-level cap applies — the parse child is killed and the document fails
+  readably instead of taking down the API (the last two HIGH findings of the
+  pre-production audit). The API process no longer loads the PDF/DOCX parser
+  libraries itself.
 - **Audit P2/P3 — dashboard**: the sidebar hides pages the current role cannot
   open (bindings/audit/users), settings shows the environment-managed model ids
   read-only and disables its controls for viewers, and the knowledge-base,

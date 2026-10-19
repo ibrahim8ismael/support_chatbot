@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { Injectable } from '@nestjs/common';
@@ -20,7 +19,7 @@ import { LlmService } from '../llm/llm.service';
 import { chunkBlocks, type ChunkDraft } from './chunking';
 import { cleanBlocks } from './cleaning';
 import { chunks } from './entities/chunk.entity';
-import { parseDocument } from './parsers';
+import { ParseRunner } from './parse-runner';
 
 /** Provider batch limit; also keeps retry units small (pipeline doc step 5). */
 export const EMBED_BATCH_SIZE = 100;
@@ -29,8 +28,10 @@ const CHUNK_INSERT_BATCH = 50;
 
 /**
  * Resource guards (audit HIGH): a crafted document must not exhaust the API
- * process. Extracted text is capped before chunking and chunks before
- * embedding, so pathological inputs fail fast and visibly.
+ * process. Parsing runs in a supervised child process with memory/time/output
+ * budgets (`parse-runner.ts`) so decompression bombs die there; extracted text
+ * is capped before chunking and chunks before embedding, so pathological
+ * inputs fail fast and visibly.
  */
 export const MAX_EXTRACTED_TEXT_CHARS = 2_000_000;
 export const MAX_CHUNKS_PER_DOCUMENT = 2000;
@@ -52,6 +53,7 @@ export class IngestionService {
     private readonly llm: LlmService,
     private readonly cache: CacheService,
     private readonly logger: AppLogger,
+    private readonly parseRunner: ParseRunner,
     config: ConfigService,
   ) {
     this.uploadDir = path.resolve(config.get<string>('UPLOAD_DIR') ?? './data/uploads');
@@ -81,8 +83,10 @@ export class IngestionService {
       );
     }
 
-    const buffer = await readFile(resolveUploadPath(this.uploadDir, document.storagePath));
-    const blocks = cleanBlocks(await parseDocument(buffer, document.mimeType));
+    // Parsing is untrusted work: a budgeted child process, not this one, owns
+    // whatever the parser library does with the bytes (audit HIGH ×2).
+    const filePath = resolveUploadPath(this.uploadDir, document.storagePath);
+    const blocks = cleanBlocks(await this.parseRunner.parse(filePath, document.mimeType));
     const extractedChars = blocks.reduce((sum, block) => sum + block.text.length, 0);
     if (extractedChars > MAX_EXTRACTED_TEXT_CHARS) {
       throw new Error(
