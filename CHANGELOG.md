@@ -10,6 +10,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-20
+
 ### Fixed
 
 - **Sandbox runs enqueue reliably**: BullMQ rejects custom job ids containing
