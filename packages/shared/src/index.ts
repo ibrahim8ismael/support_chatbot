@@ -13,6 +13,7 @@ export * from './schemas/health.schema';
 export * from './schemas/knowledge-base.schema';
 export * from './schemas/playground.schema';
 export * from './schemas/retrieval.schema';
+export * from './schemas/sandbox.schema';
 export * from './schemas/settings.schema';
 export * from './types/agent';
 export * from './types/domain';

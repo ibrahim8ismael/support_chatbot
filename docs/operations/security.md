@@ -80,7 +80,7 @@ The bot reads **customer text** and **KB content** — both are untrusted input 
 
 ## 7. Audit & incident basics
 
-Audited actions (into `audit_logs` through the analytics writers, T-301): logins (success/fail), KB/document changes, binding & settings changes, user create/update/password-reset (T-304) — per-inbox kill-switch toggles are binding updates and are covered. Pause/resume actions land with T-204 on the same writer. Each row: actor, action, entity, timestamp, before/after for settings.
+Audited actions (into `audit_logs` through the analytics writers, T-301): logins (success/fail), KB/document changes, binding & settings changes, user create/update/password-reset (T-304), and Sandbox case/run/review changes (`sandbox.*`). Per-inbox kill-switch toggles are binding updates and are covered. Pause/resume actions land with T-204 on the same writer. Each row: actor, action, entity, timestamp, before/after for settings.
 
 Incident quick-path:
 

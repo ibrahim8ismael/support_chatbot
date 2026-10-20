@@ -11,7 +11,7 @@ import {
   TextArea,
   TextField,
 } from '@heroui/react';
-import { Send, Sparkles } from 'lucide-react';
+import { Send, Sparkles, TestTube2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
@@ -30,7 +30,12 @@ import {
   type PlaygroundExchange,
 } from '@/lib/playground';
 
-export function PlaygroundView() {
+export function PlaygroundView({
+  onSaveCase,
+}: {
+  /** Called from an exchange; the Sandbox shell opens a prefilled case form. */
+  onSaveCase?: (question: string, answer: AgentAnswer, kbIds: string[]) => void;
+}) {
   const router = useRouter();
   const [kbs, setKbs] = useState<KnowledgeBaseSummary[]>([]);
   const [loadingKbs, setLoadingKbs] = useState(true);
@@ -85,12 +90,13 @@ export function PlaygroundView() {
     setAsking(true);
     setError(null);
     const asked = question.trim();
+    const askedKbIds = [...selectedKbIds];
     try {
       const answer = await apiFetch<AgentAnswer>('/playground/ask', {
         method: 'POST',
         body: JSON.stringify(built.payload),
       });
-      setExchanges((current) => [...current, { question: asked, answer }]);
+      setExchanges((current) => [...current, { question: asked, answer, kbIds: askedKbIds }]);
       // Only clear the draft if the user hasn't typed a new question meanwhile.
       setQuestion((current) => (current.trim() === asked ? '' : current));
     } catch (cause) {
@@ -106,14 +112,6 @@ export function PlaygroundView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Playground</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Ask a question against selected knowledge bases — the exact answer path (retrieval +
-          grounding + output guard) with no Chatwoot involvement.
-        </p>
-      </div>
-
       {error ? (
         <Alert status="danger" role="alert">
           <Alert.Indicator />
@@ -226,7 +224,9 @@ export function PlaygroundView() {
               </Card.Content>
             </Card>
           ) : (
-            exchanges.map((exchange, index) => <ExchangeCard key={index} exchange={exchange} />)
+            exchanges.map((exchange, index) => (
+              <ExchangeCard key={index} exchange={exchange} onSaveCase={onSaveCase} />
+            ))
           )}
         </div>
       </div>
@@ -234,8 +234,14 @@ export function PlaygroundView() {
   );
 }
 
-function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode {
-  const { question, answer } = exchange;
+function ExchangeCard({
+  exchange,
+  onSaveCase,
+}: {
+  exchange: PlaygroundExchange;
+  onSaveCase?: (question: string, answer: AgentAnswer, kbIds: string[]) => void;
+}): ReactNode {
+  const { question, answer, kbIds } = exchange;
 
   return (
     <Card>
@@ -297,6 +303,19 @@ function ExchangeCard({ exchange }: { exchange: PlaygroundExchange }): ReactNode
           <span aria-hidden>·</span>
           <span>{formatTokens(answer.tokens)}</span>
         </p>
+
+        {onSaveCase ? (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => onSaveCase(question, answer, kbIds ?? [])}
+            >
+              <TestTube2 className="size-4" aria-hidden />
+              Save as test case
+            </Button>
+          </div>
+        ) : null}
       </Card.Content>
     </Card>
   );

@@ -45,6 +45,7 @@ Each module owns its controllers, services, and database access. Cross-module ca
 | `conversations` | `conversations`, `messages` | conversation/message upsert & lookup; per-conversation lock | Chatwoot HTTP details |
 | `chatwoot` | — (stores channel ids on conversations) | `verifyWebhook()`, `sendMessage()`, `addPrivateNote()`, `addLabel()`; shared axios client | Deciding *what* to reply |
 | `agent` (orchestrator) | — | `ask()` answer core (query build → retrieval → prompt → guard) + playground `POST /playground/ask`; `handleIncomingMessage()` gluing chatwoot → retrieval → llm → chatwoot lands with the live pipeline (T-203) | Anything reused; it is the composition point |
+| `sandbox` | `sandbox_cases`, `sandbox_runs`, `sandbox_results` | case CRUD + scored batch runs; `sandbox-run` queue worker; owner review | Chatwoot, live settings, `answer_events` |
 | `bindings` | `inbox_bindings` | inbox ↔ KB mapping, `getBoundKbIdsForInbox()` | KB CRUD itself |
 | `analytics` | `answer_events`, `audit_logs` | aggregation queries for dashboard | Writing events (modules write via its service) |
 | `retention` | `answer_events`, `messages`, `conversations`, `audit_logs` (delete-only, NFR-7) | `RetentionService.run()` — daily batched cleanup | Documents/KBs; anything on the answer path |

@@ -4,6 +4,7 @@ export const QUEUES = {
   ingestDocument: 'ingest-document',
   analyticsFollowup: 'analytics-followup',
   maintenance: 'maintenance',
+  sandbox: 'sandbox-run',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

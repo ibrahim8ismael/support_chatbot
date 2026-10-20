@@ -68,7 +68,7 @@ flowchart TB
 
 | Component | Responsibility | Not responsible for |
 | --- | --- | --- |
-| `apps/web` (Next.js) | Dashboard: login, KB & document management, bindings, playground, analytics, settings | Any business logic — it calls the API |
+| `apps/web` (Next.js) | Dashboard: login, KB & document management, bindings, sandbox, analytics, settings | Any business logic — it calls the API |
 | `apps/api` (NestJS) | Everything server-side: webhook intake, retrieval, model calls, Chatwoot replies, analytics aggregation | — |
 | Job workers (BullMQ in `apps/api`) | Durable background jobs: webhook follow-up, document ingestion, retries; per-conversation ordering lock | Long-term storage (jobs are transient) |
 | Postgres + pgvector | All relational data **and** embeddings — single source of truth | — |
