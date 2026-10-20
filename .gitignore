@@ -1,5 +1,6 @@
 # macOS
 .DS_Store
+*~
 
 # Node
 node_modules/
@@ -24,7 +25,12 @@ backups/
 .env
 .env.*
 !.env.example
+!.env.production.example
 !docker/.env.prod.example
+
+# Deployment runtime state
+.last_known_good_release*
+.deploy.lock
 
 # Local uploads volume (UPLOAD_DIR)
 data/
