@@ -6,11 +6,11 @@ import {
   BookOpen,
   Bot,
   ChevronDown,
+  FlaskConical,
   Inbox,
   LogOut,
   Menu,
   MessagesSquare,
-  Play,
   ScrollText,
   Settings,
   Users,
@@ -45,7 +45,7 @@ const NAV: NavGroup[] = [
     label: 'Knowledge',
     items: [
       { href: '/knowledge-bases', label: 'Knowledge bases', icon: BookOpen },
-      { href: '/playground', label: 'Playground', icon: Play },
+      { href: '/sandbox', label: 'Sandbox', icon: FlaskConical },
     ],
   },
   {

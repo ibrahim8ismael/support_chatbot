@@ -17,6 +17,8 @@ import {
 export interface PlaygroundExchange {
   question: string;
   answer: AgentAnswer;
+  /** KBs used for this exchange — prefilled when saving it as a test case. */
+  kbIds?: string[];
 }
 
 /** The API caps history at 20 turns — keep the last 10 exchanges. */

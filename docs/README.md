@@ -29,6 +29,7 @@ New to the project? Read in this order:
 | Doc | Description |
 | --- | --- |
 | [Product overview](product/overview.md) | Problem, goals, target users, success metrics |
+| [Sandbox](product/sandbox.md) | Owner-facing accuracy testing: saved cases, scored runs, review |
 | [Requirements](product/requirements.md) | Functional and non-functional requirements (MVP scope) |
 | [Roadmap](product/roadmap.md) | Phases, milestones, risks |
 

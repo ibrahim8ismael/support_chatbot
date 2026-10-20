@@ -37,6 +37,13 @@ export const AUDIT_ACTIONS = [
   'users.create',
   'users.update',
   'users.password_reset',
+  'sandbox.case.create',
+  'sandbox.case.update',
+  'sandbox.case.delete',
+  'sandbox.run.start',
+  'sandbox.run.cancel',
+  'sandbox.run.retry',
+  'sandbox.result.review',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

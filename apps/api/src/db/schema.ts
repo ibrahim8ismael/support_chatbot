@@ -15,4 +15,7 @@ export * from '../modules/conversations/entities/message.entity';
 export * from '../modules/ingestion/entities/chunk.entity';
 export * from '../modules/knowledge-base/entities/document.entity';
 export * from '../modules/knowledge-base/entities/knowledge-base.entity';
+export * from '../modules/sandbox/entities/sandbox-case.entity';
+export * from '../modules/sandbox/entities/sandbox-result.entity';
+export * from '../modules/sandbox/entities/sandbox-run.entity';
 export * from '../modules/settings/entities/setting.entity';

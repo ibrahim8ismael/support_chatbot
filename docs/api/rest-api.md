@@ -53,6 +53,32 @@ Uploads land in `UPLOAD_DIR` (D9: Docker volume) under generated names; `documen
 | --- | --- | --- |
 | POST | `/playground/ask` | any signed-in role (T-106): strict `{ question, kbIds (1–10), history? (≤ 20 turns) }` → the answer path with no Chatwoot: `{ answer, escalated, escalationReason, chunks: [{ id, score, content, document, metadata }], latency: { retrievalMs, generationMs, totalMs }, tokens: { input, output }, model, promptVersion }`; 404 for unknown KBs; 429 over the per-user (30/min) or global daily AI budget |
 
+## Sandbox (`sandbox`, editor/admin)
+
+Owner-facing accuracy testing (docs/product/sandbox.md). Saved cases and batch
+runs execute through the same `AgentService.ask()` path as the Playground but
+never write `answer_events`, touch Chatwoot, or change live settings. A run
+snapshots its cases, KBs, settings, and prompt version; per-case failures become
+result rows. Creating a run is capped at 100 cases and 10 runs per user per UTC
+day. `DELETE` on a case is admin-only; everything else is editor/admin.
+
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| GET | `/sandbox/cases` | newest first |
+| POST | `/sandbox/cases` | strict `{ name?, question, kbIds, history?, expectedBehavior?, expectedFilenames?, requiredPhrases?, forbiddenPhrases?, referenceAnswer?, tags?, notes?, isEnabled? }` → 201 case |
+| PATCH | `/sandbox/cases/:id` | partial case, at least one field |
+| DELETE | `/sandbox/cases/:id` | admin; results keep their snapshot (`case_id` becomes null) |
+| GET | `/sandbox/runs` | latest 50, newest first |
+| POST | `/sandbox/runs` | strict `{ name?, kbIds, caseIds? }`; omitted `caseIds` = all enabled cases → 201 run + queued job |
+| GET | `/sandbox/runs/:id` | run status, progress, settings snapshot, metrics |
+| GET | `/sandbox/runs/:id/results` | ordered by `position`, max 100 |
+| POST | `/sandbox/runs/:id/cancel` | stops between cases; already-finished → 400 |
+| POST | `/sandbox/runs/:id/retry-failed` | resets `error` results to `pending` (and resumes cancelled/failed pending cases), then requeues; nothing to do → 400 |
+| PATCH | `/sandbox/results/:id/review` | `{ status: "unreviewed" \| "pass" \| "fail", note? }`; updates the run's verified metric |
+
+The worker (`sandbox-run` queue) has concurrency 1; retries resume only pending
+results, so a crash never re-runs a completed case.
+
 ## Bindings (`bindings`, editor/admin)
 
 | Method | Path | Notes |

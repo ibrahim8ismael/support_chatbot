@@ -1,9 +1,8 @@
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
-import { PlaygroundView } from './playground-view';
+export const metadata = { title: 'Sandbox' };
 
-export const metadata: Metadata = { title: 'Playground' };
-
+/** The Playground became the Try it tab inside the Sandbox (docs/product/sandbox.md). */
 export default function PlaygroundPage() {
-  return <PlaygroundView />;
+  redirect('/sandbox');
 }

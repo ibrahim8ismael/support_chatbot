@@ -20,6 +20,7 @@ import { LlmModule } from './modules/llm/llm.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { RetrievalModule } from './modules/retrieval/retrieval.module';
 import { RetentionModule } from './modules/retention/retention.module';
+import { SandboxModule } from './modules/sandbox/sandbox.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -51,6 +52,7 @@ import { UsersModule } from './modules/users/users.module';
     AnalyticsModule,
     SettingsModule,
     RetentionModule,
+    SandboxModule,
     AlertingModule,
     MaintenanceModule,
   ],

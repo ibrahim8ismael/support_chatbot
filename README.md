@@ -13,7 +13,7 @@ monolith** ([ADR-0001](docs/decisions/0001-modular-monolith.md)).
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Dashboard: auth, users, roles, audit log, analytics                         | ✅ working                                                                                                                 |
 | Knowledge bases: upload → parse (PDF/DOCX/TXT/MD) → chunk → embed → `ready` | ✅ working                                                                                                                 |
-| Retrieval, grounded answers, escalation decisions                           | ✅ working (playground + evals)                                                                                            |
+| Retrieval, grounded answers, escalation decisions                           | ✅ working (sandbox + evals)                                                                                               |
 | Chatwoot webhook → reply pipeline                                           | 🚧 stub — the webhook answers `501`; tickets T-201…T-204 ([details](docs/integrations/chatwoot.md#current-status-2026-10)) |
 | Real-model eval numbers                                                     | ⏳ need an OpenAI/OpenRouter key (mock runs are plumbing-only)                                                             |
 
@@ -77,8 +77,9 @@ in at your `SITE_ADDRESS` ([deployment § TLS](docs/operations/deployment.md)).
 
 1. **Knowledge bases → add KB** — upload your handbooks/FAQs (PDF, DOCX, TXT, MD;
    ≤ 20 MB, ≤ 500 pages) and wait for each document to reach `ready`.
-2. **Playground** — pick the KB(s), ask real customer questions, inspect the
-   retrieved chunks, scores, and the grounded answer before anything is public.
+2. **Sandbox** — pick the KB(s), ask real customer questions, save the ones that
+   matter as test cases, then run the whole set and review pass/fail with sources
+   and scores before anything is public.
 3. **Users** — create accounts for the support team (`admin` / `editor` / `viewer`).
 4. **Settings** — tune thresholds and prompts, use the global `bot_enabled` kill
    switch, and run the LLM health check.
