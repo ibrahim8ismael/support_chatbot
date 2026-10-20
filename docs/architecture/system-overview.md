@@ -81,7 +81,7 @@ flowchart TB
 1. **Modular monolith.** One deployable API with hard module boundaries ([repo structure](repo-structure.md)). Microservices when — and only when — a module genuinely needs its own scaling or failure domain.
 2. **Chatwoot is the channel, we are the brain.** All channel complexity belongs to Chatwoot. Our contract with it is one webhook + one REST call, both [documented](../integrations/chatwoot.md).
 3. **Postgres for truth, Redis for speed.** All durable state — relational data and vectors — lives in Postgres. Redis holds only ephemeral things: the BullMQ job queue and rebuildable caches ([caching](caching.md)). Nothing that matters survives only in Redis.
-4. **Provider-agnostic models.** All model calls go through one module wrapping the [Vercel AI SDK](../integrations/llm-and-vercel-ai-sdk.md). Swapping model — or carrier — is configuration, not code (`LLM_PROVIDER`: OpenAI / OpenRouter).
+4. **Provider-agnostic models.** All model calls go through one module wrapping the [Vercel AI SDK](../integrations/llm-and-vercel-ai-sdk.md). Swapping model — or carrier — is configuration, not code (`LLM_PROVIDER`: OpenAI / OpenRouter / Gemini).
 5. **Grounded or escalate.** The bot answers only from retrieved KB content above a similarity threshold; otherwise it hands off. See [RAG pipeline](rag-pipeline.md).
 6. **Human in control.** Kill switches per inbox and per conversation; the bot yields instantly to any human.
 7. **Evals before rollouts.** Prompt/KB/model changes ship with an eval run ([roadmap](../product/roadmap.md)).

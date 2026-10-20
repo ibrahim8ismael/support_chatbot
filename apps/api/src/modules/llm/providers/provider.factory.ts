@@ -1,4 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { EmbeddingModel, LanguageModel } from 'ai';
@@ -9,6 +10,7 @@ import {
   MOCK_CHAT_MODEL_ID,
   MOCK_EMBEDDING_MODEL_ID,
 } from './mock.provider';
+import { resolveChatModel } from './provider.defaults';
 
 export interface LlmModels {
   embedding: EmbeddingModel;
@@ -31,15 +33,14 @@ export class LlmProviderNotConfiguredError extends Error {
 
 /**
  * The only place that knows how to build model clients from env (ADR-0005).
- * `mock` is fully functional (deterministic, no network). `openai` and
- * `openrouter` are the real providers (decision D2, closed 2026-10-18).
- * Embeddings always go to OpenAI (`text-embedding-3-small`, D3) — OpenRouter
- * serves chat only.
+ * `mock` is fully functional (deterministic, no network). `openai`, `openrouter`
+ * and `gemini` are the real providers (decision D2). Embeddings always go to
+ * OpenAI (`text-embedding-3-small`, D3) — OpenRouter and Gemini serve chat only.
  */
 export function createLlmModels(config: ConfigService): LlmModels {
   const provider = config.get<string>('LLM_PROVIDER') ?? 'mock';
   const embeddingModel = config.get<string>('EMBEDDING_MODEL') ?? 'text-embedding-3-small';
-  const chatModel = config.get<string>('CHAT_MODEL') ?? 'gpt-4.1-mini';
+  const configuredChatModel = config.get<string>('CHAT_MODEL');
 
   switch (provider) {
     case 'mock':
@@ -52,6 +53,7 @@ export function createLlmModels(config: ConfigService): LlmModels {
 
     case 'openai': {
       const openai = createOpenAI({ apiKey: requireKey(config, provider, 'OPENAI_API_KEY') });
+      const chatModel = resolveChatModel(provider, configuredChatModel);
       return {
         embedding: openai.embedding(embeddingModel),
         chat: openai(chatModel),
@@ -67,6 +69,7 @@ export function createLlmModels(config: ConfigService): LlmModels {
         apiKey: requireKey(config, provider, 'OPENROUTER_API_KEY'),
       });
       const openai = createOpenAI({ apiKey: requireKey(config, provider, 'OPENAI_API_KEY') });
+      const chatModel = resolveChatModel(provider, configuredChatModel);
       return {
         embedding: openai.embedding(embeddingModel),
         chat: openrouter.chatModel(chatModel),
@@ -75,20 +78,35 @@ export function createLlmModels(config: ConfigService): LlmModels {
       };
     }
 
+    case 'gemini': {
+      const gemini = createGoogleGenerativeAI({
+        apiKey: requireKey(config, provider, 'GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'),
+      });
+      const openai = createOpenAI({ apiKey: requireKey(config, provider, 'OPENAI_API_KEY') });
+      const chatModel = resolveChatModel(provider, configuredChatModel);
+      return {
+        embedding: openai.embedding(embeddingModel),
+        chat: gemini.chat(chatModel),
+        embeddingModelId: `openai:${embeddingModel}`,
+        chatModelId: `gemini:${chatModel}`,
+      };
+    }
+
     default:
       throw new LlmProviderNotConfiguredError(
-        `LLM_PROVIDER="${provider}" is not a known provider — use mock, openai, or ` +
-          'openrouter (docs/integrations/llm-and-vercel-ai-sdk.md).',
+        `LLM_PROVIDER="${provider}" is not a known provider — use mock, openai, ` +
+          'openrouter, or gemini (docs/integrations/llm-and-vercel-ai-sdk.md).',
       );
   }
 }
 
 /** Fail fast at boot: a missing key must not surface as a 3 AM runtime error. */
-function requireKey(config: ConfigService, provider: string, key: string): string {
-  const value = config.get<string>(key);
+function requireKey(config: ConfigService, provider: string, key: string, alias?: string): string {
+  const value = config.get<string>(key) ?? (alias ? config.get<string>(alias) : undefined);
   if (!value) {
+    const choice = alias ? `${key} (or ${alias})` : key;
     throw new LlmProviderNotConfiguredError(
-      `LLM_PROVIDER="${provider}" needs ${key} — set it in the environment ` +
+      `LLM_PROVIDER="${provider}" needs ${choice} — set it in the environment ` +
         '(docs/operations/deployment.md).',
     );
   }

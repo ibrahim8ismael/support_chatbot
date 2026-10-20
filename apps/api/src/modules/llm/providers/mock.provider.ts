@@ -19,7 +19,7 @@ import { estimateTokens } from '../../../common/text/tokens';
 /**
  * Deterministic, network-free models behind `LLM_PROVIDER=mock`
  * (docs/contributing/development.md). Dev and CI run the whole pipeline with
- * these; real providers (openai/openrouter — D2 closed) live behind the same
+ * these; real providers (openai/openrouter/gemini — D2) live behind the same
  * factory switch, so nothing downstream changes when they are selected.
  */
 

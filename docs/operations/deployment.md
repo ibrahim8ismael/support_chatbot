@@ -60,11 +60,12 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `CHATWOOT_ACCOUNT_ID` | `1` | |
 | `CHATWOOT_BOT_TOKEN` | `xxxxx` | Agent Bot token |
 | `CHATWOOT_WEBHOOK_SECRET` | 48-char random | path segment of our webhook URL; ≥32 chars in production, unset → webhooks 404 |
-| `LLM_PROVIDER` | `openai \| openrouter` | `mock` is **dev/test-only** — production refuses to boot in mock mode, no override |
-| `OPENAI_API_KEY` | — | chat + embeddings (`openai`); embeddings only under `openrouter` (D3) |
+| `LLM_PROVIDER` | `openai \| openrouter \| gemini` | `mock` is **dev/test-only** — production refuses to boot in mock mode, no override |
+| `OPENAI_API_KEY` | — | chat + embeddings (`openai`); embeddings only under `openrouter`/`gemini` (D3) |
 | `OPENROUTER_API_KEY` | — | chat when `LLM_PROVIDER=openrouter` |
+| `GEMINI_API_KEY` | — | chat when `LLM_PROVIDER=gemini`; `GOOGLE_GENERATIVE_AI_API_KEY` is accepted as an alias |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | must match ingestion (D3) |
-| `CHAT_MODEL` | `gpt-4.1-mini` | |
+| `CHAT_MODEL` | provider default | `gpt-4.1-mini` (openai), `openai/gpt-4.1-mini` (openrouter), `gemini-3.8-flash` (gemini) |
 | `COMPANY_NAME` | `Acme Support` | fills `{{company_name}}` in the answer prompt; required in production (the default is rejected) |
 | `LLM_DAILY_REQUEST_LIMIT` | `3000` | global daily cap on paid dashboard AI requests (playground ask, KB search); `0` disables; per-user cap is 30/min |
 | `DIGEST_WEBHOOK_URL` | `https://hooks.slack.com/services/…` | weekly top-unanswered digest target (see below); Slack-compatible `{"text": …}`; unset → logged only |

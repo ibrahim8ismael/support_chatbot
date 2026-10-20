@@ -9,8 +9,15 @@ describe('estimateCostUsd', () => {
     expect(estimateCostUsd('gpt-4.1', 500_000, 0)).toBeCloseTo(1, 10);
   });
 
-  it('normalises OpenRouter-style prefixed ids', () => {
+  it('normalises provider-qualified and OpenRouter-style prefixed ids', () => {
     expect(estimateCostUsd('openai/gpt-4.1-mini', 1_000_000, 0)).toBeCloseTo(0.4, 10);
+    expect(estimateCostUsd('openai:gpt-4.1-mini', 1_000_000, 0)).toBeCloseTo(0.4, 10);
+    expect(estimateCostUsd('openrouter:openai/gpt-4.1-mini', 1_000_000, 0)).toBeCloseTo(0.4, 10);
+  });
+
+  it('prices Gemini models with provider-qualified ids', () => {
+    expect(estimateCostUsd('gemini:gemini-3.8-flash', 1_000_000, 1_000_000)).toBeCloseTo(4.5, 10);
+    expect(estimateCostUsd('gemini:gemini-3.1-flash-lite', 1_000_000, 0)).toBeCloseTo(0.25, 10);
   });
 
   it('returns null for unknown or missing models (no wrong numbers)', () => {
