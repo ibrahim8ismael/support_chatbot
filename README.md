@@ -15,7 +15,7 @@ monolith** ([ADR-0001](docs/decisions/0001-modular-monolith.md)).
 | Knowledge bases: upload → parse (PDF/DOCX/TXT/MD) → chunk → embed → `ready` | ✅ working                                                                                                                 |
 | Retrieval, grounded answers, escalation decisions                           | ✅ working (sandbox + evals)                                                                                               |
 | Chatwoot webhook → reply pipeline                                           | 🚧 stub — the webhook answers `501`; tickets T-201…T-204 ([details](docs/integrations/chatwoot.md#current-status-2026-10)) |
-| Real-model eval numbers                                                     | ⏳ need an OpenAI/OpenRouter key (mock runs are plumbing-only)                                                             |
+| Real-model eval numbers                                                     | ⏳ need a real provider key (mock runs are plumbing-only)                                                                  |
 
 The `mock` LLM provider runs the whole app offline with deterministic replies
 and no API keys — it is **dev/test-only**: production refuses to boot in mock
@@ -27,8 +27,8 @@ mode, no override.
 
 - One host with Docker + Compose (4 vCPU / 8 GB is the starting point). TLS in
   front of the stack is handled by the bundled Caddy.
-- An OpenAI API key and/or an OpenRouter key — chat goes to either, embeddings
-  always to OpenAI (`text-embedding-3-small`).
+- An OpenAI API key is always required for embeddings (`text-embedding-3-small`,
+  D3). Chat can run on OpenAI, OpenRouter, or Google Gemini.
 - Optional: a self-hosted Chatwoot instance. **Do not bind a production inbox
   yet** — the reply pipeline is still a stub (see Status).
 
@@ -43,13 +43,13 @@ cp docker/.env.prod.example .env
 Fill in `.env` — the API validates everything at boot and rejects placeholder
 secrets, so mistakes surface immediately rather than at 3 AM:
 
-| Variable                                                    | Notes                                                                                                                                                         |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_ADDRESS`, `APP_URL`, `NEXT_PUBLIC_API_URL`            | dashboard hostname, e.g. `https://support.example.com` (`NEXT_PUBLIC_*` is baked into the web build; unset = the API is called on the dashboard's own origin) |
-| `POSTGRES_PASSWORD` + `DATABASE_URL`                        | use the same password in both                                                                                                                                 |
-| `LLM_PROVIDER` + `OPENAI_API_KEY` (or `OPENROUTER_API_KEY`) | `openai` or `openrouter`                                                                                                                                      |
-| `COMPANY_NAME`                                              | your company name — fills the answer prompt; the scaffold default is rejected in production                                                                   |
-| `CHATWOOT_*`                                                | optional until the pipeline lands — see the [Chatwoot doc](docs/integrations/chatwoot.md)                                                                     |
+| Variable                                         | Notes                                                                                                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_ADDRESS`, `APP_URL`, `NEXT_PUBLIC_API_URL` | dashboard hostname, e.g. `https://support.example.com` (`NEXT_PUBLIC_*` is baked into the web build; unset = the API is called on the dashboard's own origin) |
+| `POSTGRES_PASSWORD` + `DATABASE_URL`             | use the same password in both                                                                                                                                 |
+| `LLM_PROVIDER` + provider key                    | `openai`, `openrouter`, or `gemini`; embeddings always need `OPENAI_API_KEY`                                                                                  |
+| `COMPANY_NAME`                                   | your company name — fills the answer prompt; the scaffold default is rejected in production                                                                   |
+| `CHATWOOT_*`                                     | optional until the pipeline lands — see the [Chatwoot doc](docs/integrations/chatwoot.md)                                                                     |
 
 The full list with defaults and the secret-rotation runbook lives in
 [docs/operations/deployment.md](docs/operations/deployment.md).

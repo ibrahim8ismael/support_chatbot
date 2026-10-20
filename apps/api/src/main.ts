@@ -9,6 +9,7 @@ import { API_PREFIX } from '@support-agent/shared';
 import { AppModule } from './app.module';
 import { AppLogger } from './common/logger/app-logger.service';
 import { csrfOriginMiddleware } from './common/middleware/csrf-origin';
+import { resolveChatModel } from './modules/llm/providers/provider.defaults';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -43,8 +44,9 @@ async function bootstrap(): Promise<void> {
       'Bootstrap',
     );
   } else {
+    const chatModel = resolveChatModel(provider ?? 'mock', config.get<string>('CHAT_MODEL'));
     logger.log(
-      `LLM provider "${provider}" (chat ${config.get<string>('CHAT_MODEL')}, embeddings ${config.get<string>('EMBEDDING_MODEL')})`,
+      `LLM provider "${provider}" (chat ${chatModel}, embeddings ${config.get<string>('EMBEDDING_MODEL')})`,
       'Bootstrap',
     );
   }

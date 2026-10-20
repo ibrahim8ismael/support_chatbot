@@ -42,7 +42,7 @@ With no Chatwoot and no provider keys you can still: log into the dashboard, cre
 ## Environment
 
 - `apps/api/.env.example` lists every variable ([reference](../operations/deployment.md#environment-variables)). Never commit real values.
-- Local profiles: `LLM_PROVIDER=mock` (default — no external calls), `openai` or `openrouter` when you have keys in `.env.local` (real embeddings/replies).
+- Local profiles: `LLM_PROVIDER=mock` (default — no external calls), or `openai`, `openrouter`, or `gemini` when you have keys in `.env.local` (real embeddings/replies; OpenRouter and Gemini still use OpenAI for embeddings, so set `OPENAI_API_KEY` too).
 - The web app talks to the API via `NEXT_PUBLIC_API_URL`.
 
 ## Running evals

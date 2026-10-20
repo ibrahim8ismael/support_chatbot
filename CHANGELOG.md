@@ -10,6 +10,18 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+### Added
+
+- **Google Gemini chat provider** (T-102, D2): `LLM_PROVIDER=gemini` routes chat
+  through `@ai-sdk/google` using `GEMINI_API_KEY` (or the SDK's
+  `GOOGLE_GENERATIVE_AI_API_KEY` alias) while embeddings stay with OpenAI
+  (`text-embedding-3-small`, D3), so Gemini also requires `OPENAI_API_KEY`.
+  `CHAT_MODEL` is now optional and defaults per provider:
+  `gpt-4.1-mini` (OpenAI), `openai/gpt-4.1-mini` (OpenRouter), and
+  `gemini-3.8-flash` (Gemini). Provider-qualified ids (`gemini:…`) keep the
+  embedding cache and `answer_events` model columns unambiguous, and cost
+  estimates now strip provider prefixes (fixing existing `openai:…` prices too).
+
 ## [0.1.1] - 2026-10-20
 
 ### Fixed

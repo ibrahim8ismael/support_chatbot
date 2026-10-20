@@ -64,7 +64,7 @@ export const SETTINGS_FIELDS: SettingsField[] = [
     label: 'Chat model',
     kind: 'text',
     readOnly: true,
-    hint: 'Set via the server environment (CHAT_MODEL) — informational only.',
+    hint: 'Set by the server environment (CHAT_MODEL) or provider default — informational only.',
   },
 ];
 

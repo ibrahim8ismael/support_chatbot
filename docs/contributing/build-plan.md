@@ -35,7 +35,7 @@ T-208 → T-405.
 | --- | --- | --- |
 | D3 embedding model & dimensions | T-101 (`vector(N)`) | **Closed 2026-10-18** — `text-embedding-3-small` (1536); mock provider mirrors the dimension |
 | D6 ORM | T-101 (entities) | **Closed 2026-10-18** — Drizzle (as scaffolded) |
-| D2 provider & residency | T-102 real providers, T-108 evals | **Closed 2026-10-18** — (a) external APIs: OpenAI (chat + embeddings) with OpenRouter as the alternate chat carrier; KB content leaves the network to these providers |
+| D2 provider & residency | T-102 real providers, T-108 evals | **Closed 2026-10-18** — (a) external APIs: OpenAI (chat + embeddings) with OpenRouter and Google Gemini as alternate chat carriers (Gemini added 2026-10-20); KB content leaves the network to these providers |
 | D4 auth method | T-005 | **Closed 2026-10-18** — local email + password (argon2id, server-side sessions); OIDC remains a later option behind the same session layer |
 | D7 handoff mechanism | T-204 | Label + assignee detection (both) |
 | D9 file storage | T-103 | **Closed 2026-10-18** — local Docker volume (`UPLOAD_DIR`); files stored under generated names, DB keeps the relative path |
@@ -81,9 +81,9 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       and CI. Refs ADR-0005, NFR-9 (embedding cache via CacheService). Real providers
       per D2. **Done 2026-10-18**: mock (feature-hash embeddings + echo replies) and the
       embedding cache are live. **Real providers (same day, D2 closed)**: `openai`
-      (chat + embeddings) and `openrouter` (chat; embeddings stay with OpenAI per D3)
-      in the provider factory — provider-qualified model ids, missing keys / unknown
-      providers fail fast at boot.
+      (chat + embeddings), `openrouter` and `gemini` (chat; embeddings stay with
+      OpenAI per D3) in the provider factory — provider-qualified model ids, missing
+      keys / unknown providers fail fast at boot.
 - [x] **T-103 · KB + documents API** (M) — CRUD, upload (PDF/DOCX/TXT/MD ≤ 20 MB) to
       `UPLOAD_DIR`, `content_hash`, status fields, reprocess + delete. Refs FR-2 P0, D9.
       **Done 2026-10-18**: list/detail with counts, create/patch/delete (409 while bound),
@@ -154,8 +154,8 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       offline score table used to tune corpus questions. Mock plumbing runs pass the
       gates on the later full runs, but the judge is fake (groundedness is
       tautological) and the two earliest runs failed the injection gate — see
-      `apps/api/evals/README.md`. Real numbers need an OpenAI/OpenRouter key, and the
-      mock provider is refused in production.
+      `apps/api/evals/README.md`. Real numbers need a real provider key, and the mock
+      provider is refused in production.
 
 ## M2 — Live in one inbox (Phase 1: the bot answers customers, safely)
 

@@ -79,9 +79,9 @@ gate floors live in `metrics.ts` (`EVAL_GATES`) and are asserted by `metrics.spe
 retrieval: mock embeddings are deterministic feature-hashed bag-of-words, so corpus
 documents and questions are tuned for **lexical** overlap. The mock judge always returns
 `grounded`, so under mock the groundedness gate is a wiring check, not a quality number.
-Real numbers require an OpenAI/OpenRouter key — run with `LLM_PROVIDER=openai` (or
-`openrouter`) and record the results in the PR when changing a prompt, model, chunking
-setting, or threshold.
+Real numbers require a provider key — run with `LLM_PROVIDER=openai` (or `openrouter` or
+`gemini`; those two still need `OPENAI_API_KEY` for embeddings) and record the results in
+the PR when changing a prompt, model, chunking setting, or threshold.
 
 ## Adding or tuning cases
 

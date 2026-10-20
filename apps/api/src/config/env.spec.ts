@@ -20,6 +20,8 @@ describe('validateEnv', () => {
       CHATWOOT_ACCOUNT_ID: '',
       OPENAI_API_KEY: '',
       OPENROUTER_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_GENERATIVE_AI_API_KEY: '',
       DIGEST_WEBHOOK_URL: '',
     });
 
@@ -27,6 +29,8 @@ describe('validateEnv', () => {
     expect(env.CHATWOOT_ACCOUNT_ID).toBeUndefined();
     expect(env.OPENAI_API_KEY).toBeUndefined();
     expect(env.OPENROUTER_API_KEY).toBeUndefined();
+    expect(env.GEMINI_API_KEY).toBeUndefined();
+    expect(env.GOOGLE_GENERATIVE_AI_API_KEY).toBeUndefined();
     expect(env.DIGEST_WEBHOOK_URL).toBeUndefined();
   });
 
@@ -48,6 +52,14 @@ describe('validateEnv', () => {
         OPENROUTER_API_KEY: 'sk-or-test',
       }),
     ).toThrow(/OPENAI_API_KEY/);
+    expect(() => validateEnv({ LLM_PROVIDER: 'gemini' })).toThrow(/GEMINI_API_KEY/);
+    // Embeddings stay with OpenAI (D3) even when chat goes through Gemini.
+    expect(() =>
+      validateEnv({
+        LLM_PROVIDER: 'gemini',
+        GEMINI_API_KEY: 'gemini-test',
+      }),
+    ).toThrow(/OPENAI_API_KEY/);
   });
 
   it('accepts a configured provider', () => {
@@ -64,6 +76,21 @@ describe('validateEnv', () => {
     });
     expect(openrouter.LLM_PROVIDER).toBe('openrouter');
     expect(openrouter.OPENROUTER_API_KEY).toBe('sk-or-test');
+
+    const gemini = validateEnv({
+      LLM_PROVIDER: 'gemini',
+      GEMINI_API_KEY: 'gemini-test',
+      OPENAI_API_KEY: 'sk-test',
+    });
+    expect(gemini.LLM_PROVIDER).toBe('gemini');
+    expect(gemini.GEMINI_API_KEY).toBe('gemini-test');
+
+    const geminiAlias = validateEnv({
+      LLM_PROVIDER: 'gemini',
+      GOOGLE_GENERATIVE_AI_API_KEY: 'google-test',
+      OPENAI_API_KEY: 'sk-test',
+    });
+    expect(geminiAlias.GOOGLE_GENERATIVE_AI_API_KEY).toBe('google-test');
   });
 
   it('requires explicit APP_URL and REDIS_URL in production', () => {
