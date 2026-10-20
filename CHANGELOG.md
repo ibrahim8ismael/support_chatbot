@@ -10,6 +10,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-20
+
 ### Added
 
 - **Monorepo scaffold** (T-000): pnpm workspaces + Turborepo; `apps/api` (NestJS 12
