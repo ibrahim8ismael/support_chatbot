@@ -10,6 +10,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-20
+
 ### Added
 
 - **Google Gemini chat provider** (T-102, D2): `LLM_PROVIDER=gemini` routes chat
