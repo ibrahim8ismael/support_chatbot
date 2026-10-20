@@ -10,6 +10,12 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sandbox runs enqueue reliably**: BullMQ rejects custom job ids containing
+  `:`, so creating or retrying a run failed with `503 sandbox queue unavailable`.
+  Job ids now use hyphens, with a regression test covering both paths.
+
 ## [0.1.0] - 2026-10-20
 
 ### Added

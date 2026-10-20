@@ -33,6 +33,7 @@ import { SettingsService } from '../settings/settings.service';
 import { sandboxCases } from './entities/sandbox-case.entity';
 import { sandboxResults } from './entities/sandbox-result.entity';
 import { sandboxRuns } from './entities/sandbox-run.entity';
+import { sandboxRetryJobId, sandboxRunJobId } from './sandbox.jobs';
 import { scoreSandboxResult, summarizeSandboxResults } from './scoring';
 
 type CaseRow = typeof sandboxCases.$inferSelect;
@@ -291,7 +292,7 @@ export class SandboxService {
         QUEUES.sandbox,
         'sandbox-run',
         { runId: run.id },
-        { jobId: `sandbox-run:${run.id}` },
+        { jobId: sandboxRunJobId(run.id) },
       );
     } catch (error) {
       const message = readableError(error);
@@ -449,7 +450,7 @@ export class SandboxService {
         'sandbox-run',
         { runId: id },
         {
-          jobId: `sandbox-run:${id}:retry:${Date.now()}`,
+          jobId: sandboxRetryJobId(id),
         },
       );
     } catch (error) {

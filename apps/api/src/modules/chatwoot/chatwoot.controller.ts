@@ -41,7 +41,7 @@ export class ChatwootWebhookController {
 
       // TODO(T-201): zod-parse the payload (captured fixtures), dedupe on
       // chatwoot_message_id, then hand off to agent.handleIncomingMessage via
-      // the reply-job queue with jobId `reply:<conversation_id>` — ADR-0006 —
+      // the reply-job queue with jobId `reply-<conversation_id>` — ADR-0006 —
       // then return 200 and flip this handler back to @HttpCode(200).
       void body;
       return { status: 'not_implemented' };

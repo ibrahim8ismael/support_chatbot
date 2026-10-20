@@ -60,7 +60,8 @@ export class QueueService implements OnApplicationShutdown {
 
   /**
    * Enqueue a job. Callers pass a deterministic jobId when coalescing is wanted
-   * (e.g. `reply:<conversation_id>` — ADR-0006 per-conversation serialization).
+   * (e.g. `reply-<conversation_id>` — ADR-0006 per-conversation serialization).
+   * Job ids must not contain `:`; BullMQ rejects them.
    */
   async enqueue<Data>(
     name: QueueName,
