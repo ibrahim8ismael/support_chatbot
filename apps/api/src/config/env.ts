@@ -28,7 +28,7 @@ export const envSchema = z
     CHATWOOT_BOT_TOKEN: optional(z.string().min(1)),
     CHATWOOT_WEBHOOK_SECRET: optional(z.string().min(8)),
 
-    LLM_PROVIDER: z.enum(['openai', 'openrouter', 'gemini', 'mock']).default('mock'),
+    LLM_PROVIDER: z.enum(['openai', 'openrouter', 'gemini', 'vertex', 'mock']).default('mock'),
     OPENAI_API_KEY: optional(z.string().min(1)),
     /** Chat via OpenRouter; embeddings stay with OpenAI (D3). */
     OPENROUTER_API_KEY: optional(z.string().min(1)),
@@ -36,6 +36,13 @@ export const envSchema = z
     GEMINI_API_KEY: optional(z.string().min(1)),
     /** Alias accepted by @ai-sdk/google; `GEMINI_API_KEY` wins when both are set. */
     GOOGLE_GENERATIVE_AI_API_KEY: optional(z.string().min(1)),
+    /** Chat via Google Vertex AI (express mode); embeddings stay with OpenAI (D3). */
+    GOOGLE_VERTEX_API_KEY: optional(z.string().min(1)),
+    /** Vertex ADC mode: project + location (credentials via Google ADC). */
+    GOOGLE_VERTEX_PROJECT: optional(z.string().min(1)),
+    GOOGLE_VERTEX_LOCATION: optional(z.string().min(1)),
+    /** Standard Google ADC path — read by google-auth-library, not our code. */
+    GOOGLE_APPLICATION_CREDENTIALS: optional(z.string().min(1)),
     EMBEDDING_MODEL: z.string().min(1).default('text-embedding-3-small'),
     /** Optional; each provider has a sensible default in the factory. */
     CHAT_MODEL: optional(z.string().min(1)),
@@ -62,12 +69,14 @@ export const envSchema = z
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),
   })
   .superRefine((env, ctx) => {
-    // Which keys each provider needs. OpenRouter and Gemini need OpenAI too:
-    // embeddings are always `text-embedding-3-small` (D3) — both serve chat only.
+    // Which keys each provider needs. OpenRouter, Gemini and Vertex need OpenAI
+    // too: embeddings are always `text-embedding-3-small` (D3) — all three
+    // serve chat only.
     const requiredKeys: Record<string, string[]> = {
       openai: ['OPENAI_API_KEY'],
       openrouter: ['OPENROUTER_API_KEY', 'OPENAI_API_KEY'],
       gemini: ['OPENAI_API_KEY'],
+      vertex: ['OPENAI_API_KEY'],
       mock: [],
     };
 
@@ -87,6 +96,20 @@ export const envSchema = z
         path: ['GEMINI_API_KEY'],
         message: 'required when LLM_PROVIDER=gemini (or set GOOGLE_GENERATIVE_AI_API_KEY)',
       });
+    }
+
+    // Vertex has two auth modes: express mode with an API key, or standard
+    // Google Cloud ADC (credentials are discovered by google-auth-library).
+    if (env.LLM_PROVIDER === 'vertex' && !env.GOOGLE_VERTEX_API_KEY) {
+      for (const key of ['GOOGLE_VERTEX_PROJECT', 'GOOGLE_VERTEX_LOCATION'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: 'required when LLM_PROVIDER=vertex without GOOGLE_VERTEX_API_KEY (ADC mode)',
+          });
+        }
+      }
     }
 
     if (env.NODE_ENV !== 'production') {
@@ -111,7 +134,7 @@ export const envSchema = z
         code: 'custom',
         path: ['LLM_PROVIDER'],
         message:
-          'mock is not allowed in production — set LLM_PROVIDER=openai, openrouter, or gemini (real provider keys required)',
+          'mock is not allowed in production — set LLM_PROVIDER=openai, openrouter, gemini, or vertex (real provider keys required)',
       });
     }
 

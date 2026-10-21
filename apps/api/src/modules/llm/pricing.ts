@@ -3,8 +3,9 @@
  * Prices are list prices, checked 2026-10; they drift, so the recorded value is
  * an *estimate* for trend lines, never billing. Unknown models return `null` —
  * analytics shows "—" instead of a wrong number. Provider qualifiers and
- * OpenRouter vendor prefixes are normalised (`gemini:gemini-3.8-flash` and
- * `openrouter:openai/gpt-4.1-mini` price as their model id).
+ * OpenRouter vendor prefixes are normalised (`gemini:gemini-3.8-flash`,
+ * `vertex:gemini-3.8-flash` and `openrouter:openai/gpt-4.1-mini` price as their
+ * model id).
  */
 const PRICES_PER_MILLION: Record<string, { input: number; output: number }> = {
   'gpt-4.1': { input: 2, output: 8 },

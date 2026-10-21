@@ -18,7 +18,7 @@ Every choice below links to a decision record when one exists. Version numbers a
 | Model access | **Vercel AI SDK** (`ai` + provider packages) | One interface for embeddings, text, structured output; swap providers incl. self-hosted via OpenAI-compatible ([ADR-0005](../decisions/0005-vercel-ai-sdk.md)) | Raw provider SDKs (lock-in), LangChain (heavy) |
 | Outbound HTTP | **axios** | One instance per integration with timeout/retry/logging interceptors (Chatwoot API first); model calls stay inside the AI SDK | native fetch, got, undici |
 | Embedding model | `text-embedding-3-small` (1536 dims) — OpenAI (D3, closed) | Dimensions are baked into the schema; changing it = re-embed everything | — |
-| Chat model | `gpt-4.1-mini` via OpenAI, any OpenRouter id, or a Gemini model (D2, closed) | External APIs approved: OpenAI + OpenRouter + Gemini (chat) | — |
+| Chat model | `gpt-4.1-mini` via OpenAI, any OpenRouter id, or a Gemini model via Gemini or Vertex AI (D2, closed) | External APIs approved: OpenAI + OpenRouter + Gemini + Vertex AI (chat) | — |
 | Parsing | `pdfjs`/`pdf-parse` (PDF), `mammoth` (DOCX), plain text/MD readers | Mature, no service needed | Unstructured.io (service), cloud parsers |
 | Auth | Session cookie + argon2 (proposed, D4) | Internal app; simple and safe | NextAuth (dashboard-only, splits auth), SSO later |
 | ORM | Drizzle preferred (proposed, D6) | Typed SQL + built-in pgvector helpers (`cosineDistance`) | Prisma (great DX, weaker vector story), TypeORM |

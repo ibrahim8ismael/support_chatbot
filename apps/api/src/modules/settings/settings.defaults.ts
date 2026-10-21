@@ -7,7 +7,7 @@ import { resolveChatModel } from '../llm/providers/provider.defaults';
 
 /**
  * Defaults from docs/architecture/data-model.md § settings. Model ids follow
- * env (D2: `LLM_PROVIDER=mock|openai|openrouter|gemini`); the settings keys are
+ * env (D2: `LLM_PROVIDER=mock|openai|openrouter|gemini|vertex`); the settings keys are
  * the future runtime override, which the mock ignores for now.
  */
 export function buildSettingsDefaults(config: ConfigService): Settings {

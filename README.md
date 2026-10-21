@@ -28,7 +28,7 @@ mode, no override.
 - One host with Docker + Compose (4 vCPU / 8 GB is the starting point). TLS in
   front of the stack is handled by the bundled Caddy.
 - An OpenAI API key is always required for embeddings (`text-embedding-3-small`,
-  D3). Chat can run on OpenAI, OpenRouter, or Google Gemini.
+  D3). Chat can run on OpenAI, OpenRouter, Google Gemini, or Google Vertex AI.
 - Optional: a self-hosted Chatwoot instance. **Do not bind a production inbox
   yet** — the reply pipeline is still a stub (see Status).
 
@@ -47,7 +47,7 @@ secrets, so mistakes surface immediately rather than at 3 AM:
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SITE_ADDRESS`, `APP_URL`, `NEXT_PUBLIC_API_URL` | dashboard hostname, e.g. `https://support.example.com` (`NEXT_PUBLIC_*` is baked into the web build; unset = the API is called on the dashboard's own origin) |
 | `POSTGRES_PASSWORD` + `DATABASE_URL`             | use the same password in both                                                                                                                                 |
-| `LLM_PROVIDER` + provider key                    | `openai`, `openrouter`, or `gemini`; embeddings always need `OPENAI_API_KEY`                                                                                  |
+| `LLM_PROVIDER` + provider key                    | `openai`, `openrouter`, `gemini`, or `vertex`; embeddings always need `OPENAI_API_KEY`                                                                        |
 | `COMPANY_NAME`                                   | your company name — fills the answer prompt; the scaffold default is rejected in production                                                                   |
 | `CHATWOOT_*`                                     | optional until the pipeline lands — see the [Chatwoot doc](docs/integrations/chatwoot.md)                                                                     |
 

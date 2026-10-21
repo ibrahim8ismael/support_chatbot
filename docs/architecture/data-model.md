@@ -243,7 +243,7 @@ cancelled`; progress lives in `completed_count`. `settings_snapshot` and
 | `kb_ids`, `case_ids` | uuid[] | requested KBs + snapshot case ids |
 | `settings_snapshot` | jsonb | retrieval/generation settings at start |
 | `prompt_version` | text | `answer.v2` at start |
-| `provider` | text | `mock \| openai \| openrouter \| gemini` |
+| `provider` | text | `mock \| openai \| openrouter \| gemini \| vertex` |
 | `metrics` | jsonb NULL | aggregate pass/retrieval/review rates |
 | `total_tokens_in`, `total_tokens_out` | int | run totals |
 | `estimated_cost_usd` | numeric(10,6) NULL | estimate, never billing |
