@@ -1,6 +1,7 @@
 'use client';
 
-import { Alert, Button, Card, ListBox, Select, Spinner, Table } from '@heroui/react';
+import { Alert, Button, Card, ListBox, Select, Table } from '@heroui/react';
+import { RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -51,6 +52,7 @@ export function AnalyticsView() {
   const [unansweredForbidden, setUnansweredForbidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const handleError = useCallback(
     (cause: unknown): void => {
@@ -158,7 +160,7 @@ export function AnalyticsView() {
     return () => {
       cancelled = true;
     };
-  }, [rangeId, interval, inboxId, handleError]);
+  }, [rangeId, interval, inboxId, refreshToken, handleError]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -250,7 +252,16 @@ export function AnalyticsView() {
               </Select>
             )}
 
-            {loading ? <Spinner size="sm" /> : null}
+            <Button
+              size="sm"
+              variant="ghost"
+              isPending={loading}
+              isDisabled={loading}
+              onPress={() => setRefreshToken((current) => current + 1)}
+            >
+              <RefreshCw className={loading ? 'size-4 animate-spin' : 'size-4'} aria-hidden />
+              Refresh
+            </Button>
           </div>
         </Card.Content>
       </Card>
@@ -265,9 +276,30 @@ export function AnalyticsView() {
         </Alert>
       ) : null}
 
-      {overview ? <OverviewCards overview={overview} /> : null}
-      {timeseries && timeseries.points.length > 0 ? (
+      {overview ? (
+        <OverviewCards overview={overview} />
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-hidden>
+          {Array.from({ length: 8 }, (_, index) => (
+            <div
+              key={index}
+              className="h-28 animate-pulse rounded-xl border border-separator bg-surface-secondary"
+            />
+          ))}
+        </div>
+      ) : null}
+      {timeseries ? (
         <TimeseriesChart points={timeseries.points} interval={timeseries.interval} />
+      ) : !loading ? (
+        <Card>
+          <Card.Content className="flex min-h-40 flex-col items-center justify-center gap-2 text-center">
+            <p className="text-sm font-medium">No chart data for this selection</p>
+            <p className="max-w-md text-xs leading-5 text-muted">
+              The chart fills in when messages and agent attempts are recorded for this date range
+              and inbox.
+            </p>
+          </Card.Content>
+        </Card>
       ) : null}
       {!loading || unanswered.length > 0 ? (
         <UnansweredPanel questions={unanswered} forbidden={unansweredForbidden} />

@@ -16,7 +16,7 @@ import {
   TextField,
   useOverlayState,
 } from '@heroui/react';
-import { BookOpen, FileText, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { BookOpen, FileText, Plus, RefreshCw, Trash2, Upload, PenLine } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 
@@ -40,7 +40,6 @@ import {
 
 /** Ingestion runs in the BullMQ worker — poll while anything is processing. */
 const POLL_INTERVAL_MS = 2500;
-
 const STATUS_COLORS: Record<DocumentStatus, 'success' | 'danger' | 'warning'> = {
   ready: 'success',
   failed: 'danger',
@@ -62,7 +61,13 @@ export function KnowledgeBasesView() {
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyDocumentId, setBusyDocumentId] = useState<string | null>(null);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [sourceMode, setSourceMode] = useState<'text' | 'file'>('text');
+  const [savingText, setSavingText] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+  const draftKbId = useRef<string | null>(null);
+  const textModal = useOverlayState();
   const fileInput = useRef<HTMLInputElement>(null);
   const uploadAbort = useRef<AbortController | null>(null);
   const previousKbRef = useRef<string | null>(null);
@@ -111,6 +116,7 @@ export function KnowledgeBasesView() {
     const kbId = selectedKbId;
     let cancelled = false;
     let timer: number | undefined;
+    let wasProcessing = false;
 
     if (previousKbRef.current !== kbId) {
       // Never show the previous KB's table under the new selection.
@@ -130,7 +136,11 @@ export function KnowledgeBasesView() {
         // One poll in flight at a time: schedule the next only after this
         // response and only while something is still processing.
         if (hasProcessing(list)) {
+          wasProcessing = true;
           timer = window.setTimeout(() => void load(), POLL_INTERVAL_MS);
+        } else if (wasProcessing) {
+          wasProcessing = false;
+          void loadKbs();
         }
       } catch (cause) {
         if (!cancelled) {
@@ -144,11 +154,46 @@ export function KnowledgeBasesView() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [selectedKbId, refreshToken, handleError]);
+  }, [selectedKbId, refreshToken, handleError, loadKbs]);
 
   const refreshDocuments = useCallback((): void => {
     setRefreshToken((token) => token + 1);
   }, []);
+
+  function openCreateModal(): void {
+    draftKbId.current = null;
+    setCreateError(null);
+    setSourceMode('text');
+    createModal.open();
+  }
+
+  async function onSaveText(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedKbId) return;
+    const form = new FormData(event.currentTarget);
+    const title = String(form.get('title') ?? '').trim();
+    const content = String(form.get('content') ?? '').trim();
+    if (!title || !content) {
+      setTextError('Enter a title and some knowledge content.');
+      return;
+    }
+    setSavingText(true);
+    setTextError(null);
+    try {
+      await apiFetch(`/knowledge-bases/${selectedKbId}/documents/text`, {
+        method: 'POST',
+        body: JSON.stringify({ title, content }),
+      });
+      textModal.close();
+      refreshDocuments();
+      await loadKbs();
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) router.push('/login');
+      else setTextError(cause instanceof Error ? cause.message : 'Could not save this text');
+    } finally {
+      setSavingText(false);
+    }
+  }
 
   async function onCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -161,19 +206,54 @@ export function KnowledgeBasesView() {
       return;
     }
 
+    const content = String(form.get('content') ?? '').trim();
+    const initialFile = form.get('sourceFile');
+    if (sourceMode === 'text' && !content) {
+      setCreateError('Write some knowledge content first.');
+      return;
+    }
+    if (sourceMode === 'file') {
+      if (!(initialFile instanceof File) || initialFile.size === 0) {
+        setCreateError('Choose a file to upload.');
+        return;
+      }
+      const problem = validateUpload(initialFile);
+      if (problem) {
+        setCreateError(problem);
+        return;
+      }
+    }
     setCreating(true);
     try {
-      const created = await apiFetch<KnowledgeBaseSummary>('/knowledge-bases', {
-        method: 'POST',
-        body: JSON.stringify({ name, ...(description.length > 0 ? { description } : {}) }),
-      });
+      let kbId = draftKbId.current;
+      if (!kbId) {
+        const created = await apiFetch<KnowledgeBaseSummary>('/knowledge-bases', {
+          method: 'POST',
+          body: JSON.stringify({ name, ...(description.length > 0 ? { description } : {}) }),
+        });
+        kbId = created.id;
+        draftKbId.current = kbId;
+      }
+      setSelectedKbId(kbId);
+      if (sourceMode === 'text') {
+        await apiFetch(`/knowledge-bases/${kbId}/documents/text`, {
+          method: 'POST',
+          body: JSON.stringify({ title: name, content }),
+        });
+      } else {
+        await apiUpload(`/knowledge-bases/${kbId}/documents`, initialFile as File);
+      }
+      draftKbId.current = null;
       formElement.reset();
       setCreateError(null);
-      setSelectedKbId(created.id);
+      refreshDocuments();
       createModal.close();
       setError(null);
       await loadKbs();
     } catch (cause) {
+      if (draftKbId.current) {
+        await loadKbs();
+      }
       if (cause instanceof ApiError && cause.status === 401) {
         router.push('/login');
       } else {
@@ -233,6 +313,7 @@ export function KnowledgeBasesView() {
 
   async function onReprocess(documentId: string): Promise<void> {
     setBusy(true);
+    setBusyDocumentId(documentId);
     try {
       await apiFetch(`/documents/${documentId}/reprocess`, { method: 'POST' });
       refreshDocuments();
@@ -240,6 +321,7 @@ export function KnowledgeBasesView() {
       handleError(cause);
     } finally {
       setBusy(false);
+      setBusyDocumentId(null);
     }
   }
 
@@ -248,6 +330,7 @@ export function KnowledgeBasesView() {
       return;
     }
     setBusy(true);
+    setBusyDocumentId(document.id);
     try {
       await apiFetch(`/documents/${document.id}`, { method: 'DELETE' });
       refreshDocuments();
@@ -256,6 +339,7 @@ export function KnowledgeBasesView() {
       handleError(cause);
     } finally {
       setBusy(false);
+      setBusyDocumentId(null);
     }
   }
 
@@ -264,13 +348,12 @@ export function KnowledgeBasesView() {
       <PageHeader
         eyebrow="Knowledge"
         title="Knowledge bases"
-        description="Upload PDF, DOCX, TXT or MD files and follow ingestion status. Retrieval and the playground answer from the chunks produced here."
+        description="Add knowledge by writing text or uploading a document. Follow indexing status and choose ready knowledge bases in the sandbox."
         actions={
           writable ? (
             <Button
               onPress={() => {
-                setCreateError(null);
-                createModal.open();
+                openCreateModal();
               }}
             >
               <Plus className="size-4" aria-hidden />
@@ -355,7 +438,7 @@ export function KnowledgeBasesView() {
                 </p>
               </div>
               {writable ? (
-                <Button size="sm" variant="secondary" onPress={createModal.open}>
+                <Button size="sm" variant="secondary" onPress={openCreateModal}>
                   <Plus className="size-4" aria-hidden />
                   Create knowledge base
                 </Button>
@@ -443,11 +526,11 @@ export function KnowledgeBasesView() {
                       {selectedKb.documentCount === 1 ? '' : 's'}
                     </Chip>
                   </div>
-                  <Card.Description className="truncate">
-                    {selectedKb.description ?? 'No description'}
+                  <Card.Description>
+                    {selectedKb.description ?? 'Add written knowledge or upload documents.'}
                   </Card.Description>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
                   <input
                     ref={fileInput}
                     type="file"
@@ -459,11 +542,23 @@ export function KnowledgeBasesView() {
                   {writable ? (
                     <Button
                       variant="secondary"
+                      onPress={() => {
+                        setTextError(null);
+                        textModal.open();
+                      }}
+                    >
+                      <PenLine className="size-4" aria-hidden />
+                      Write text
+                    </Button>
+                  ) : null}
+                  {writable ? (
+                    <Button
+                      variant="secondary"
                       isPending={uploading}
                       onPress={() => fileInput.current?.click()}
                     >
                       <Upload className="size-4" aria-hidden />
-                      Upload document
+                      Upload file
                     </Button>
                   ) : null}
                   {uploading ? (
@@ -509,7 +604,7 @@ export function KnowledgeBasesView() {
                             <div className="flex flex-col items-center gap-1 py-12 text-center">
                               <p className="text-sm font-medium">No documents yet</p>
                               <p className="text-xs text-muted">
-                                Upload a PDF, DOCX, TXT or MD file to ingest it.
+                                Write knowledge directly or upload a PDF, DOCX, TXT or MD file.
                               </p>
                             </div>
                           )
@@ -522,7 +617,14 @@ export function KnowledgeBasesView() {
                                 <FileText className="size-4 shrink-0 text-muted" aria-hidden />
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-medium">
-                                    {document.filename}
+                                    {document.sourceType === 'text'
+                                      ? document.filename.replace(/\.md$/, '')
+                                      : document.filename}
+                                  </span>
+                                  <span className="block text-xs text-muted">
+                                    {document.sourceType === 'text'
+                                      ? 'Written knowledge'
+                                      : 'Uploaded file'}
                                   </span>
                                   {document.error ? (
                                     <span className="block truncate text-xs text-danger">
@@ -554,6 +656,7 @@ export function KnowledgeBasesView() {
                                     <Button
                                       size="sm"
                                       variant="ghost"
+                                      isPending={busyDocumentId === document.id}
                                       isDisabled={busy || docsLoading}
                                       onPress={() => void onReprocess(document.id)}
                                     >
@@ -564,6 +667,7 @@ export function KnowledgeBasesView() {
                                   <Button
                                     size="sm"
                                     variant="danger"
+                                    isPending={busyDocumentId === document.id}
                                     isDisabled={busy || docsLoading}
                                     onPress={() => void onDeleteDocument(document)}
                                   >
@@ -584,6 +688,58 @@ export function KnowledgeBasesView() {
           )}
         </section>
       </div>
+
+      <Modal state={textModal}>
+        <Modal.Backdrop>
+          <Modal.Container>
+            <Modal.Dialog>
+              <Modal.Header>
+                <Modal.Heading>Write knowledge</Modal.Heading>
+              </Modal.Header>
+              <Modal.Body>
+                <Form className="flex flex-col gap-4" onSubmit={onSaveText}>
+                  <p className="text-sm text-muted">
+                    Add written knowledge to {selectedKb?.name}. It will be indexed for the agent.
+                  </p>
+                  <TextField isRequired>
+                    <Label>Title</Label>
+                    <Input name="title" maxLength={200} placeholder="Returns policy" />
+                  </TextField>
+                  <TextField isRequired>
+                    <Label>Knowledge content</Label>
+                    <TextArea
+                      name="content"
+                      rows={10}
+                      maxLength={200000}
+                      placeholder="Write or paste your knowledge here. Markdown is supported."
+                    />
+                  </TextField>
+                  {textError ? (
+                    <Alert status="danger" role="alert">
+                      <Alert.Content>
+                        <Alert.Description>{textError}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  ) : null}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      isDisabled={savingText}
+                      onPress={textModal.close}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" isPending={savingText}>
+                      Save knowledge
+                    </Button>
+                  </div>
+                </Form>
+              </Modal.Body>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
 
       <Modal state={createModal}>
         <Modal.Backdrop>
@@ -611,6 +767,62 @@ export function KnowledgeBasesView() {
                       placeholder="What does this knowledge base cover?"
                     />
                   </TextField>
+
+                  <fieldset className="flex flex-col gap-3">
+                    <legend className="mb-2 text-sm font-medium">
+                      How would you like to add knowledge?
+                    </legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={sourceMode === 'text' ? 'primary' : 'secondary'}
+                        aria-pressed={sourceMode === 'text'}
+                        isDisabled={creating}
+                        onPress={() => setSourceMode('text')}
+                      >
+                        <PenLine className="size-4" aria-hidden /> Write text
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={sourceMode === 'file' ? 'primary' : 'secondary'}
+                        aria-pressed={sourceMode === 'file'}
+                        isDisabled={creating}
+                        onPress={() => setSourceMode('file')}
+                      >
+                        <Upload className="size-4" aria-hidden /> Upload file
+                      </Button>
+                    </div>
+                    {sourceMode === 'text' ? (
+                      <TextField isRequired>
+                        <Label>Knowledge content</Label>
+                        <TextArea
+                          name="content"
+                          rows={8}
+                          maxLength={200000}
+                          placeholder="Write or paste the information the agent should know. Markdown is supported."
+                        />
+                      </TextField>
+                    ) : (
+                      <div className="flex flex-col gap-2 rounded-xl border border-dashed border-separator bg-surface-secondary p-4">
+                        <label htmlFor="initial-kb-file" className="text-sm font-medium">
+                          Choose a document
+                        </label>
+                        <input
+                          id="initial-kb-file"
+                          name="sourceFile"
+                          type="file"
+                          accept={DOCUMENT_ACCEPT}
+                          required
+                          disabled={creating}
+                          className="max-w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-foreground file:px-3 file:py-2 file:text-background"
+                        />
+                        <p className="text-xs leading-5 text-muted">
+                          PDF, Markdown (.md), Word (.docx) or plain text (.txt), up to 20 MB. Files
+                          are uploaded and indexed automatically.
+                        </p>
+                      </div>
+                    )}
+                  </fieldset>
 
                   {createError ? (
                     <Alert status="danger" role="alert">

@@ -114,6 +114,26 @@ describe('AgentService.ask', () => {
     expect(input?.maxOutputTokens).toBe(400);
   });
 
+  it('uses the saved system prompt template for each new answer', async () => {
+    const { service, generateReply } = buildHarness({
+      chunks: [chunk('c1', 'Reset from the account settings.')],
+      systemPrompt:
+        'You are {{company_name}}. Keep replies under {{max_reply_chars}} characters. User: {{message}}\n<kb id="{{chunk_id}}">\n{{chunk_content}}\n</kb>\n...',
+    });
+
+    await service.ask({
+      question: 'How do I reset it?',
+      kbIds: [KB],
+      history: [],
+    });
+
+    const system = generateReply.mock.calls[0]?.[0]?.system ?? '';
+    expect(system).toContain('You are Acme Support. Keep replies under 800 characters.');
+    expect(system).toContain('User: How do I reset it?');
+    expect(system).toContain('<kb id="c1">\nReset from the account settings.\n</kb>');
+    expect(system).not.toContain('{{company_name}}');
+  });
+
   it('feeds recent customer turns into the retrieval query for short messages', async () => {
     const { service, retrieve } = buildHarness({ chunks: [chunk('c1', 'x')] });
 

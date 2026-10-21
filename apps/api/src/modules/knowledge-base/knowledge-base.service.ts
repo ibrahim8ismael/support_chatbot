@@ -21,6 +21,7 @@ import {
   type KnowledgeBaseSummary,
   type KnowledgeBaseUpdate,
   type KnowledgeDocument,
+  type TextDocumentInput,
 } from '@support-agent/shared';
 
 import { AppLogger } from '../../common/logger/app-logger.service';
@@ -224,10 +225,30 @@ export class KnowledgeBaseService {
    * Content is sniffed (not trusted by extension), hashed, and deduplicated per
    * KB unless the previous copy failed.
    */
+  async createTextDocument(
+    kbId: string,
+    input: TextDocumentInput,
+    userId: string,
+  ): Promise<{ documentId: string; status: DocumentStatus }> {
+    const buffer = Buffer.from(input.content, 'utf8');
+    return this.uploadDocument(
+      kbId,
+      {
+        originalname: `${sanitizeUploadFilename(input.title)}.md`,
+        mimetype: 'text/markdown',
+        size: buffer.byteLength,
+        buffer,
+      },
+      userId,
+      'text',
+    );
+  }
+
   async uploadDocument(
     kbId: string,
     file: UploadedDocumentFile | undefined,
     userId: string,
+    sourceType: 'upload' | 'text' = 'upload',
   ): Promise<{ documentId: string; status: DocumentStatus }> {
     await this.loadKb(kbId);
 
@@ -267,7 +288,7 @@ export class KnowledgeBaseService {
         .insert(documents)
         .values({
           kbId,
-          sourceType: 'upload',
+          sourceType,
           filename: sanitizeUploadFilename(file.originalname),
           mimeType,
           sizeBytes: file.size,
