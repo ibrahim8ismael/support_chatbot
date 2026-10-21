@@ -10,6 +10,18 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+### Added
+
+- **Google Vertex AI chat provider** (T-102, D2): `LLM_PROVIDER=vertex` routes
+  chat through `@ai-sdk/google-vertex` using either `GOOGLE_VERTEX_API_KEY`
+  (express mode) or `GOOGLE_VERTEX_PROJECT` + `GOOGLE_VERTEX_LOCATION` with
+  Google Cloud ADC (`GOOGLE_APPLICATION_CREDENTIALS`, workload identity, or
+  `gcloud auth application-default login`). Embeddings stay with OpenAI
+  (`text-embedding-3-small`, D3), so Vertex also requires `OPENAI_API_KEY`.
+  `CHAT_MODEL` defaults to `gemini-3.8-flash`, and provider-qualified ids
+  (`vertex:…`) keep the embedding cache and `answer_events` unambiguous.
+  Env examples, deployment docs, and tests updated.
+
 ## [0.2.0] - 2026-10-20
 
 ### Added

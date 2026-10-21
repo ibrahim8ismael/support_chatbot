@@ -35,7 +35,7 @@ T-208 → T-405.
 | --- | --- | --- |
 | D3 embedding model & dimensions | T-101 (`vector(N)`) | **Closed 2026-10-18** — `text-embedding-3-small` (1536); mock provider mirrors the dimension |
 | D6 ORM | T-101 (entities) | **Closed 2026-10-18** — Drizzle (as scaffolded) |
-| D2 provider & residency | T-102 real providers, T-108 evals | **Closed 2026-10-18** — (a) external APIs: OpenAI (chat + embeddings) with OpenRouter and Google Gemini as alternate chat carriers (Gemini added 2026-10-20); KB content leaves the network to these providers |
+| D2 provider & residency | T-102 real providers, T-108 evals | **Closed 2026-10-18** — (a) external APIs: OpenAI (chat + embeddings) with OpenRouter, Google Gemini and Google Vertex AI as alternate chat carriers (Gemini added 2026-10-20; Vertex added 2026-10-21); KB content leaves the network to these providers |
 | D4 auth method | T-005 | **Closed 2026-10-18** — local email + password (argon2id, server-side sessions); OIDC remains a later option behind the same session layer |
 | D7 handoff mechanism | T-204 | Label + assignee detection (both) |
 | D9 file storage | T-103 | **Closed 2026-10-18** — local Docker volume (`UPLOAD_DIR`); files stored under generated names, DB keeps the relative path |
@@ -81,7 +81,7 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       and CI. Refs ADR-0005, NFR-9 (embedding cache via CacheService). Real providers
       per D2. **Done 2026-10-18**: mock (feature-hash embeddings + echo replies) and the
       embedding cache are live. **Real providers (same day, D2 closed)**: `openai`
-      (chat + embeddings), `openrouter` and `gemini` (chat; embeddings stay with
+      (chat + embeddings), `openrouter`, `gemini` and `vertex` (chat; embeddings stay with
       OpenAI per D3) in the provider factory — provider-qualified model ids, missing
       keys / unknown providers fail fast at boot.
 - [x] **T-103 · KB + documents API** (M) — CRUD, upload (PDF/DOCX/TXT/MD ≤ 20 MB) to

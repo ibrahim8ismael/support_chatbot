@@ -18,6 +18,8 @@ describe('estimateCostUsd', () => {
   it('prices Gemini models with provider-qualified ids', () => {
     expect(estimateCostUsd('gemini:gemini-3.8-flash', 1_000_000, 1_000_000)).toBeCloseTo(4.5, 10);
     expect(estimateCostUsd('gemini:gemini-3.1-flash-lite', 1_000_000, 0)).toBeCloseTo(0.25, 10);
+    // Vertex serves the same Gemini models — the provider prefix is normalised.
+    expect(estimateCostUsd('vertex:gemini-3.8-flash', 1_000_000, 1_000_000)).toBeCloseTo(4.5, 10);
   });
 
   it('returns null for unknown or missing models (no wrong numbers)', () => {

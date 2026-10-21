@@ -22,7 +22,7 @@ Two model roles:
 | Role | Job | Example |
 | --- | --- | --- |
 | **Embedding model** | Vectorize KB chunks and incoming questions for search | `text-embedding-3-small` (OpenAI, 1536 dims) |
-| **Chat model** | Write the final reply in a friendly tone, based only on retrieved KB content | `gpt-4.1-mini` (OpenAI), any OpenRouter model, or a Gemini model such as `gemini-3.8-flash` |
+| **Chat model** | Write the final reply in a friendly tone, based only on retrieved KB content | `gpt-4.1-mini` (OpenAI), any OpenRouter model, or a Gemini model such as `gemini-3.8-flash` via Gemini or Vertex AI |
 
 Models are accessed through the **Vercel AI SDK**, so providers can be swapped by config ([details](../integrations/llm-and-vercel-ai-sdk.md)).
 

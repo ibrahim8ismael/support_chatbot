@@ -22,6 +22,10 @@ describe('validateEnv', () => {
       OPENROUTER_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_GENERATIVE_AI_API_KEY: '',
+      GOOGLE_VERTEX_API_KEY: '',
+      GOOGLE_VERTEX_PROJECT: '',
+      GOOGLE_VERTEX_LOCATION: '',
+      GOOGLE_APPLICATION_CREDENTIALS: '',
       DIGEST_WEBHOOK_URL: '',
     });
 
@@ -31,6 +35,10 @@ describe('validateEnv', () => {
     expect(env.OPENROUTER_API_KEY).toBeUndefined();
     expect(env.GEMINI_API_KEY).toBeUndefined();
     expect(env.GOOGLE_GENERATIVE_AI_API_KEY).toBeUndefined();
+    expect(env.GOOGLE_VERTEX_API_KEY).toBeUndefined();
+    expect(env.GOOGLE_VERTEX_PROJECT).toBeUndefined();
+    expect(env.GOOGLE_VERTEX_LOCATION).toBeUndefined();
+    expect(env.GOOGLE_APPLICATION_CREDENTIALS).toBeUndefined();
     expect(env.DIGEST_WEBHOOK_URL).toBeUndefined();
   });
 
@@ -60,6 +68,28 @@ describe('validateEnv', () => {
         GEMINI_API_KEY: 'gemini-test',
       }),
     ).toThrow(/OPENAI_API_KEY/);
+    expect(() => validateEnv({ LLM_PROVIDER: 'vertex' })).toThrow(/GOOGLE_VERTEX_API_KEY/);
+    // Embeddings stay with OpenAI (D3) even when chat goes through Vertex.
+    expect(() =>
+      validateEnv({
+        LLM_PROVIDER: 'vertex',
+        GOOGLE_VERTEX_API_KEY: 'vertex-test',
+      }),
+    ).toThrow(/OPENAI_API_KEY/);
+    // ADC mode needs an explicit project and location (the SDK has no defaults).
+    expect(() =>
+      validateEnv({
+        LLM_PROVIDER: 'vertex',
+        OPENAI_API_KEY: 'sk-test',
+      }),
+    ).toThrow(/GOOGLE_VERTEX_PROJECT/);
+    expect(() =>
+      validateEnv({
+        LLM_PROVIDER: 'vertex',
+        GOOGLE_VERTEX_PROJECT: 'my-project',
+        OPENAI_API_KEY: 'sk-test',
+      }),
+    ).toThrow(/GOOGLE_VERTEX_LOCATION/);
   });
 
   it('accepts a configured provider', () => {
@@ -91,6 +121,25 @@ describe('validateEnv', () => {
       OPENAI_API_KEY: 'sk-test',
     });
     expect(geminiAlias.GOOGLE_GENERATIVE_AI_API_KEY).toBe('google-test');
+
+    const vertexExpress = validateEnv({
+      LLM_PROVIDER: 'vertex',
+      GOOGLE_VERTEX_API_KEY: 'vertex-test',
+      OPENAI_API_KEY: 'sk-test',
+    });
+    expect(vertexExpress.LLM_PROVIDER).toBe('vertex');
+    expect(vertexExpress.GOOGLE_VERTEX_API_KEY).toBe('vertex-test');
+
+    const vertexAdc = validateEnv({
+      LLM_PROVIDER: 'vertex',
+      GOOGLE_VERTEX_PROJECT: 'my-project',
+      GOOGLE_VERTEX_LOCATION: 'us-central1',
+      GOOGLE_APPLICATION_CREDENTIALS: '/run/secrets/vertex.json',
+      OPENAI_API_KEY: 'sk-test',
+    });
+    expect(vertexAdc.GOOGLE_VERTEX_PROJECT).toBe('my-project');
+    expect(vertexAdc.GOOGLE_VERTEX_LOCATION).toBe('us-central1');
+    expect(vertexAdc.GOOGLE_APPLICATION_CREDENTIALS).toBe('/run/secrets/vertex.json');
   });
 
   it('requires explicit APP_URL and REDIS_URL in production', () => {

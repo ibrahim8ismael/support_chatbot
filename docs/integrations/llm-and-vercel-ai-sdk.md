@@ -7,7 +7,7 @@ All model access goes through the [Vercel AI SDK](https://ai-sdk.dev) (`ai` pack
 | Role | Setting | Used for | Example models |
 | --- | --- | --- | --- |
 | **Embedding model** | `EMBEDDING_MODEL` | Embedding KB chunks (ingest) + queries (retrieve) | `text-embedding-3-small` (1536 dim) — always OpenAI (D3); a self-hosted `bge-m3` (1024 dim) would re-bake the schema |
-| **Chat model** | `CHAT_MODEL` | Final customer reply; classification (P1 can split) | `gpt-4.1-mini` (OpenAI), any OpenRouter id (`openai/gpt-4.1-mini`, `anthropic/claude-…`), or a Gemini model (`gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.1-flash-lite`) |
+| **Chat model** | `CHAT_MODEL` | Final customer reply; classification (P1 can split) | `gpt-4.1-mini` (OpenAI), any OpenRouter id (`openai/gpt-4.1-mini`, `anthropic/claude-…`), a Gemini model via the Gemini API (`gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.1-flash-lite`), or the same Gemini models via Google Vertex AI |
 | Optional small model (P1) | `CHAT_MODEL_SMALL` | Query rewrite, classification | cheapest capable model |
 
 Hard rule: **the embedding model must be identical for ingestion and retrieval**, and its dimensions are baked into the schema ([D3](../open-decisions.md)). Changing it = re-embed everything (runbook in [deployment](../operations/deployment.md)).
@@ -53,13 +53,32 @@ case 'gemini': {
     chatModelId: `gemini:${chatModel}`,
   };
 }
+case 'vertex': {
+  // Vertex AI is the chat carrier; embeddings stay with OpenAI (D3).
+  // Express mode: GOOGLE_VERTEX_API_KEY. ADC mode: project + location, with
+  // credentials discovered by google-auth-library (GOOGLE_APPLICATION_CREDENTIALS,
+  // workload identity, or `gcloud auth application-default login`).
+  const vertex = process.env.GOOGLE_VERTEX_API_KEY
+    ? createGoogleVertex({ apiKey: process.env.GOOGLE_VERTEX_API_KEY })
+    : createGoogleVertex({
+        project: requireKey('GOOGLE_VERTEX_PROJECT'),
+        location: requireKey('GOOGLE_VERTEX_LOCATION'),
+      });
+  const openai = createOpenAI({ apiKey: requireKey('OPENAI_API_KEY') });
+  return {
+    embedding: openai.embedding(embeddingModel),
+    chat: vertex(chatModel),                       // e.g. gemini-3.8-flash
+    embeddingModelId: `openai:${embeddingModel}`,
+    chatModelId: `vertex:${chatModel}`,
+  };
+}
 ```
 
-Model ids are **provider-qualified** (`openai:…` / `openrouter:…` / `gemini:…`)
-so the embedding cache namespace and `answer_events` never mix models. Missing
-keys or an unknown provider fail at boot, not on the first customer message.
-`CHAT_MODEL` is optional: each provider has a safe default (Gemini uses
-`gemini-3.8-flash`).
+Model ids are **provider-qualified** (`openai:…` / `openrouter:…` / `gemini:…` /
+`vertex:…`) so the embedding cache namespace and `answer_events` never mix
+models. Missing keys or an unknown provider fail at boot, not on the first
+customer message. `CHAT_MODEL` is optional: each provider has a safe default
+(Gemini and Vertex use `gemini-3.8-flash`).
 
 Why this shape: swapping model or carrier is **env config, not code**. Adding a
 future provider — or going fully self-hosted if the residency policy ever
@@ -118,7 +137,7 @@ const { object } = await generateObject({ model, schema, prompt });
 
 ## Data privacy
 
-- [D2](../open-decisions.md) is **Decided (2026-10-18): (a) external APIs — OpenAI + OpenRouter**, with Gemini added as an alternate chat carrier (2026-10-20). Customer messages and retrieved KB content may reach the selected provider; embeddings always go to OpenAI (D3).
+- [D2](../open-decisions.md) is **Decided (2026-10-18): (a) external APIs — OpenAI + OpenRouter**, with Gemini (2026-10-20) and Google Vertex AI (2026-10-21) added as alternate chat carriers. Customer messages and retrieved KB content may reach the selected provider; embeddings always go to OpenAI (D3).
 - Dev and CI keep `LLM_PROVIDER=mock` — nothing external is called without keys.
 - Keep the payload minimal: retrieved chunks, recent turns, the customer message — no internal file names; log the provider-bound payload only at debug level and redacted (P1: PII redaction pass before provider calls). A policy reversal stays possible: a self-hosted carrier is a new factory `case`, no pipeline refactor.
 

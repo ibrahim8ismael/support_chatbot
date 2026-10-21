@@ -379,7 +379,7 @@ function printReport(
   if (provider === 'mock') {
     console.log(
       'provider: mock — groundedness uses the mock judge (plumbing check); ' +
-        'run with LLM_PROVIDER=openai|openrouter|gemini for a real number\n',
+        'run with LLM_PROVIDER=openai|openrouter|gemini|vertex for a real number\n',
     );
   } else {
     console.log(`provider: ${provider}\n`);
