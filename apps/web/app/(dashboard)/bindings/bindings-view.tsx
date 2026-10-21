@@ -258,7 +258,7 @@ export function BindingsView() {
               </Card.Content>
             </Card>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="grid gap-4 xl:grid-cols-2">
               {bindings.map((binding) => {
                 const draft = draftFor(binding);
                 const dirty = isDirty(binding);
@@ -420,6 +420,7 @@ export function BindingsView() {
                 <Button
                   type="submit"
                   variant="secondary"
+                  isPending={busyInbox !== null && Number(newInboxId) === busyInbox}
                   isDisabled={newInboxId.trim() === '' || busyInbox !== null || loadFailed}
                 >
                   <Plus className="size-4" aria-hidden />

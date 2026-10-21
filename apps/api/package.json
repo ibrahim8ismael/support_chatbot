@@ -20,7 +20,8 @@
     "seed:admin": "tsx src/cli/seed-admin.ts",
     "evals": "ts-node --transpile-only evals/runner.ts",
     "load:smoke": "tsx scripts/load-smoke.ts",
-    "simulate:webhook": "tsx scripts/simulate-webhook.ts"
+    "simulate:webhook": "tsx scripts/simulate-webhook.ts",
+    "seed:demo": "tsx src/cli/seed-demo.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.101",

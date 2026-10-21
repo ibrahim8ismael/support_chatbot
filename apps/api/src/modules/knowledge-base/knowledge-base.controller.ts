@@ -17,12 +17,14 @@ import {
   USER_ROLES,
   knowledgeBaseInputSchema,
   knowledgeBaseUpdateSchema,
+  textDocumentInputSchema,
   type DocumentStatus,
   type KnowledgeBaseInput,
   type KnowledgeBaseSummary,
   type KnowledgeBaseUpdate,
   type KnowledgeDocument,
   type SessionUser,
+  type TextDocumentInput,
 } from '@support-agent/shared';
 
 import { ZodBodyPipe } from '../../common/pipes/zod-body.pipe';
@@ -86,6 +88,16 @@ export class KnowledgeBaseController {
   @Get(':id/documents')
   listDocuments(@Param('id', ParseUUIDPipe) id: string): Promise<KnowledgeDocument[]> {
     return this.knowledgeBase.listDocuments(id);
+  }
+
+  @Roles('editor', 'admin')
+  @Post(':id/documents/text')
+  createTextDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodBodyPipe(textDocumentInputSchema)) body: TextDocumentInput,
+    @CurrentUser() user: SessionUser,
+  ): Promise<{ documentId: string; status: DocumentStatus }> {
+    return this.knowledgeBase.createTextDocument(id, body, user.id);
   }
 
   @Roles('editor', 'admin')

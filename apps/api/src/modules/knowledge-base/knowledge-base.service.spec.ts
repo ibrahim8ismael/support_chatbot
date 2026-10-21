@@ -1,4 +1,4 @@
-import { access, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -415,6 +415,25 @@ describe('KnowledgeBaseService', () => {
   });
 
   describe('uploadDocument', () => {
+    it('stores written knowledge as a text source and queues the same ingestion pipeline', async () => {
+      const { service, inserted, enqueue } = buildHarness({ kbRows: [kbRow()] }, { uploadDir });
+      const content = '# سياسة الإرجاع\nيمكن إرجاع المنتج خلال 14 يومًا.';
+      await service.createTextDocument(KB_ID, { title: '../Returns policy', content }, USER_ID);
+      const docInsert = inserted.find((entry) => entry.table === documents);
+      expect(docInsert?.values).toMatchObject({
+        sourceType: 'text',
+        filename: 'Returns policy.md',
+        mimeType: 'text/markdown',
+        sizeBytes: Buffer.byteLength(content),
+        contentHash: contentHash(Buffer.from(content)),
+      });
+      const stored = String(docInsert?.values.storagePath);
+      expect(await readFile(path.join(uploadDir, stored), 'utf8')).toBe(content);
+      expect(enqueue).toHaveBeenCalledWith(QUEUES.ingestDocument, 'ingest-document', {
+        documentId: DOC_ID,
+      });
+    });
+
     it('stores the file, creates a processing row, enqueues ingestion and audits it', async () => {
       const { service, inserted, enqueue, recordAuditLog } = buildHarness(
         { kbRows: [kbRow()] },
