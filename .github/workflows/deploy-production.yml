@@ -5,26 +5,26 @@ name: Deploy to Production
 # This avoids duplicating the quality gate that ci.yml already runs.
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ['CI']
     branches: [main]
     types: [completed]
   # Allow manual re-deploy from the GitHub Actions UI (e.g. after fixing secrets)
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Git SHA to deploy (leave blank → latest main)"
+        description: 'Git SHA to deploy (leave blank → latest main)'
         required: false
-        default: ""
+        default: ''
 
 # ─── Concurrency ─────────────────────────────────────────────────────────────
 concurrency:
   group: production-deployment
-  cancel-in-progress: false  # Never cancel an in-flight deploy; queue instead
+  cancel-in-progress: false # Never cancel an in-flight deploy; queue instead
 
 # ─── Minimum required permissions ────────────────────────────────────────────
 permissions:
   contents: read
-  packages: write   # push to GHCR
+  packages: write # push to GHCR
 
 # ─── Shared env ──────────────────────────────────────────────────────────────
 env:
