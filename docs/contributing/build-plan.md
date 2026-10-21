@@ -56,12 +56,14 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
       (`message_created` + friends) into `apps/api/test/fixtures/`; zod schemas for
       the payloads; schema tests. Needs a live test Chatwoot. Done: fixtures committed,
       drift caught by tests.
-- [ ] **T-003 · Echo loop end-to-end** (L, split if needed) — webhook → conversations
+- [~] **T-003 · Echo loop end-to-end** (L, split if needed) — webhook → conversations
       module (upsert, dedupe by `chatwoot_message_id`, per-conversation Redis lock) →
       `reply-job` queue → chatwoot `sendMessage` → message rows + request-id logging.
       Plus `pnpm mock:chatwoot` (mock server) to assert the loop without a live
       instance. Refs FR-5 P0, NFR-2/4. Done: e2e test proves webhook in → outbound
-      call asserted (mocked Chatwoot).
+      call asserted (mocked Chatwoot). **Partially implemented 2026-10-21:**
+      queued live reply path and message persistence exist; fixtures, mock server,
+      request-id tracing, and e2e coverage remain.
 - [x] **T-004 · Conversations module** (M) — conversation/message upsert & lookup,
       `bot_state` transitions, lock helpers. (Extracted out of T-003's scope.)
 - [x] **T-005 · Auth skeleton** (M) — argon2id users, `sessions` rows, login/logout/me
@@ -162,21 +164,31 @@ logged in DB; eval-free; `docker compose up` works on a clean machine.
 **Exit criteria (roadmap M2):** real customers get RAG answers in one inbox;
 escalation works; humans can pause/resume.
 
-- [ ] **T-201 · Webhook filters + serialization** (M) — full filter matrix
+- [~] **T-201 · Webhook filters + serialization** (M) — full filter matrix
       ([chatwoot doc](../integrations/chatwoot.md)): outgoing/bot/private/assigned/
-      paused inboxes/duplicates; deterministic `jobId = reply:<conversation_id>` +
-      re-read-and-requeue on newer messages. Refs FR-5 P0, ADR-0006. **Not
-      started** — today the endpoint is a secret-gate stub answering `501`.
-- [ ] **T-202 · Chatwoot outbound hardening** (M) — axios client with timeout/retry/
+      paused inboxes/duplicates; stable per-message job id + per-conversation lock.
+      Refs FR-5 P0, ADR-0006. **Partially
+      implemented 2026-10-21:** path/HMAC verification, payload filters, queueing,
+      and per-message idempotency exist; captured fixtures, schema tests, and
+      verified live payloads remain.
+- [~] **T-202 · Chatwoot outbound hardening** (M) — axios client with timeout/retry/
       logging interceptors; `sendMessage`, `addPrivateNote`, `addLabel`; failure →
       fallback message + handoff (never lose a reply). Refs FR-5/6, NFR-2.
-- [ ] **T-203 · Reply pipeline (agent orchestrator)** (M) — reply-job worker gluing
+      **Partially implemented 2026-10-21:** shared timeout-bound Agent Bot client,
+      inbox discovery, message and label calls exist; outbound mock coverage,
+      request logging, and a live-version check remain. BullMQ retries failed jobs.
+- [~] **T-203 · Reply pipeline (agent orchestrator)** (M) — reply-job worker gluing
       filters → retrieve → threshold decision → generate → post → `answer_events`
-      with full latency/token/cost fields. Refs FR-4/6, NFR-4/6.
-- [ ] **T-204 · Handoff / escalation** (M) — triggers table (FR-6) incl. P1 classifier
+      with full latency/token/cost fields. Refs FR-4/6, NFR-4/6. **Partially
+      implemented 2026-10-21:** worker, retrieval, Chatwoot posting, and answer-event
+      linkage exist; worker tests, integration tests, and live validation remain.
+- [~] **T-204 · Handoff / escalation** (M) — triggers table (FR-6) incl. P1 classifier
       & repeat detection; private note with intent/tried/why/chunk links; customer
       fallback message; `ai-paused` label + assignee detection (`conversation_updated`);
-      resume flow. Refs FR-6 P0, D7.
+      resume flow. Refs FR-6 P0, D7. **Partially implemented 2026-10-21:** explicit
+      human requests, unsupported content/attachments, model escalation, notes,
+      labels, assignment detection, and dashboard pause/resume exist; repeat
+      detection, richer handoff summaries, tests, and live validation remain.
 - [x] **T-205 · Settings module** (M) — typed key/value table with defaults, 60 s cache
       + invalidation, admin endpoints; global kill switch + thresholds + prompts + model
       names. Refs FR-8 P0, caching doc. **Done 2026-10-18**: GET/PUT `/settings` +
@@ -206,7 +218,7 @@ engineering; dashboard admin flows used by the team.
       `created_at` as the retention key for T-403 (NFR-7). `AgentService.ask()` folds the
       attempt into `answer_events` (query, top-k/score, retrieved chunk ids, latencies,
       models, tokens) when the caller passes conversation context — the playground and
-      evals don't, T-203 will; `ANSWER_OUTCOMES` gains `escalated_guard` for output-guard
+      evals don't; the Chatwoot reply worker does. `ANSWER_OUTCOMES` gains `escalated_guard` for output-guard
       escalations. Audit rows are written for login success/failure (reason + IP/UA),
       logout (owner read before delete), KB create/update/delete, document
       upload/reprocess/delete, binding upserts (per-inbox kill switch) and settings

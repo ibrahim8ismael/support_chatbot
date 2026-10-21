@@ -9,13 +9,13 @@ monolith** ([ADR-0001](docs/decisions/0001-modular-monolith.md)).
 
 ## Status (2026-10)
 
-| Area                                                                        | State                                                                                                                      |
-| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Dashboard: auth, users, roles, audit log, analytics                         | ✅ working                                                                                                                 |
-| Knowledge bases: upload → parse (PDF/DOCX/TXT/MD) → chunk → embed → `ready` | ✅ working                                                                                                                 |
-| Retrieval, grounded answers, escalation decisions                           | ✅ working (sandbox + evals)                                                                                               |
-| Chatwoot webhook → reply pipeline                                           | 🚧 stub — the webhook answers `501`; tickets T-201…T-204 ([details](docs/integrations/chatwoot.md#current-status-2026-10)) |
-| Real-model eval numbers                                                     | ⏳ need a real provider key (mock runs are plumbing-only)                                                                  |
+| Area                                                                        | State                                                                                                                                          |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard: auth, users, roles, audit log, analytics                         | ✅ working                                                                                                                                     |
+| Knowledge bases: upload → parse (PDF/DOCX/TXT/MD) → chunk → embed → `ready` | ✅ working                                                                                                                                     |
+| Retrieval, grounded answers, escalation decisions                           | ✅ working (sandbox + evals)                                                                                                                   |
+| Chatwoot webhook → reply pipeline                                           | ✅ implemented; set the Chatwoot signing secret and complete staging/eval rollout before production ([details](docs/integrations/chatwoot.md)) |
+| Real-model eval numbers                                                     | ⏳ need a real provider key (mock runs are plumbing-only)                                                                                      |
 
 The `mock` LLM provider runs the whole app offline with deterministic replies
 and no API keys — it is **dev/test-only**: production refuses to boot in mock
@@ -29,8 +29,8 @@ mode, no override.
   front of the stack is handled by the bundled Caddy.
 - An OpenAI API key is always required for embeddings (`text-embedding-3-small`,
   D3). Chat can run on OpenAI, OpenRouter, Google Gemini, or Google Vertex AI.
-- Optional: a self-hosted Chatwoot instance. **Do not bind a production inbox
-  yet** — the reply pipeline is still a stub (see Status).
+- Optional: a self-hosted Chatwoot instance. Configure its Agent Bot signing
+  secret and validate a staging inbox before enabling production traffic.
 
 ### 1. Configure
 
@@ -49,7 +49,7 @@ secrets, so mistakes surface immediately rather than at 3 AM:
 | `POSTGRES_PASSWORD` + `DATABASE_URL`             | use the same password in both                                                                                                                                 |
 | `LLM_PROVIDER` + provider key                    | `openai`, `openrouter`, `gemini`, or `vertex`; embeddings always need `OPENAI_API_KEY`                                                                        |
 | `COMPANY_NAME`                                   | your company name — fills the answer prompt; the scaffold default is rejected in production                                                                   |
-| `CHATWOOT_*`                                     | optional until the pipeline lands — see the [Chatwoot doc](docs/integrations/chatwoot.md)                                                                     |
+| `CHATWOOT_*`                                     | configure the Agent Bot token, webhook secrets, and account URL before enabling an inbox — see the [Chatwoot doc](docs/integrations/chatwoot.md)              |
 
 The full list with defaults and the secret-rotation runbook lives in
 [docs/operations/deployment.md](docs/operations/deployment.md).
@@ -83,8 +83,8 @@ in at your `SITE_ADDRESS` ([deployment § TLS](docs/operations/deployment.md)).
 3. **Users** — create accounts for the support team (`admin` / `editor` / `viewer`).
 4. **Settings** — tune thresholds and prompts, use the global `bot_enabled` kill
    switch, and run the LLM health check.
-5. **Bindings** — map Chatwoot inbox ids to knowledge bases (takes effect when
-   the Chatwoot pipeline lands; every switch has a per-inbox kill switch).
+5. **Bindings** — map Chatwoot inboxes to knowledge bases. Enable the global
+   bot switch only after validating the configuration and a staging inbox.
 
 Operational extras: [weekly unanswered digest](docs/operations/deployment.md),
 [backups & restore](docs/operations/deployment.md), [security model](docs/operations/security.md),
@@ -108,15 +108,15 @@ webhooks (`pnpm simulate:webhook`). Details and rules of thumb:
 
 ## Scripts (root)
 
-| Command                                                   | What it does                                                |
-| --------------------------------------------------------- | ----------------------------------------------------------- |
-| `pnpm dev` / `pnpm build`                                 | run / build all workspaces (turbo)                          |
-| `pnpm lint` / `pnpm typecheck` / `pnpm test`              | quality gates across the monorepo                           |
-| `pnpm test:e2e`                                           | api e2e tests                                               |
-| `pnpm db:migrate` / `pnpm db:generate` / `pnpm db:studio` | Drizzle migrations                                          |
-| `pnpm seed:admin`                                         | create/update an admin, prints a password once              |
-| `pnpm evals`                                              | RAG eval suite (meaningful only with a real provider key)   |
-| `pnpm simulate:webhook`                                   | post a synthetic Chatwoot webhook (answers 501 until T-201) |
+| Command                                                   | What it does                                                   |
+| --------------------------------------------------------- | -------------------------------------------------------------- |
+| `pnpm dev` / `pnpm build`                                 | run / build all workspaces (turbo)                             |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test`              | quality gates across the monorepo                              |
+| `pnpm test:e2e`                                           | api e2e tests                                                  |
+| `pnpm db:migrate` / `pnpm db:generate` / `pnpm db:studio` | Drizzle migrations                                             |
+| `pnpm seed:admin`                                         | create/update an admin, prints a password once                 |
+| `pnpm evals`                                              | RAG eval suite (meaningful only with a real provider key)      |
+| `pnpm simulate:webhook`                                   | post a synthetic Chatwoot webhook (requires the API and Redis) |
 
 ## Layout
 
@@ -132,7 +132,7 @@ docs            design source of truth — start at docs/README.md
 ## Docs
 
 - [docs/README.md](docs/README.md) — architecture, ADRs, operations, contributing
-- [Chatwoot integration](docs/integrations/chatwoot.md) — target contract + current stub status
+- [Chatwoot integration](docs/integrations/chatwoot.md) — setup, webhook contract, and current rollout status
 - [Deployment](docs/operations/deployment.md) · [Security](docs/operations/security.md)
 - [Build plan](docs/contributing/build-plan.md) — ticket-by-ticket status
 - [CHANGELOG.md](CHANGELOG.md)

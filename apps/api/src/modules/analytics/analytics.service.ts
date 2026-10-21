@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { sql, type SQL } from 'drizzle-orm';
+import { desc, eq, sql, type SQL } from 'drizzle-orm';
 
 import {
   type AnalyticsInterval,
@@ -163,6 +163,40 @@ export class AnalyticsService {
     } catch (error) {
       this.logger.error(
         `failed to record answer event (${input.outcome}): ${describe(error)}`,
+        AnalyticsService.name,
+      );
+    }
+  }
+
+  /** Latest bot attempt for a message, used to avoid duplicate webhook replies. */
+  async findAnswerEventForIncomingMessage(incomingMessageId: string): Promise<{
+    id: string;
+    outgoingMessageId: string | null;
+    outcome: AnswerOutcome;
+  } | null> {
+    const [row] = await this.database.db
+      .select({
+        id: answerEvents.id,
+        outgoingMessageId: answerEvents.outgoingMessageId,
+        outcome: answerEvents.outcome,
+      })
+      .from(answerEvents)
+      .where(eq(answerEvents.incomingMessageId, incomingMessageId))
+      .orderBy(desc(answerEvents.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Attach the Chatwoot reply after it has been posted successfully. */
+  async attachOutgoingMessage(answerEventId: string, outgoingMessageId: string): Promise<void> {
+    try {
+      await this.database.db
+        .update(answerEvents)
+        .set({ outgoingMessageId })
+        .where(eq(answerEvents.id, answerEventId));
+    } catch (error) {
+      this.logger.error(
+        `could not attach outgoing message to answer event: ${String(error)}`,
         AnalyticsService.name,
       );
     }

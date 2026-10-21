@@ -3,9 +3,11 @@ import {
   Body,
   Controller,
   Get,
+  Optional,
   Param,
   ParseIntPipe,
   Put,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 
 import {
@@ -17,17 +19,27 @@ import {
 
 import { ZodBodyPipe } from '../../common/pipes/zod-body.pipe';
 import { CurrentUser, Roles } from '../auth/auth.decorators';
+import { ChatwootService, type ChatwootInbox } from '../chatwoot/chatwoot.service';
 import { BindingsService } from './bindings.service';
 
 /**
  * /api/bindings — inbox ↔ KB mapping (docs/api/rest-api.md). Editors manage
  * bindings per the security matrix (docs/operations/security.md § 2).
- * Live Chatwoot inbox discovery (`GET /bindings/chatwoot-inboxes`) lands with
- * the Chatwoot client (T-003) — this module never talks to Chatwoot itself.
+ * The account-only inbox discovery endpoint delegates to the Chatwoot module.
  */
 @Controller('bindings')
 export class BindingsController {
-  constructor(private readonly bindings: BindingsService) {}
+  constructor(
+    private readonly bindings: BindingsService,
+    @Optional() private readonly chatwoot?: ChatwootService,
+  ) {}
+
+  @Roles('editor', 'admin')
+  @Get('chatwoot-inboxes')
+  chatwootInboxes(): Promise<ChatwootInbox[]> {
+    if (!this.chatwoot) throw new ServiceUnavailableException('Chatwoot is not configured');
+    return this.chatwoot.listInboxes();
+  }
 
   @Roles('editor', 'admin')
   @Get()

@@ -178,6 +178,12 @@ export function PlaygroundView({
           </Card>
 
           <Card>
+            <Card.Header>
+              <Card.Title className="text-base">Ask the agent</Card.Title>
+              <Card.Description>
+                Answers cite the chunks they used. Nothing is sent to customers.
+              </Card.Description>
+            </Card.Header>
             <Card.Content>
               <form onSubmit={onAsk} className="flex flex-col gap-3">
                 <TextField value={question} onChange={setQuestion} isRequired>
@@ -247,15 +253,17 @@ function ExchangeCard({
     <Card>
       <Card.Content className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent">
+          <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-medium text-background">
             Q
           </span>
           <p className="min-w-0 text-sm font-medium break-words whitespace-pre-wrap">{question}</p>
         </div>
 
         <div
-          className={`rounded-xl border p-4 ${
-            answer.escalated ? 'border-danger/30 bg-danger/5' : 'border-success/30 bg-success/5'
+          className={`rounded-lg border p-4 ${
+            answer.escalated
+              ? 'border-signature-coral/30 bg-[#fbe9e1]'
+              : 'border-[#e7d8bf] bg-signature-cream'
           }`}
         >
           <div className="flex flex-wrap items-center gap-2">
@@ -278,7 +286,10 @@ function ExchangeCard({
             </h4>
             <ul className="flex flex-col gap-2">
               {answer.chunks.map((chunk) => (
-                <li key={chunk.id} className="rounded-xl border border-border bg-background/60 p-3">
+                <li
+                  key={chunk.id}
+                  className="rounded-lg border border-border bg-surface-secondary p-3"
+                >
                   <div className="flex items-center justify-between gap-2 text-xs text-muted">
                     <span className="truncate">{chunkSource(chunk)}</span>
                     <Chip size="sm" variant="soft">

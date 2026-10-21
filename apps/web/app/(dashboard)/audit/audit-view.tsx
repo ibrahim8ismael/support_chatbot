@@ -13,6 +13,7 @@ import {
   formatTimestamp,
   rangeFor,
 } from '@/lib/analytics';
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 
 const PAGE_SIZE = 50;
@@ -120,13 +121,11 @@ export function AuditView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Audit log</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Who changed what, when: logins, knowledge-base and document changes, bindings, settings
-          and user management.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Insights"
+        title="Audit log"
+        description="Who changed what, when: logins, knowledge-base and document changes, bindings, settings and user management."
+      />
 
       {error ? (
         <Alert status="danger" role="alert">
@@ -151,7 +150,7 @@ export function AuditView() {
       ) : (
         <>
           <Card>
-            <Card.Content className="flex flex-wrap items-end gap-3">
+            <Card.Content className="flex flex-row flex-wrap items-end gap-3">
               {ANALYTICS_RANGES.map((preset) => (
                 <Button
                   key={preset.id}

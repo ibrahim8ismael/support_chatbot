@@ -85,7 +85,7 @@ results, so a crash never re-runs a completed case.
 | --- | --- | --- |
 | GET | `/bindings` | all bindings ordered by inbox id; `displayName` is the name cached from Chatwoot |
 | PUT | `/bindings/:chatwootInboxId` | full state `{ kbIds: [...], enabled: bool }` — upsert (strict body: known keys only, unique uuids); returns the saved binding and invalidates its `bind:v1:{inbox}` cache entry |
-| GET | `/bindings/chatwoot-inboxes` | list of inboxes fetched live from Chatwoot (to configure ones we haven't seen) — lands with the Chatwoot client (T-003); the bindings module never calls Chatwoot itself |
+| GET | `/bindings/chatwoot-inboxes` | list inboxes fetched live from Chatwoot; requires optional `CHATWOOT_ACCOUNT_API_TOKEN` (a user API token), otherwise returns 503; transport stays in the Chatwoot module |
 
 ## Conversations (`conversations`)
 
@@ -93,8 +93,8 @@ results, so a crash never re-runs a completed case.
 | --- | --- | --- |
 | GET | `/conversations` | `?inboxId&botState&from&to&limit&offset` → `{ items, total }`; `from`/`to` filter `last_message_at` (half-open; `from >= to` → 400); sorted by `last_message_at` desc (nulls last); `limit` 1–100 (default 50), `offset` ≥ 0; all roles |
 | GET | `/conversations/:id` | `{ conversation, messages, answerEvents, answerEventsRestricted }` — messages oldest → newest with private notes flagged; answer events (query text + cited chunks in retrieval-rank order) are admin-only, other roles get `[]` and `answerEventsRestricted: true`; unknown id → 404 |
-| POST | `/conversations/:id/pause` | `{ reason? }` → `bot_state=paused` |
-| POST | `/conversations/:id/resume` | → `bot_state=active` (also removes `ai-paused` label in Chatwoot) |
+| POST | `/conversations/:id/pause` | → `bot_state=paused`; also adds the `ai-paused` label in Chatwoot |
+| POST | `/conversations/:id/resume` | → `bot_state=active`; removes `ai-paused` and `ai-escalated` labels in Chatwoot |
 
 ## Analytics (`analytics`)
 
@@ -140,7 +140,7 @@ Keys and defaults: [data-model](../architecture/data-model.md#settings-owner-set
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/webhooks/chatwoot/:secret` | [contract & payload](../integrations/chatwoot.md). **Stub:** verifies the path secret, then `501 {"status":"not_implemented"}` — the reply pipeline is T-201+. Planned contract: 200 fast + queue, 500 if enqueueing fails. Wrong secret → 404 (never 401 — do not confirm the endpoint exists) |
+| POST | `/webhooks/chatwoot/:secret` | [contract & payload](../integrations/chatwoot.md). Verifies the path secret and, when configured, Chatwoot HMAC/timestamp; supported events return 200 after queueing, unsupported or malformed `conversation_updated` events return 200 ignored, malformed `message_created` payloads return 400, invalid signatures return 401, wrong path secret 404, and queue failures 500 |
 
 ## Health (public)
 
@@ -151,4 +151,4 @@ Keys and defaults: [data-model](../architecture/data-model.md#settings-owner-set
 ## Notes on versioning
 
 - Internal API: no URL versioning for MVP; breaking changes ship together with the web app (same repo, same release).
-- The **Chatwoot contract** (webhook + outbound calls) is versioned by Chatwoot, not by us — see the fixture tests in [chatwoot.md](../integrations/chatwoot.md#testing-the-integration).
+- The **Chatwoot contract** (webhook + outbound calls) is versioned by Chatwoot, not by us — stage against the exact deployed version; see [chatwoot.md](../integrations/chatwoot.md#validation-and-limitations).

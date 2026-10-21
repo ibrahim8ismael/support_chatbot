@@ -26,7 +26,11 @@ export const envSchema = z
     CHATWOOT_BASE_URL: optional(z.url()),
     CHATWOOT_ACCOUNT_ID: optional(z.coerce.number().int().positive()),
     CHATWOOT_BOT_TOKEN: optional(z.string().min(1)),
+    /** Account user token is only needed for inbox discovery; bot token is least-privilege. */
+    CHATWOOT_ACCOUNT_API_TOKEN: optional(z.string().min(1)),
     CHATWOOT_WEBHOOK_SECRET: optional(z.string().min(8)),
+    /** Chatwoot Agent Bot signing secret (separate from our secret URL path). */
+    CHATWOOT_WEBHOOK_SIGNING_SECRET: optional(z.string().min(1)),
 
     LLM_PROVIDER: z.enum(['openai', 'openrouter', 'gemini', 'vertex', 'mock']).default('mock'),
     OPENAI_API_KEY: optional(z.string().min(1)),
@@ -114,6 +118,33 @@ export const envSchema = z
 
     if (env.NODE_ENV !== 'production') {
       return;
+    }
+
+    // If production is wired to Chatwoot at all, fail early on an incomplete
+    // connection instead of accepting webhooks that cannot receive replies.
+    const chatwootConfigured = Boolean(
+      env.CHATWOOT_BASE_URL ||
+      env.CHATWOOT_ACCOUNT_ID ||
+      env.CHATWOOT_BOT_TOKEN ||
+      env.CHATWOOT_ACCOUNT_API_TOKEN ||
+      env.CHATWOOT_WEBHOOK_SECRET ||
+      env.CHATWOOT_WEBHOOK_SIGNING_SECRET,
+    );
+    if (chatwootConfigured) {
+      for (const key of [
+        'CHATWOOT_BASE_URL',
+        'CHATWOOT_ACCOUNT_ID',
+        'CHATWOOT_BOT_TOKEN',
+        'CHATWOOT_WEBHOOK_SECRET',
+      ] as const) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: 'required when Chatwoot is configured in production',
+          });
+        }
+      }
     }
 
     // Production must name its own origins: a silently-defaulted APP_URL would

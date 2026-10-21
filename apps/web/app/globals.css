@@ -1,7 +1,419 @@
 @import 'tailwindcss';
 @import '@heroui/styles';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+
+  --color-canvas: #ffffff;
+  --color-ink: #181d26;
+  --color-body: #333840;
+  --color-hairline: #dddddd;
+
+  --color-signature-coral: #aa2d00;
+  --color-signature-forest: #0a2e0e;
+  --color-signature-cream: #f5e9d4;
+  --color-signature-peach: #fcab79;
+  --color-signature-mint: #a8d8c4;
+  --color-signature-yellow: #f4d35e;
+  --color-signature-mustard: #d9a441;
+}
+
+/*
+ * Airtable-inspired theme tokens for HeroUI.
+ * White canvas, dark ink type, hairline borders, near-black primary actions and
+ * warm signature surfaces. The radius is intentionally restrained: 12px for
+ * actions/cards and 6px for fields.
+ */
+:root {
+  --radius: 0.25rem;
+  --field-radius: 0.375rem;
+  --field-border-width: 1px;
+  --field-border: #dddddd;
+  --field-shadow: none;
+  --surface-shadow: none;
+  --overlay-shadow: 0 24px 60px -24px rgba(24, 29, 38, 0.22), 0 2px 8px -2px rgba(24, 29, 38, 0.08);
+  --scrollbar-thumb: #d3d6db;
+}
+
+:root,
+.light,
+.default,
+[data-theme='light'],
+[data-theme='default'] {
+  color-scheme: light;
+
+  --background: #ffffff;
+  --foreground: #181d26;
+
+  --surface: #ffffff;
+  --surface-foreground: #181d26;
+  --surface-secondary: #f8fafc;
+  --surface-secondary-foreground: #181d26;
+  --surface-tertiary: #e0e2e6;
+  --surface-tertiary-foreground: #181d26;
+  --surface-hover: #f3f5f7;
+
+  --overlay: #ffffff;
+  --overlay-foreground: #181d26;
+
+  --muted: #5c626c;
+  --default: #f8fafc;
+  --default-foreground: #181d26;
+  --default-hover: #eef1f4;
+
+  --field-background: #ffffff;
+  --field-foreground: #181d26;
+  --field-placeholder: #777d87;
+
+  --accent: #181d26;
+  --accent-foreground: #ffffff;
+  --accent-hover: #0d1218;
+  --accent-soft: rgba(24, 29, 38, 0.06);
+  --accent-soft-foreground: #181d26;
+  --accent-soft-hover: rgba(24, 29, 38, 0.1);
+
+  --success: #006400;
+  --success-foreground: #ffffff;
+  --success-hover: #005400;
+  --warning: #d9a441;
+  --warning-foreground: #181d26;
+  --warning-hover: #c89435;
+  --danger: #b42318;
+  --danger-foreground: #ffffff;
+  --danger-hover: #981b12;
+
+  --border: #dddddd;
+  --separator: #e5e7ea;
+  --focus: #1b61c9;
+  --link: #1b61c9;
+
+  --segment: #ffffff;
+  --segment-foreground: #181d26;
+  --backdrop: rgba(24, 29, 38, 0.42);
+
+  --background-secondary: #f8fafc;
+  --background-tertiary: #eef1f4;
+  --background-inverse: #181d26;
+
+  --field-border-hover: #b9bec6;
+  --field-border-focus: #458fff;
+  --field-focus: #ffffff;
+  --field-hover: #fbfcfd;
+}
+
+.dark,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #12161d;
+  --foreground: #f8fafc;
+
+  --surface: #181d26;
+  --surface-foreground: #f8fafc;
+  --surface-secondary: #1d222b;
+  --surface-secondary-foreground: #f8fafc;
+  --surface-tertiary: #252b35;
+  --surface-tertiary-foreground: #f8fafc;
+  --surface-hover: #232a34;
+
+  --overlay: #1d222b;
+  --overlay-foreground: #f8fafc;
+
+  --muted: #a5abb5;
+  --default: #232a34;
+  --default-foreground: #f8fafc;
+  --default-hover: #2b323d;
+
+  --field-background: #181d26;
+  --field-foreground: #f8fafc;
+  --field-placeholder: #7d8490;
+
+  --accent: #f5e9d4;
+  --accent-foreground: #181d26;
+  --accent-hover: #fff7e9;
+  --accent-soft: rgba(245, 233, 212, 0.1);
+  --accent-soft-foreground: #f5e9d4;
+  --accent-soft-hover: rgba(245, 233, 212, 0.16);
+
+  --success: #58c47a;
+  --success-foreground: #0d1218;
+  --success-hover: #45ad66;
+  --warning: #f4d35e;
+  --warning-foreground: #181d26;
+  --warning-hover: #e3bf46;
+  --danger: #f97066;
+  --danger-foreground: #181d26;
+  --danger-hover: #e75d53;
+
+  --border: #343b46;
+  --separator: #2a313b;
+  --focus: #8ab4ff;
+  --link: #8ab4ff;
+
+  --segment: #252b35;
+  --segment-foreground: #f8fafc;
+  --backdrop: rgba(0, 0, 0, 0.66);
+
+  --background-secondary: #1d222b;
+  --background-tertiary: #252b35;
+  --background-inverse: #f8fafc;
+
+  --field-border: #343b46;
+  --field-border-hover: #4b5461;
+  --field-border-focus: #8ab4ff;
+  --field-focus: #181d26;
+  --field-hover: #1b2029;
+  --scrollbar-thumb: #3a424e;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 14px;
   line-height: 1.5;
+}
+
+::selection {
+  background: #fcab79;
+  color: #181d26;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+/* Buttons: near-black primary, white outlined secondary. */
+.button {
+  border-radius: 12px;
+}
+
+.button--primary {
+  box-shadow: 0 1px 2px rgba(24, 29, 38, 0.14);
+}
+
+.button--secondary {
+  --button-bg: var(--surface);
+  --button-bg-hover: var(--surface-secondary);
+  --button-bg-pressed: var(--surface-secondary);
+  --button-fg: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.button--ghost {
+  --button-bg-hover: var(--surface-secondary);
+  --button-bg-pressed: var(--surface-secondary);
+}
+
+/* Cards: flat, hairline-bordered editorial surfaces. */
+.card {
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 24px;
+  }
+}
+
+.card--default {
+  background: var(--surface);
+}
+
+.card--secondary {
+  background: var(--surface-secondary);
+}
+
+.card--tertiary {
+  background: var(--surface-tertiary);
+}
+
+.card--transparent {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.card__header {
+  gap: 4px;
+}
+
+.card__title {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.card__description {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Fields: 44px, 6px radius, visible hairline. */
+.input,
+.textarea,
+.select__trigger {
+  border-radius: var(--field-radius);
+  border-color: var(--field-border);
+  background: var(--field-background);
+  box-shadow: none;
+}
+
+.input,
+.select__trigger {
+  min-height: 40px;
+}
+
+.input:focus,
+.input[data-focused='true'],
+.textarea:focus,
+.textarea[data-focused='true'],
+.select__trigger:focus,
+.select__trigger[data-focused='true'] {
+  border-color: var(--field-border-focus);
+}
+
+/* Tables: quiet uppercase headers and hairline row dividers. */
+.table-root--primary {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.table__content {
+  font-size: 13px;
+}
+
+.table__header {
+  background: var(--surface-secondary);
+}
+
+.table__column {
+  padding: 10px 16px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.table__cell {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.table-root--secondary .table__row .table__cell {
+  border-color: var(--separator);
+}
+
+/* Overlays and status surfaces. */
+.modal__dialog {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.alert {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.chip {
+  border-radius: 6px;
+}
+
+.avatar {
+  border-radius: 9999px;
+}
+
+.avatar:not(.avatar--soft) .avatar__fallback--accent {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+
+/* Switches: control beside the label, with a visible track in the off state. */
+.switch {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.switch__content {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.switch__control {
+  border: 1px solid var(--border);
+  background-color: var(--surface-secondary);
+}
+
+.switch:hover .switch__control {
+  background-color: var(--surface-hover);
+}
+
+.switch__thumb {
+  background-color: #ffffff;
+}
+
+.switch[data-selected='true'] .switch__control {
+  border-color: var(--foreground);
+  background-color: var(--foreground);
+}
+
+.switch[data-selected='true']:hover .switch__control {
+  background-color: var(--foreground);
+}
+
+.switch[data-selected='true'] .switch__thumb {
+  background-color: var(--background);
+}
+
+.tabs__list-container {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-secondary);
+}
+
+.tabs__indicator {
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(24, 29, 38, 0.08);
+}
+
+/* Keep the page chrome calm when the OS asks for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

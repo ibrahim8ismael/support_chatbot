@@ -6,9 +6,10 @@ How all the pieces fit together. Details live in the linked docs; this page is t
 
 We integrate with Chatwoot **once**; Chatwoot owns every customer channel. Nothing else in our system talks to WhatsApp/Instagram/etc. directly.
 
-> **Status (2026-10):** the Chatwoot reply pipeline is not implemented yet — the
-> webhook stub answers `501` after the secret check. The arrows below show the
-> target topology; see [chatwoot doc § Current status](../integrations/chatwoot.md#current-status-2026-10).
+> **Status (2026-10):** webhook intake, queued reply processing, Chatwoot API
+> replies, inbox bindings, and pause/resume controls are implemented. A staged
+> Chatwoot integration check is still required before production traffic; see
+> [Chatwoot setup and rollout](../integrations/chatwoot.md#status-and-scope).
 
 ```mermaid
 flowchart LR

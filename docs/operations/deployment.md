@@ -58,8 +58,10 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `REDIS_URL` | `redis://:<REDIS_PASSWORD>@redis:6379` | required in production; BullMQ queue (db 0) + cache (db 1) — see [caching](../architecture/caching.md); keep in sync with `REDIS_PASSWORD` |
 | `CHATWOOT_BASE_URL` | `https://chatwoot.internal.company` | |
 | `CHATWOOT_ACCOUNT_ID` | `1` | |
-| `CHATWOOT_BOT_TOKEN` | `xxxxx` | Agent Bot token |
-| `CHATWOOT_WEBHOOK_SECRET` | 48-char random | path segment of our webhook URL; ≥32 chars in production, unset → webhooks 404 |
+| `CHATWOOT_BOT_TOKEN` | `xxxxx` | Agent Bot API key; used for sending replies, notes and labels |
+| `CHATWOOT_ACCOUNT_API_TOKEN` | — | Optional user API token for live inbox discovery; not the Agent Bot API key |
+| `CHATWOOT_WEBHOOK_SIGNING_SECRET` | value shown in Agent Bot settings | Required when Chatwoot sends signed Agent Bot webhooks; validates `X-Chatwoot-Signature` and timestamp. With no key configured, signed requests are rejected. |
+| `CHATWOOT_WEBHOOK_SECRET` | 48-char random | Our webhook URL path segment; ≥32 chars in production, unset → webhooks 404 |
 | `LLM_PROVIDER` | `openai \| openrouter \| gemini \| vertex` | `mock` is **dev/test-only** — production refuses to boot in mock mode, no override |
 | `OPENAI_API_KEY` | — | chat + embeddings (`openai`); embeddings only under `openrouter`/`gemini`/`vertex` (D3) |
 | `OPENROUTER_API_KEY` | — | chat when `LLM_PROVIDER=openrouter` |
@@ -82,6 +84,13 @@ Validated at boot with zod — the API refuses to start with a bad/missing env (
 | `WORKER_CONCURRENCY` | `4` | ingest worker pool size (default 2; raise when the queue backs up) |
 
 Secrets live in `.env` **only on the host** (or docker secrets) — never in the repo, never in the settings table. The `.env.example` files carry development-only placeholders (dev webhook secret, `mock` provider, `Acme Support`); production rejects known placeholder values at boot.
+
+Chatwoot is optional. If any Chatwoot setting is populated in production, the
+API requires `CHATWOOT_BASE_URL`, `CHATWOOT_ACCOUNT_ID`,
+`CHATWOOT_BOT_TOKEN`, and `CHATWOOT_WEBHOOK_SECRET` together so an incomplete
+connection fails at startup. `CHATWOOT_ACCOUNT_API_TOKEN` is optional and only
+enables live inbox discovery. `CHATWOOT_WEBHOOK_SIGNING_SECRET` must be set
+when the configured Chatwoot Agent Bot sends signed requests.
 
 Compose-level values live in the same repo-root `.env` (template: `docker/.env.prod.example`): `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`, `SITE_ADDRESS` (the Caddy site address + TLS certificate name) and `NEXT_PUBLIC_API_URL` (public dashboard origin, baked into the web build — rebuilding `web` is required when it changes; leave it unset to call the API on the dashboard's own origin).
 
@@ -189,8 +198,9 @@ docker compose --env-file .env -f docker/docker-compose.prod.yml up -d api
 | Secret | Steps |
 | --- | --- |
 | `CHATWOOT_BOT_TOKEN` | Create a new bot token in Chatwoot → `.env` → recreate `api` → verify one answer in a test inbox → delete the old token |
+| `CHATWOOT_WEBHOOK_SIGNING_SECRET` | Copy the new signing secret from the Agent Bot settings into `.env` → recreate `api` → send a signed test webhook |
 | `AUTH_SESSION_SECRET` *(removed)* | No longer exists — sessions are server-side DB rows. To force a global sign-out, delete the session rows: `… exec -T postgres psql -U sa -d support_agent -c 'delete from sessions'` (all cookies answer 401; the team logs in again) |
-| `CHATWOOT_WEBHOOK_SECRET` | `.env` → recreate `api` → update the Agent Bot webhook URL in Chatwoot; the old path answers 404 until then. While the pipeline is a stub (T-201) the correct path answers 501 — a 200/anything else means Chatwoot still points at the old secret |
+| `CHATWOOT_WEBHOOK_SECRET` | `.env` → recreate `api` → update the Agent Bot webhook URL in Chatwoot; the old path answers 404 until then |
 | Provider API keys | Rotate at the provider → `.env` → recreate `api` → run the `GET /settings/health-llm` smoke check (Settings screen) |
 | `REDIS_PASSWORD` | `.env` (both `REDIS_PASSWORD` and the `REDIS_URL` copy) → `… up -d redis api web proxy`. Queue and cache are transient by design, so a restart is the whole migration |
 
@@ -232,11 +242,11 @@ pnpm --filter api load:smoke -- \
   --webhook-secret '<CHATWOOT_WEBHOOK_SECRET>'
 ```
 
-- **Webhook ack** (NFR-1): `--webhook-burst` (default 100) synthetic `message_created` events at `--concurrency` (default 20 — the NFR-8 burst envelope; the 5k conversations/month average is ~7/h). Asserts the documented status — 501 while the pipeline is a stub (T-201), 2xx afterwards — and ack p95 ≤ 300 ms after a 10-request warm-up. Against non-local targets the script checks the inbox's bindings and **refuses an enabled (bound) inbox** (or anything unverifiable) — synthetic events would become real conversations once T-201 lands; `--allow-live-burst` is the deliberate override.
+- **Webhook ack** (NFR-1): `--webhook-burst` (default 100) synthetic `message_created` events at `--concurrency` (default 20 — the NFR-8 burst envelope; the 5k conversations/month average is ~7/h). Asserts HTTP 200 and ack p95 ≤ 300 ms after a 10-request warm-up. If `CHATWOOT_WEBHOOK_SIGNING_SECRET` is set in the script environment, requests are signed. Against non-local targets the script checks the inbox's bindings and **refuses an enabled (bound) inbox** (or anything unverifiable) — synthetic events can create stored conversations and, if the global switch is on, real replies; `--allow-live-burst` is the deliberate override.
 - **Pipeline latency** (NFR-1): `--pipeline-count` (default 20) playground asks at the same concurrency through the full answer path, against a throwaway KB (`--kb <uuid>` reuses a populated one; KB create/delete needs an admin account). Asserts p95 end-to-end ≤ 15 s and retrieval p95 ≤ 500 ms. Numbers are only meaningful with a real provider key — under `LLM_PROVIDER=mock` it is a plumbing check — and the customer-message → posted-reply path joins the measurement with T-203.
 - **Queue durability** (NFR-2): `--jobs` (default 50) jobs on the dedicated `load-smoke` queue with the ADR-0006 defaults; Redis is restarted mid-flight (`--restart-cmd` overrides the default dev-compose command, `--skip-restart` for managed Redis), then nothing may be lost and every job must complete. The dedicated queue name means a prod run never touches real reply traffic.
 
-Exit code is non-zero when any assertion fails. The burst is side-effect-free until the reply pipeline lands (T-201+); afterwards point `--account`/`--inbox` at a test inbox or run the burst in staging.
+Exit code is non-zero when any assertion fails. Point `--account`/`--inbox` at an unbound or disabled test inbox, or run the burst in staging. The reply path is implemented, so treat any allowed burst as real webhook traffic.
 
 ## Changing the embedding model (dimension change)
 

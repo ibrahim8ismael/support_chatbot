@@ -12,7 +12,7 @@ import { csrfOriginMiddleware } from './common/middleware/csrf-origin';
 import { resolveChatModel } from './modules/llm/providers/provider.defaults';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   const logger = app.get(AppLogger);
   app.useLogger(logger);
 

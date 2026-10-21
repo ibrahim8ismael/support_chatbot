@@ -29,17 +29,19 @@ Enforced with NestJS guards (`RolesGuard`) at controller level; **every** new en
 
 ## 3. Webhook & integration surface
 
-Current Chatwoot versions sign webhook deliveries (`X-Chatwoot-Signature`:
+Chatwoot v4.13+ signs Agent Bot webhook deliveries (`X-Chatwoot-Signature`:
 HMAC-SHA256 over `{X-Chatwoot-Timestamp}.{raw body}`, plus the timestamp
-header) — **our handler does not verify signatures yet** (T-201). Until then,
-and on versions that don't sign at all, these layers are the gate:
+header). The handler verifies the signature when
+`CHATWOOT_WEBHOOK_SIGNING_SECRET` is set, including a five-minute timestamp
+window. Older unsigned versions can use the path secret alone. Signed requests
+are rejected if no signing key is configured. These layers protect the route:
 
-1. **Unguessable URL** (implemented): `/api/webhooks/chatwoot/<48-char secret>`; wrong secret → `404` (never reveal the endpoint exists). Until T-201 the endpoint answers `501` after the secret check and has no further side effects.
+1. **Unguessable URL** (implemented): `/api/webhooks/chatwoot/<long random secret>`; wrong secret → `404` (never reveal the endpoint exists).
 2. **Network allowlist**: the reverse proxy only accepts the webhook path from the Chatwoot host / internal network. Public exposure is an explicit ops decision, default is *not public* if Chatwoot is internal.
-3. **Payload validation** (T-201): zod schema; unknown shapes rejected; body size cap (1 MB).
-4. **No side effects on secrets**: webhook processing can only create messages/conversations and enqueue jobs — it cannot change settings or users. (The stub cannot create anything.)
-5. **Idempotency** (schema in place, insert path with T-201): replays are harmless — this is also an abuse mitigation.
-6. **Signature verification + optional confirmation fetch** (T-201 / P1): verify the HMAC when the Chatwoot version sends one; for suspicious payloads, re-fetch the message from Chatwoot via the API before acting.
+3. **Payload validation** (implemented): supported payload fields are parsed with zod; unknown event types are acknowledged and ignored; malformed supported events are rejected.
+4. **No side effects on secrets**: webhook processing can persist messages/conversations and enqueue jobs — it cannot change settings or users.
+5. **Idempotency** (implemented): message ids are unique in the database and webhook jobs use a stable message key; completed answer events with a linked outgoing message suppress common replay paths.
+6. **Residual delivery window**: Chatwoot's send and our Postgres write cannot be one transaction. A crash after Chatwoot accepted a reply but before our DB link is saved can cause an uncertain retry; inspect the failed job and Chatwoot thread before replaying it.
 
 Outbound credentials: Chatwoot bot token and provider API keys are env-only, least-privilege, rotated per [deployment runbook](deployment.md#rotate-secrets). Never logged — pino redaction list covers `authorization`, `api_key`, `token`, cookies.
 
@@ -80,7 +82,7 @@ The bot reads **customer text** and **KB content** — both are untrusted input 
 
 ## 7. Audit & incident basics
 
-Audited actions (into `audit_logs` through the analytics writers, T-301): logins (success/fail), KB/document changes, binding & settings changes, user create/update/password-reset (T-304), and Sandbox case/run/review changes (`sandbox.*`). Per-inbox kill-switch toggles are binding updates and are covered. Pause/resume actions land with T-204 on the same writer. Each row: actor, action, entity, timestamp, before/after for settings.
+Audited actions (into `audit_logs` through the analytics writers, T-301): logins (success/fail), KB/document changes, binding & settings changes, user create/update/password-reset (T-304), and Sandbox case/run/review changes (`sandbox.*`). Per-inbox kill-switch toggles are binding updates and are covered. Conversation pause/resume controls are implemented but are not yet written to the audit log (remaining T-204 work). Each audit row carries actor, action, entity, timestamp, and before/after for settings.
 
 Incident quick-path:
 

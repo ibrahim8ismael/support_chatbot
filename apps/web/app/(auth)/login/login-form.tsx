@@ -1,6 +1,6 @@
 'use client';
 
-import { Alert, Button, Card, FieldError, Form, Input, Label, TextField } from '@heroui/react';
+import { Alert, Button, FieldError, Form, Input, Label, TextField } from '@heroui/react';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
@@ -79,41 +79,37 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
-      <Card.Content>
-        <Form className="flex flex-col gap-5" onSubmit={onSubmit}>
-          <TextField isRequired>
-            <Label>Email</Label>
-            <Input name="email" type="email" autoComplete="email" placeholder="you@company.com" />
-            <FieldError />
-          </TextField>
+    <Form className="flex flex-col gap-5" onSubmit={onSubmit}>
+      <TextField isRequired>
+        <Label>Email</Label>
+        <Input name="email" type="email" autoComplete="email" placeholder="you@company.com" />
+        <FieldError />
+      </TextField>
 
-          <TextField isRequired>
-            <Label>Password</Label>
-            <Input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-            />
-            <FieldError />
-          </TextField>
+      <TextField isRequired>
+        <Label>Password</Label>
+        <Input
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+        />
+        <FieldError />
+      </TextField>
 
-          {error ? (
-            <Alert status="danger" role="alert">
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Title>Sign-in failed</Alert.Title>
-                <Alert.Description>{error}</Alert.Description>
-              </Alert.Content>
-            </Alert>
-          ) : null}
+      {error ? (
+        <Alert status="danger" role="alert">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Sign-in failed</Alert.Title>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
-          <Button type="submit" fullWidth isPending={pending}>
-            {pending ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </Form>
-      </Card.Content>
-    </Card>
+      <Button type="submit" fullWidth isPending={pending}>
+        {pending ? 'Signing in…' : 'Sign in'}
+      </Button>
+    </Form>
   );
 }

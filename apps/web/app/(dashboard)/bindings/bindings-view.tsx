@@ -1,17 +1,36 @@
 'use client';
 
-import { Alert, Button, Card, Checkbox, Chip, Input, Label, Spinner, Switch } from '@heroui/react';
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Chip,
+  Input,
+  Label,
+  ListBox,
+  Select,
+  Spinner,
+  Switch,
+} from '@heroui/react';
 import { Plus, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { InboxBinding, KnowledgeBaseSummary } from '@support-agent/shared';
 
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 
 interface Draft {
   enabled: boolean;
   kbIds: string[];
+}
+
+interface ChatwootInboxOption {
+  id: number;
+  name: string;
+  channelType: string | null;
 }
 
 function toggleKb(ids: string[], kbId: string): string[] {
@@ -28,6 +47,7 @@ export function BindingsView() {
   const router = useRouter();
   const [bindings, setBindings] = useState<InboxBinding[]>([]);
   const [kbs, setKbs] = useState<KnowledgeBaseSummary[]>([]);
+  const [chatwootInboxes, setChatwootInboxes] = useState<ChatwootInboxOption[]>([]);
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
   const [newInboxId, setNewInboxId] = useState('');
   const [busyInbox, setBusyInbox] = useState<number | null>(null);
@@ -53,7 +73,8 @@ export function BindingsView() {
     void Promise.allSettled([
       apiFetch<InboxBinding[]>('/bindings'),
       apiFetch<KnowledgeBaseSummary[]>('/knowledge-bases'),
-    ]).then(([bindingsResult, kbsResult]) => {
+      apiFetch<ChatwootInboxOption[]>('/bindings/chatwoot-inboxes'),
+    ]).then(([bindingsResult, kbsResult, inboxesResult]) => {
       if (cancelled) {
         return;
       }
@@ -72,6 +93,9 @@ export function BindingsView() {
       }
       if (kbsResult.status === 'fulfilled') {
         setKbs(kbsResult.value);
+      }
+      if (inboxesResult.status === 'fulfilled') {
+        setChatwootInboxes(inboxesResult.value);
       }
       setLoading(false);
     });
@@ -191,13 +215,11 @@ export function BindingsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Inbox bindings</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Map Chatwoot inboxes to knowledge bases and toggle the per-inbox kill switch. An inbox
-          with no knowledge bases or the switch off is ignored by the bot.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Operations"
+        title="Inbox bindings"
+        description="Map Chatwoot inboxes to knowledge bases and toggle the per-inbox kill switch. An inbox with no knowledge bases or the switch off is ignored by the bot."
+      />
 
       {error ? (
         <Alert status="danger" role="alert">
@@ -231,7 +253,7 @@ export function BindingsView() {
               <Card.Content className="flex flex-col items-center gap-1 py-12 text-center">
                 <p className="text-sm font-medium">No bindings yet</p>
                 <p className="text-xs text-muted">
-                  Add an inbox below once its webhook has been seen.
+                  Add an inbox below after configuring its Agent Bot.
                 </p>
               </Card.Content>
             </Card>
@@ -245,9 +267,21 @@ export function BindingsView() {
                   <Card key={binding.chatwootInboxId}>
                     <Card.Header className="flex flex-row flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <Card.Title className="text-base">
-                          {binding.displayName ?? `Inbox ${binding.chatwootInboxId}`}
-                        </Card.Title>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Card.Title className="text-base">
+                            {binding.displayName ??
+                              chatwootInboxes.find((inbox) => inbox.id === binding.chatwootInboxId)
+                                ?.name ??
+                              `Inbox ${binding.chatwootInboxId}`}
+                          </Card.Title>
+                          <Chip
+                            size="sm"
+                            variant="soft"
+                            color={draft.enabled ? 'success' : 'default'}
+                          >
+                            {draft.enabled ? 'Enabled' : 'Disabled'}
+                          </Chip>
+                        </div>
                         <Card.Description>
                           #{binding.chatwootInboxId} · account {binding.chatwootAccountId}
                         </Card.Description>
@@ -328,7 +362,9 @@ export function BindingsView() {
             <Card.Header>
               <Card.Title className="text-base">Add an inbox</Card.Title>
               <Card.Description>
-                Bindings seen from webhooks appear here automatically.
+                {chatwootInboxes.length > 0
+                  ? 'Choose an inbox from your Chatwoot account.'
+                  : 'Inbox discovery needs CHATWOOT_ACCOUNT_API_TOKEN; you can still enter an inbox ID manually.'}
               </Card.Description>
             </Card.Header>
             <Card.Content>
@@ -339,15 +375,48 @@ export function BindingsView() {
                   void addInbox();
                 }}
               >
-                <Input
-                  type="number"
-                  min={1}
-                  aria-label="Chatwoot inbox id"
-                  placeholder="Chatwoot inbox id"
-                  className="w-52"
-                  value={newInboxId}
-                  onChange={(event) => setNewInboxId(event.target.value)}
-                />
+                {chatwootInboxes.length > 0 ? (
+                  <Select
+                    aria-label="Chatwoot inbox"
+                    className="w-72"
+                    value={newInboxId}
+                    onChange={(value) => setNewInboxId(typeof value === 'string' ? value : '')}
+                  >
+                    <Select.Trigger>
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {chatwootInboxes
+                          .filter(
+                            (inbox) =>
+                              !bindings.some((binding) => binding.chatwootInboxId === inbox.id),
+                          )
+                          .map((inbox) => (
+                            <ListBox.Item
+                              key={inbox.id}
+                              id={String(inbox.id)}
+                              textValue={`${inbox.name} (${inbox.id})`}
+                            >
+                              {inbox.name} · #{inbox.id}
+                              <ListBox.ItemIndicator />
+                            </ListBox.Item>
+                          ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                ) : (
+                  <Input
+                    type="number"
+                    min={1}
+                    aria-label="Chatwoot inbox id"
+                    placeholder="Chatwoot inbox id"
+                    className="w-52"
+                    value={newInboxId}
+                    onChange={(event) => setNewInboxId(event.target.value)}
+                  />
+                )}
                 <Button
                   type="submit"
                   variant="secondary"

@@ -12,6 +12,7 @@ import type {
 } from '@support-agent/shared';
 
 import { canWrite, useSessionUser } from '@/components/session';
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 import { resultsToCsv } from '@/lib/sandbox';
 
@@ -320,13 +321,11 @@ export function SandboxView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Sandbox</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Test the knowledge bases and the agent against saved questions. Runs use the real answer
-          path — nothing is ever sent to customers or saved to analytics.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Knowledge"
+        title="Sandbox"
+        description="Test the knowledge bases and the agent against saved questions. Runs use the real answer path — nothing is ever sent to customers or saved to analytics."
+      />
 
       {error ? (
         <Alert status="danger" role="alert">
@@ -341,7 +340,7 @@ export function SandboxView() {
       <div
         role="tablist"
         aria-label="Sandbox sections"
-        className="flex w-fit flex-wrap gap-1 rounded-2xl border border-border bg-surface p-1"
+        className="flex w-fit flex-wrap gap-1 rounded-xl border border-border bg-surface-secondary p-1"
       >
         <TabButton tab="try" current={tab} onSelect={setTab}>
           Try it
@@ -468,10 +467,10 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={() => onSelect(tab)}
-      className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+      className={`rounded-lg px-4 py-2 text-[13px] font-medium transition-colors ${
         active
-          ? 'bg-accent/10 text-accent'
-          : 'text-muted hover:bg-surface-secondary hover:text-foreground'
+          ? 'bg-foreground text-background shadow-sm'
+          : 'text-muted hover:bg-surface hover:text-foreground'
       }`}
     >
       {children}

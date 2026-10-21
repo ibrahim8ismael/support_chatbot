@@ -10,6 +10,17 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-21
+
+### Added
+
+- **Live Chatwoot Agent Bot pipeline**: signed webhook verification, queued message handling, conversation persistence and deduplication, grounded replies, escalation, pause/resume, and inbox discovery.
+- **Chatwoot operations and dashboard updates**: inbox-to-knowledge-base controls, conversation and analytics views, and refreshed responsive screens for administration and support workflows.
+
+### Changed
+
+- Updated setup, security, deployment, and API documentation for the working Chatwoot integration and its required environment keys.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added

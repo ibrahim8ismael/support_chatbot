@@ -13,6 +13,7 @@ import type {
   InboxBinding,
 } from '@support-agent/shared';
 
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 import {
   ANALYTICS_RANGES,
@@ -201,13 +202,11 @@ export function ConversationsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Conversations</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Read-only explorer: messages, bot state, and per-attempt diagnostics. Ranges filter on the
-          last message time.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Operations"
+        title="Conversations"
+        description="Read-only explorer: messages, bot state, and per-attempt diagnostics. Ranges filter on the last message time."
+      />
 
       <Card>
         <Card.Content className="flex flex-col gap-3">
@@ -325,7 +324,9 @@ export function ConversationsView() {
           <Card>
             <Card.Header className="flex flex-row items-center justify-between gap-3">
               <Card.Title className="text-base">Conversations</Card.Title>
-              <span className="text-xs text-muted">{total} total</span>
+              <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-[11px] text-muted">
+                {total} total
+              </span>
             </Card.Header>
             <Card.Content className="flex flex-col gap-2">
               {loading && list === null ? (
@@ -345,10 +346,10 @@ export function ConversationsView() {
                       type="button"
                       onClick={() => setSelectedId(item.id)}
                       aria-current={active ? 'true' : undefined}
-                      className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
                         active
-                          ? 'border-accent bg-accent/5 ring-1 ring-accent'
-                          : 'border-border bg-surface hover:bg-surface-secondary'
+                          ? 'border-[#e7d8bf] bg-signature-cream text-ink'
+                          : 'border-transparent bg-surface hover:bg-surface-secondary'
                       }`}
                     >
                       <span className="flex items-center justify-between gap-2">
@@ -449,11 +450,11 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
                 return (
                   <div
                     key={message.id}
-                    className={`rounded-xl border p-3 ${
+                    className={`rounded-lg border p-3 ${
                       message.isPrivate
                         ? 'border-warning/30 bg-warning/5'
                         : bot
-                          ? 'border-accent/30 bg-accent/5'
+                          ? 'border-[#e7d8bf] bg-signature-cream'
                           : 'border-border bg-surface-secondary'
                     }`}
                   >

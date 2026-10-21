@@ -68,10 +68,10 @@ export function RunsTab({
                   <button
                     type="button"
                     onClick={() => onSelect(run)}
-                    className={`w-full rounded-2xl border p-4 text-left transition-colors ${
+                    className={`w-full rounded-lg border p-4 text-left transition-colors ${
                       active
-                        ? 'border-accent bg-accent/5 ring-1 ring-accent'
-                        : 'border-border bg-surface hover:bg-surface-secondary'
+                        ? 'border-[#e7d8bf] bg-signature-cream text-ink'
+                        : 'border-transparent bg-surface hover:bg-surface-secondary'
                     }`}
                   >
                     <span className="flex items-center justify-between gap-2">
@@ -192,7 +192,10 @@ function RunDetail({
                 aria-valuemax={100}
                 className="h-2 overflow-hidden rounded-full bg-surface-secondary"
               >
-                <div className="h-full rounded-full bg-accent" style={{ width: `${progress}%` }} />
+                <div
+                  className="h-full rounded-full bg-signature-coral"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
               <p className="text-xs text-muted">
                 Running… {run.completedCount}/{run.caseCount} cases done. You can leave this page.
