@@ -27,6 +27,8 @@ import type {
 } from '@support-agent/shared';
 
 import { canWrite, useSessionUser } from '@/components/session';
+import { MetricCard } from '@/components/ui/metric-card';
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch, apiUpload } from '@/lib/api';
 import {
   DOCUMENT_ACCEPT,
@@ -67,6 +69,9 @@ export function KnowledgeBasesView() {
   const createModal = useOverlayState();
 
   const selectedKb = kbs.find((kb) => kb.id === selectedKbId) ?? null;
+  const totalDocuments = kbs.reduce((total, kb) => total + kb.documentCount, 0);
+  const processingDocuments = kbs.reduce((total, kb) => total + kb.statusCounts.processing, 0);
+  const failedDocuments = kbs.reduce((total, kb) => total + kb.statusCounts.failed, 0);
 
   const handleError = useCallback(
     (cause: unknown): void => {
@@ -256,25 +261,49 @@ export function KnowledgeBasesView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-2xl font-semibold tracking-tight">Knowledge bases</h2>
-          <p className="mt-1 max-w-2xl text-sm text-muted">
-            Upload PDF, DOCX, TXT or MD files and follow ingestion status. Retrieval and the
-            playground answer from the chunks produced here.
-          </p>
-        </div>
-        {writable ? (
-          <Button
-            onPress={() => {
-              setCreateError(null);
-              createModal.open();
-            }}
-          >
-            <Plus className="size-4" aria-hidden />
-            New knowledge base
-          </Button>
-        ) : null}
+      <PageHeader
+        eyebrow="Knowledge"
+        title="Knowledge bases"
+        description="Upload PDF, DOCX, TXT or MD files and follow ingestion status. Retrieval and the playground answer from the chunks produced here."
+        actions={
+          writable ? (
+            <Button
+              onPress={() => {
+                setCreateError(null);
+                createModal.open();
+              }}
+            >
+              <Plus className="size-4" aria-hidden />
+              New knowledge base
+            </Button>
+          ) : null
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Knowledge bases"
+          value={loading ? '—' : kbs.length}
+          detail="Libraries in the workspace"
+        />
+        <MetricCard
+          label="Documents"
+          value={loading ? '—' : totalDocuments}
+          detail="Ready or processing"
+          tone="coral"
+        />
+        <MetricCard
+          label="Processing"
+          value={loading ? '—' : processingDocuments}
+          detail="Ingestion in flight"
+          tone="cream"
+        />
+        <MetricCard
+          label="Needs attention"
+          value={loading ? '—' : failedDocuments}
+          detail={failedDocuments > 0 ? 'Failed documents' : 'No failed ingests'}
+          tone={failedDocuments > 0 ? 'peach' : 'mint'}
+        />
       </div>
 
       {user && !writable ? (
@@ -301,10 +330,15 @@ export function KnowledgeBasesView() {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
-        <section className="flex min-w-0 flex-col gap-3">
-          <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-semibold">All knowledge bases</h3>
-            <span className="text-xs text-muted">{kbs.length}</span>
+        <section className="flex min-w-0 flex-col rounded-xl border border-separator bg-surface p-2">
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <BookOpen className="size-4 text-muted" aria-hidden />
+              <h3 className="truncate text-[13px] font-medium">All knowledge bases</h3>
+            </div>
+            <span className="rounded-md bg-surface-secondary px-2 py-0.5 text-[11px] text-muted">
+              {kbs.length}
+            </span>
           </div>
 
           {loading ? (
@@ -312,25 +346,23 @@ export function KnowledgeBasesView() {
               <Spinner />
             </div>
           ) : kbs.length === 0 ? (
-            <Card>
-              <Card.Content className="flex flex-col items-center gap-3 py-10 text-center">
-                <BookOpen className="size-8 text-muted" aria-hidden />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">No knowledge bases yet</p>
-                  <p className="text-xs text-muted">
-                    Create the first one to start uploading documents.
-                  </p>
-                </div>
-                {writable ? (
-                  <Button size="sm" variant="secondary" onPress={createModal.open}>
-                    <Plus className="size-4" aria-hidden />
-                    Create knowledge base
-                  </Button>
-                ) : null}
-              </Card.Content>
-            </Card>
+            <div className="flex flex-col items-center gap-3 rounded-lg bg-surface-secondary px-4 py-10 text-center">
+              <BookOpen className="size-8 text-muted" aria-hidden />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">No knowledge bases yet</p>
+                <p className="text-xs text-muted">
+                  Create the first one to start uploading documents.
+                </p>
+              </div>
+              {writable ? (
+                <Button size="sm" variant="secondary" onPress={createModal.open}>
+                  <Plus className="size-4" aria-hidden />
+                  Create knowledge base
+                </Button>
+              ) : null}
+            </div>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-1">
               {kbs.map((kb) => {
                 const active = kb.id === selectedKbId;
                 return (
@@ -341,14 +373,20 @@ export function KnowledgeBasesView() {
                         setSelectedKbId(kb.id);
                         setUploadError(null);
                       }}
-                      className={`w-full rounded-2xl border p-4 text-left transition-colors ${
+                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
                         active
-                          ? 'border-accent bg-accent/5 ring-1 ring-accent'
-                          : 'border-border bg-surface hover:bg-surface-secondary'
+                          ? 'border-[#e7d8bf] bg-signature-cream text-ink'
+                          : 'border-transparent hover:border-separator hover:bg-surface-secondary'
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium">{kb.name}</span>
+                        <span
+                          className={`size-1.5 shrink-0 rounded-full ${
+                            active ? 'bg-signature-coral' : 'bg-border'
+                          }`}
+                          aria-hidden
+                        />
+                        <span className="truncate text-[13px] font-medium">{kb.name}</span>
                         {kb.status === 'archived' ? (
                           <Chip size="sm" variant="soft">
                             Archived
@@ -356,11 +394,11 @@ export function KnowledgeBasesView() {
                         ) : null}
                       </span>
                       {kb.description ? (
-                        <span className="mt-1 line-clamp-2 block text-xs text-muted">
+                        <span className="mt-1.5 line-clamp-2 block pl-3.5 text-xs leading-5 text-muted">
                           {kb.description}
                         </span>
                       ) : null}
-                      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                      <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-3.5 text-[11px] text-muted">
                         <span>
                           {kb.documentCount} document{kb.documentCount === 1 ? '' : 's'}
                         </span>
@@ -396,36 +434,44 @@ export function KnowledgeBasesView() {
             </Card>
           ) : (
             <Card>
-              <Card.Header className="flex flex-row items-start justify-between gap-4">
+              <Card.Header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <Card.Title className="truncate">{selectedKb.name}</Card.Title>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Card.Title className="truncate">{selectedKb.name}</Card.Title>
+                    <Chip size="sm" variant="soft">
+                      {selectedKb.documentCount} document
+                      {selectedKb.documentCount === 1 ? '' : 's'}
+                    </Chip>
+                  </div>
                   <Card.Description className="truncate">
                     {selectedKb.description ?? 'No description'}
                   </Card.Description>
                 </div>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept={DOCUMENT_ACCEPT}
-                  className="hidden"
-                  onChange={(event) => void onUpload(event)}
-                  disabled={uploading}
-                />
-                {writable ? (
-                  <Button
-                    variant="secondary"
-                    isPending={uploading}
-                    onPress={() => fileInput.current?.click()}
-                  >
-                    <Upload className="size-4" aria-hidden />
-                    Upload document
-                  </Button>
-                ) : null}
-                {uploading ? (
-                  <Button variant="ghost" onPress={cancelUpload}>
-                    Cancel
-                  </Button>
-                ) : null}
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept={DOCUMENT_ACCEPT}
+                    className="hidden"
+                    onChange={(event) => void onUpload(event)}
+                    disabled={uploading}
+                  />
+                  {writable ? (
+                    <Button
+                      variant="secondary"
+                      isPending={uploading}
+                      onPress={() => fileInput.current?.click()}
+                    >
+                      <Upload className="size-4" aria-hidden />
+                      Upload document
+                    </Button>
+                  ) : null}
+                  {uploading ? (
+                    <Button variant="ghost" onPress={cancelUpload}>
+                      Cancel
+                    </Button>
+                  ) : null}
+                </div>
               </Card.Header>
 
               <Card.Content className="flex flex-col gap-3 p-0">

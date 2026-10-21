@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../db/database.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { ChatwootModule } from '../chatwoot/chatwoot.module';
 import { InfraModule } from '../infra/infra.module';
 import { BindingsController } from './bindings.controller';
 import { BindingsService } from './bindings.service';
@@ -12,7 +13,7 @@ import { BindingsService } from './bindings.service';
  * Upserts are audited (T-301).
  */
 @Module({
-  imports: [DatabaseModule, InfraModule, AnalyticsModule],
+  imports: [DatabaseModule, InfraModule, AnalyticsModule, ChatwootModule],
   controllers: [BindingsController],
   providers: [BindingsService],
   exports: [BindingsService],

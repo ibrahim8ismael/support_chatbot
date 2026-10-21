@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   Card,
+  Chip,
   Input,
   Label,
   ListBox,
@@ -27,6 +28,8 @@ import {
 
 import { useSessionUser } from '@/components/session';
 import { USER_ROLE_LABELS } from '@/lib/admin';
+import { MetricCard } from '@/components/ui/metric-card';
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 
 interface RowDraft {
@@ -221,15 +224,34 @@ export function UsersView() {
   }
 
   const activeAdminCount = users.filter((row) => row.role === 'admin' && row.isActive).length;
+  const activeUserCount = users.filter((row) => row.isActive).length;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Users</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Accounts and roles. Deactivated users keep their history; sessions are revoked on
-          deactivation and on password change.
-        </p>
+      <PageHeader
+        eyebrow="Admin"
+        title="Users"
+        description="Accounts and roles. Deactivated users keep their history; sessions are revoked on deactivation and on password change."
+      />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MetricCard
+          label="Accounts"
+          value={forbidden || loading ? '—' : users.length}
+          detail="Total workspace users"
+        />
+        <MetricCard
+          label="Active"
+          value={forbidden || loading ? '—' : activeUserCount}
+          detail="Can sign in today"
+          tone="cream"
+        />
+        <MetricCard
+          label="Admins"
+          value={forbidden || loading ? '—' : activeAdminCount}
+          detail="At least one must stay active"
+          tone="coral"
+        />
       </div>
 
       {error ? (
@@ -286,7 +308,21 @@ export function UsersView() {
                 <Card key={user.id}>
                   <Card.Header className="flex flex-row flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <Card.Title className="text-base">{user.email}</Card.Title>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Card.Title className="text-base">{user.email}</Card.Title>
+                        <Chip
+                          size="sm"
+                          variant="soft"
+                          color={user.role === 'admin' ? 'accent' : 'default'}
+                        >
+                          {USER_ROLE_LABELS[user.role]}
+                        </Chip>
+                        {!user.isActive ? (
+                          <Chip size="sm" variant="soft" color="warning">
+                            Inactive
+                          </Chip>
+                        ) : null}
+                      </div>
                       <Card.Description>
                         joined {new Date(user.createdAt).toISOString().slice(0, 10)}
                       </Card.Description>

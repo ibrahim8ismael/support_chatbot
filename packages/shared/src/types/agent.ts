@@ -2,10 +2,10 @@ import type { RetrievedChunkMetadata } from './retrieval';
 
 /**
  * Agent contracts (FR-4/FR-6) — the answer path shared by the playground
- * (T-106) and, later, the live reply pipeline (T-203).
+ * (T-106) and the live reply worker.
  */
 
-/** Why the bot did not answer (playground scope; the live path adds outcomes). */
+/** Why the answer core did not produce a grounded answer. */
 export const ESCALATION_REASONS = ['low_score', 'guard'] as const;
 export type EscalationReason = (typeof ESCALATION_REASONS)[number];
 

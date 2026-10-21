@@ -99,13 +99,24 @@ function initials(name: string): string {
 
 function Brand({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <Link href="/knowledge-bases" onClick={onNavigate} className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-accent-foreground shadow-sm">
-        <Bot className="size-5" aria-hidden />
+    <Link
+      href="/knowledge-bases"
+      onClick={onNavigate}
+      className="flex items-center gap-2.5"
+      aria-label="Support Agent home"
+    >
+      <span className="relative flex size-8 items-center justify-center rounded-[10px] bg-foreground text-background shadow-sm">
+        <Bot className="size-[18px]" aria-hidden />
+        <span
+          className="absolute -top-0.5 -right-0.5 size-2 rounded-full border-2 border-surface-secondary bg-signature-coral"
+          aria-hidden
+        />
       </span>
-      <span className="flex flex-col leading-tight">
-        <span className="text-sm font-semibold text-foreground">Support Agent</span>
-        <span className="text-[11px] text-muted">Operations dashboard</span>
+      <span className="flex flex-col leading-none">
+        <span className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
+          Support Agent
+        </span>
+        <span className="mt-1 text-[10px] tracking-[0.12em] text-muted uppercase">Operations</span>
       </span>
     </Link>
   );
@@ -124,7 +135,7 @@ function SidebarNav({
     <nav aria-label="Dashboard" className="flex flex-col gap-6">
       {visibleGroups(user).map((group) => (
         <div key={group.label}>
-          <p className="mb-1.5 px-3 text-[11px] font-medium tracking-wider text-muted uppercase">
+          <p className="mb-2 px-2.5 text-[10px] font-medium tracking-[0.14em] text-muted uppercase">
             {group.label}
           </p>
           <ul className="flex flex-col gap-0.5">
@@ -137,14 +148,23 @@ function SidebarNav({
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors ${
+                    className={`flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors ${
                       active
-                        ? 'bg-accent/10 font-medium text-accent'
-                        : 'text-muted hover:bg-surface-secondary hover:text-foreground'
+                        ? 'bg-foreground font-medium text-background shadow-sm'
+                        : 'text-muted hover:bg-surface hover:text-foreground'
                     }`}
                   >
-                    <Icon className="size-4 shrink-0" aria-hidden />
-                    {item.label}
+                    <Icon
+                      className={`size-4 shrink-0 ${active ? 'opacity-100' : 'opacity-75'}`}
+                      aria-hidden
+                    />
+                    <span className="truncate">{item.label}</span>
+                    {active ? (
+                      <span
+                        className="ml-auto size-1.5 rounded-full bg-signature-peach"
+                        aria-hidden
+                      />
+                    ) : null}
                   </Link>
                 </li>
               );
@@ -177,10 +197,10 @@ function AccountMenu({
           <Avatar.Fallback>{fallback}</Avatar.Fallback>
         </Avatar>
         <span className="hidden min-w-0 flex-col leading-tight sm:flex">
-          <span className="max-w-40 truncate text-sm font-medium text-foreground">
+          <span className="max-w-40 truncate text-[13px] font-medium text-foreground">
             {user?.name ?? 'Account'}
           </span>
-          <span className="max-w-40 truncate text-[11px] text-muted">
+          <span className="max-w-40 truncate text-[10px] text-muted">
             {user?.email ?? 'Loading…'}
           </span>
         </span>
@@ -201,6 +221,21 @@ function AccountMenu({
         </Dropdown.Menu>
       </Dropdown.Popover>
     </Dropdown>
+  );
+}
+
+function AccessCard({ user }: { user: SessionUser | null }) {
+  return (
+    <div className="rounded-[10px] border border-separator bg-surface p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-medium tracking-[0.14em] text-muted uppercase">
+          Your access
+        </p>
+        <span className="size-1.5 rounded-full bg-signature-forest" aria-hidden />
+      </div>
+      <p className="mt-2 text-sm font-medium capitalize">{user?.role ?? '—'}</p>
+      <p className="mt-0.5 truncate text-[11px] text-muted">{user?.email ?? 'Checking session…'}</p>
+    </div>
   );
 }
 
@@ -266,21 +301,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-separator bg-surface lg:flex">
-        <div className="flex h-16 items-center border-b border-separator px-5">
+      <aside className="hidden w-[248px] shrink-0 flex-col border-r border-separator bg-surface-secondary lg:flex">
+        <div className="flex h-16 items-center border-b border-separator px-4">
           <Brand />
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto px-2.5 py-5">
           <SidebarNav pathname={pathname} user={user} />
         </div>
-        <div className="border-t border-separator px-5 py-4">
-          <p className="text-[11px] font-medium tracking-wider text-muted uppercase">Role</p>
-          <p className="mt-0.5 text-sm font-medium capitalize">{user?.role ?? '—'}</p>
+        <div className="border-t border-separator p-3">
+          <AccessCard user={user} />
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-separator bg-background/85 px-4 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-separator bg-background/90 px-4 backdrop-blur-md lg:px-8">
           <Button
             isIconOnly
             variant="ghost"
@@ -290,16 +324,22 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           >
             <Menu className="size-5" aria-hidden />
           </Button>
-          <h1 className="min-w-0 flex-1 truncate text-base font-semibold">
-            {current?.label ?? 'Dashboard'}
-          </h1>
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-[13px]">
+            <span className="hidden text-muted sm:inline">Workspace</span>
+            <span className="hidden text-border sm:inline" aria-hidden>
+              /
+            </span>
+            <span className="truncate font-medium text-foreground">
+              {current?.label ?? 'Dashboard'}
+            </span>
+          </div>
           <ThemeToggle />
           <div className="mx-1 h-6 w-px bg-separator" aria-hidden />
           <AccountMenu user={user} signingOut={signingOut} onSignOut={() => void signOut()} />
         </header>
 
         {sessionError ? (
-          <div className="px-4 pt-4 lg:px-8">
+          <div className="mx-auto w-full max-w-[1320px] px-4 pt-4 sm:px-6 lg:px-10">
             <Alert status="danger" role="alert">
               <Alert.Indicator />
               <Alert.Content>
@@ -320,7 +360,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         ) : null}
 
         {signOutError ? (
-          <div className="px-4 pt-4 lg:px-8">
+          <div className="mx-auto w-full max-w-[1320px] px-4 pt-4 sm:px-6 lg:px-10">
             <Alert status="danger" role="alert">
               <Alert.Indicator />
               <Alert.Content>
@@ -331,14 +371,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
 
-        <main className="flex-1 px-4 py-6 lg:px-8">
-          <SessionProvider value={user}>{children}</SessionProvider>
+        <main className="flex-1 px-4 py-7 sm:px-6 lg:px-10 lg:py-10">
+          <div className="mx-auto w-full max-w-[1320px]">
+            <SessionProvider value={user}>{children}</SessionProvider>
+          </div>
         </main>
       </div>
 
       <Drawer state={drawer}>
         <Drawer.Backdrop>
-          <Drawer.Content placement="left" className="w-72 max-w-[85vw]">
+          <Drawer.Content placement="left" className="w-72 max-w-[85vw] bg-surface">
             <Drawer.Dialog aria-label="Navigation">
               <Drawer.Header>
                 <Brand onNavigate={drawer.close} />
@@ -346,26 +388,29 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <Drawer.Body className="overflow-y-auto p-3">
                 <SidebarNav pathname={pathname} user={user} onNavigate={drawer.close} />
               </Drawer.Body>
-              <Drawer.Footer className="border-t border-separator">
-                <div className="flex w-full items-center gap-2.5">
-                  <Avatar size="sm" color="accent">
-                    <Avatar.Fallback>
-                      {user ? initials(user.name || user.email) : '?'}
-                    </Avatar.Fallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{user?.name ?? 'Account'}</p>
-                    <p className="truncate text-xs text-muted">{user?.email ?? ''}</p>
+              <Drawer.Footer className="border-t border-separator p-3">
+                <div className="flex w-full flex-col gap-3">
+                  <AccessCard user={user} />
+                  <div className="flex items-center gap-2.5">
+                    <Avatar size="sm" color="accent">
+                      <Avatar.Fallback>
+                        {user ? initials(user.name || user.email) : '?'}
+                      </Avatar.Fallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{user?.name ?? 'Account'}</p>
+                      <p className="truncate text-xs text-muted">{user?.email ?? ''}</p>
+                    </div>
+                    <Button
+                      isIconOnly
+                      variant="ghost"
+                      aria-label="Sign out"
+                      isPending={signingOut}
+                      onPress={() => void signOut()}
+                    >
+                      <LogOut className="size-4" aria-hidden />
+                    </Button>
                   </div>
-                  <Button
-                    isIconOnly
-                    variant="ghost"
-                    aria-label="Sign out"
-                    isPending={signingOut}
-                    onPress={() => void signOut()}
-                  >
-                    <LogOut className="size-4" aria-hidden />
-                  </Button>
                 </div>
               </Drawer.Footer>
             </Drawer.Dialog>

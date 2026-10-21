@@ -1,4 +1,5 @@
 import { exec as execCallback } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { promisify } from 'node:util';
 
@@ -33,7 +34,7 @@ import {
  *   1. webhook ack: `--webhook-burst` synthetic `message_created` events at
  *      `--concurrency` (default 100 @ 20 — the NFR-8 bursts; the 5k
  *      conversations/month average is ~7/h). Asserts the documented status
- *      (501 while the reply pipeline is a stub — T-201; 2xx afterwards) and
+ *      (HTTP 200 after the event is accepted) and
  *      p95 ≤ 300 ms.
  *   2. pipeline latency: `--pipeline-count` playground asks through the full
  *      answer path against a throwaway KB (`--kb <uuid>` to reuse a populated
@@ -137,6 +138,29 @@ async function apiFetch(
   });
 }
 
+async function webhookFetch(
+  options: CliOptions,
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  const rawBody = JSON.stringify(payload);
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  const secret = process.env.CHATWOOT_WEBHOOK_SIGNING_SECRET;
+  if (secret) {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    headers['x-chatwoot-timestamp'] = timestamp;
+    headers['x-chatwoot-signature'] = `sha256=${createHmac('sha256', secret)
+      .update(`${timestamp}.`)
+      .update(rawBody)
+      .digest('hex')}`;
+  }
+  return fetch(`${options.baseUrl}/api/webhooks/chatwoot/${options.secret}`, {
+    method: 'POST',
+    headers,
+    body: rawBody,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+}
+
 async function login(options: CliOptions): Promise<string> {
   const response = await apiFetch(options, '/api/auth/login', {
     method: 'POST',
@@ -163,8 +187,8 @@ interface WebhookPhase {
 /**
  * The webhook burst must never create mock traffic on a live inbox. Localhost
  * is always fine; remote targets are refused when the target inbox has an
- * enabled binding (once T-201 lands, synthetic `message_created` events would
- * become real conversations and bot replies). Targets we cannot verify fail
+ * enabled binding (synthetic `message_created` events may create real
+ * conversations and bot replies). Targets we cannot verify fail
  * closed; `--allow-live-burst` is the deliberate override for drills.
  */
 async function assertBurstTargetSafe(options: CliOptions): Promise<void> {
@@ -199,7 +223,7 @@ async function assertBurstTargetSafe(options: CliOptions): Promise<void> {
   );
   if (bound) {
     throw new Error(
-      `refusing the webhook burst: inbox ${options.inboxId} has an enabled binding on ${options.baseUrl} — synthetic events would produce real conversations/replies once the pipeline lands; use an unbound test inbox or pass --allow-live-burst`,
+      `refusing the webhook burst: inbox ${options.inboxId} has an enabled binding on ${options.baseUrl} — synthetic events may produce real conversations/replies; use an unbound test inbox or pass --allow-live-burst`,
     );
   }
 }
@@ -219,10 +243,7 @@ async function runWebhookBurst(options: CliOptions): Promise<WebhookPhase> {
       Math.min(5, options.concurrency),
       async (payload) => {
         try {
-          await apiFetch(options, `/api/webhooks/chatwoot/${options.secret}`, {
-            method: 'POST',
-            body: payload,
-          });
+          await webhookFetch(options, payload);
         } catch {
           // warm-up only — the measured burst reports real failures
         }
@@ -233,12 +254,8 @@ async function runWebhookBurst(options: CliOptions): Promise<WebhookPhase> {
   const outcomes = await mapConcurrent(payloads, options.concurrency, async (payload) => {
     const started = performance.now();
     try {
-      const response = await apiFetch(options, `/api/webhooks/chatwoot/${options.secret}`, {
-        method: 'POST',
-        body: payload,
-      });
-      // The stub answers 501 by design until T-201; the pipeline flips this to 2xx.
-      const ok = response.status === 501 || response.ok;
+      const response = await webhookFetch(options, payload);
+      const ok = response.status === 200;
       return { ok, status: response.status, ms: performance.now() - started };
     } catch {
       return { ok: false, status: 0, ms: performance.now() - started };

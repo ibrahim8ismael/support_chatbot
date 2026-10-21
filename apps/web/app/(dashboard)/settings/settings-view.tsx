@@ -12,13 +12,14 @@ import {
   TextArea,
   TextField,
 } from '@heroui/react';
-import { Stethoscope } from 'lucide-react';
+import { ShieldCheck, Stethoscope } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { Settings } from '@support-agent/shared';
 
 import { canWrite, useSessionUser } from '@/components/session';
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 import {
   SETTINGS_FIELDS,
@@ -195,13 +196,21 @@ export function SettingsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Runtime tuning: kill switch, retrieval thresholds and prompts. Model ids come from the
-          server environment. Secrets (API keys, Chatwoot tokens) are environment-only and never
-          appear here.
-        </p>
+      <PageHeader
+        eyebrow="Admin"
+        title="Settings"
+        description="Runtime tuning: kill switch, retrieval thresholds and prompts. Model ids come from the server environment. Secrets (API keys, Chatwoot tokens) are environment-only and never appear here."
+      />
+
+      <div className="flex max-w-3xl items-start gap-3 rounded-xl bg-signature-cream p-5 text-ink">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#41454d]" aria-hidden />
+        <div>
+          <p className="text-sm font-medium">Secrets stay in the environment</p>
+          <p className="mt-1 text-xs leading-5 text-[#41454d]">
+            API keys and Chatwoot tokens are never rendered in this form. Changes here apply to new
+            bot answers after saving.
+          </p>
+        </div>
       </div>
 
       {user && !writable ? (

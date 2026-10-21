@@ -31,7 +31,7 @@ export interface AskInput {
   history: ChatTurn[];
   /**
    * Conversation context for the `answer_events` row (T-301). The playground
-   * and evals omit it; the live reply pipeline (T-203) supplies the ids.
+   * and evals omit it; the Chatwoot reply worker supplies the ids.
    */
   event?: {
     conversationId: string;
@@ -44,8 +44,8 @@ export interface AskInput {
 /**
  * Agent — the orchestrator/composition point. Owns no tables.
  * `ask()` is the answer core (FR-4): query build → retrieve → threshold gate →
- * grounded prompt → generate → output guard. The playground exposes it now;
- * the live reply pipeline (T-203/T-204) reuses it and adds Chatwoot I/O and
+ * grounded prompt → generate → output guard. The playground and live reply
+ * worker reuse it; the worker adds Chatwoot I/O and
  * locking. When the caller passes `event` context, the attempt is folded into
  * `answer_events` (T-301).
  */

@@ -1,4 +1,5 @@
 import { config as loadEnv } from 'dotenv';
+import { createHmac } from 'node:crypto';
 
 /**
  * Posts a synthetic Chatwoot webhook to the local API —
@@ -6,11 +7,8 @@ import { config as loadEnv } from 'dotenv';
  *
  *   pnpm simulate:webhook [-- --conversation 812]
  *
- * Expected responses while the pipeline is a stub (T-201): correct secret →
- * `501 {"status":"not_implemented"}`; wrong secret → `404`. No replies happen.
- *
- * TODO(chatwoot): replace the inline payload with anonymized captured fixtures
- * (apps/api/test/fixtures/) once the webhook schema is implemented.
+ * The event is queued and may produce a reply if its inbox is enabled/bound
+ * and the global bot switch is on. Use a test conversation and inbox.
  */
 loadEnv({ path: ['.env.local', '.env'], quiet: true });
 
@@ -29,23 +27,38 @@ async function main(): Promise<void> {
   const port = process.env.PORT ?? '3001';
   const secret = process.env.CHATWOOT_WEBHOOK_SECRET ?? 'dev-webhook-secret';
   const conversationId = Number(argValue('--conversation') ?? 812);
+  const inboxId = Number(argValue('--inbox') ?? 1);
   const url = `http://localhost:${port}/api/webhooks/chatwoot/${secret}`;
 
   // Minimal stand-in for a `message_created` event (docs/integrations/chatwoot.md).
   const payload = {
     event: 'message_created',
     account: { id: Number(process.env.CHATWOOT_ACCOUNT_ID ?? '1') },
-    conversation: { id: conversationId, inbox_id: 1, status: 'open' },
-    id: Math.floor(Date.now() / 1000),
+    conversation: { id: conversationId, inbox_id: inboxId, status: 'open' },
+    id: Date.now(),
     message_type: 'incoming',
+    content_type: 'text',
+    private: false,
+    created_at: new Date().toISOString(),
     content: 'What does the annual plan cost?',
     sender: { id: 1, name: 'Test Contact', type: 'contact' },
   };
+  const rawBody = JSON.stringify(payload);
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  const signingSecret = process.env.CHATWOOT_WEBHOOK_SIGNING_SECRET;
+  if (signingSecret) {
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    headers['x-chatwoot-timestamp'] = timestamp;
+    headers['x-chatwoot-signature'] = `sha256=${createHmac('sha256', signingSecret)
+      .update(`${timestamp}.`)
+      .update(rawBody)
+      .digest('hex')}`;
+  }
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers,
+    body: rawBody,
   });
 
   console.log(`${response.status} ${response.statusText} — ${url}`);

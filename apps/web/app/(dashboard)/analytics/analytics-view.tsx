@@ -14,6 +14,8 @@ import {
   type UnansweredQuestion,
 } from '@support-agent/shared';
 
+import { MetricCard, type MetricTone } from '@/components/ui/metric-card';
+import { PageHeader } from '@/components/ui/page-header';
 import { ApiError, apiFetch } from '@/lib/api';
 import {
   ANALYTICS_INTERVAL_LABELS,
@@ -160,16 +162,14 @@ export function AnalyticsView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight">Analytics</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Answer and deflection metrics from answer_events — definitions in docs/api/rest-api.md.
-          Times are UTC.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Insights"
+        title="Analytics"
+        description="Answer and deflection metrics from answer_events — definitions in docs/api/rest-api.md. Times are UTC."
+      />
 
       <Card>
-        <Card.Content className="flex flex-wrap items-center gap-2">
+        <Card.Content className="flex flex-row flex-wrap items-center gap-2">
           {ANALYTICS_RANGES.map((preset) => (
             <Button
               key={preset.id}
@@ -277,29 +277,51 @@ export function AnalyticsView() {
 }
 
 function OverviewCards({ overview }: { overview: AnalyticsOverview }) {
-  const cards: Array<{ label: string; value: string }> = [
-    { label: 'Conversations', value: formatCount(overview.conversations) },
-    { label: 'Bot-answered', value: formatCount(overview.botAnswered) },
-    { label: 'Deflection rate', value: formatRate(overview.deflectionRate) },
-    { label: 'Escalation rate', value: formatRate(overview.escalationRate) },
-    { label: 'Avg latency', value: formatLatencyMs(overview.avgLatencyMs) },
-    { label: 'p95 latency', value: formatLatencyMs(overview.p95LatencyMs) },
+  const cards: Array<{ label: string; value: string; tone: MetricTone; detail?: string }> = [
+    {
+      label: 'Conversations',
+      value: formatCount(overview.conversations),
+      tone: 'coral',
+      detail: 'In the selected range',
+    },
+    {
+      label: 'Bot-answered',
+      value: formatCount(overview.botAnswered),
+      tone: 'cream',
+      detail: 'Handled without escalation',
+    },
+    {
+      label: 'Deflection rate',
+      value: formatRate(overview.deflectionRate),
+      tone: 'mint',
+      detail: 'Bot-answered share',
+    },
+    {
+      label: 'Escalation rate',
+      value: formatRate(overview.escalationRate),
+      tone: 'peach',
+      detail: 'Handed to a human',
+    },
+    { label: 'Avg latency', value: formatLatencyMs(overview.avgLatencyMs), tone: 'plain' },
+    { label: 'p95 latency', value: formatLatencyMs(overview.p95LatencyMs), tone: 'plain' },
     {
       label: 'Tokens',
       value: formatTokens({ input: overview.tokensIn, output: overview.tokensOut }),
+      tone: 'plain',
     },
-    { label: 'Model cost', value: formatCost(overview.estimatedCostUsd) },
+    { label: 'Model cost', value: formatCost(overview.estimatedCostUsd), tone: 'plain' },
   ];
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.label}>
-          <Card.Content className="flex flex-col gap-1 py-4">
-            <p className="text-xs font-medium text-muted">{card.label}</p>
-            <p className="text-2xl font-semibold tracking-tight">{card.value}</p>
-          </Card.Content>
-        </Card>
+        <MetricCard
+          key={card.label}
+          label={card.label}
+          value={card.value}
+          detail={card.detail}
+          tone={card.tone}
+        />
       ))}
     </div>
   );
@@ -325,11 +347,11 @@ function TimeseriesChart({
       <Card.Content className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
           <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm bg-muted/40" aria-hidden />
+            <span className="size-2.5 rounded-sm bg-surface-tertiary" aria-hidden />
             Conversations
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-sm bg-accent" aria-hidden />
+            <span className="size-2.5 rounded-sm bg-signature-coral" aria-hidden />
             Bot-answered
           </span>
         </div>
@@ -343,11 +365,11 @@ function TimeseriesChart({
             >
               <div className="flex h-32 items-end gap-0.5">
                 <div
-                  className="w-2 rounded-t-sm bg-muted/40"
+                  className="w-2 rounded-t-sm bg-surface-tertiary"
                   style={{ height: `${(point.conversations / max) * 100}%` }}
                 />
                 <div
-                  className="w-2 rounded-t-sm bg-accent"
+                  className="w-2 rounded-t-sm bg-signature-coral"
                   style={{ height: `${(point.botAnswered / max) * 100}%` }}
                 />
               </div>

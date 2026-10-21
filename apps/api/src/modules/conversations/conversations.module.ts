@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../db/database.module';
+import { ChatwootModule } from '../chatwoot/chatwoot.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 
@@ -9,7 +10,7 @@ import { ConversationsService } from './conversations.service';
  * stay in the `chatwoot` module; per-conversation locks live in `infra`.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, ChatwootModule],
   controllers: [ConversationsController],
   providers: [ConversationsService],
   exports: [ConversationsService],
