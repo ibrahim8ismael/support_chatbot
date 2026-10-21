@@ -10,6 +10,8 @@ here in the same PR as user-visible changes. Ticket IDs refer to the
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
 ### Added
 
 - **Google Vertex AI chat provider** (T-102, D2): `LLM_PROVIDER=vertex` routes
