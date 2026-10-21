@@ -49,7 +49,7 @@ secrets, so mistakes surface immediately rather than at 3 AM:
 | `POSTGRES_PASSWORD` + `DATABASE_URL`             | use the same password in both                                                                                                                                 |
 | `LLM_PROVIDER` + provider key                    | `openai`, `openrouter`, `gemini`, or `vertex`; embeddings always need `OPENAI_API_KEY`                                                                        |
 | `COMPANY_NAME`                                   | your company name — fills the answer prompt; the scaffold default is rejected in production                                                                   |
-| `CHATWOOT_*`                                     | configure the Agent Bot token, webhook secrets, and account URL before enabling an inbox — see the [Chatwoot doc](docs/integrations/chatwoot.md)              |
+| `CHATWOOT_*`                                     | follow the [Chatwoot setup](#connect-chatwoot) below; keep these credentials in `.env` only                                                                   |
 
 The full list with defaults and the secret-rotation runbook lives in
 [docs/operations/deployment.md](docs/operations/deployment.md).
@@ -77,14 +77,67 @@ in at your `SITE_ADDRESS` ([deployment § TLS](docs/operations/deployment.md)).
 
 1. **Knowledge bases → add KB** — upload your handbooks/FAQs (PDF, DOCX, TXT, MD;
    ≤ 20 MB, ≤ 500 pages) and wait for each document to reach `ready`.
-2. **Sandbox** — pick the KB(s), ask real customer questions, save the ones that
-   matter as test cases, then run the whole set and review pass/fail with sources
-   and scores before anything is public.
+2. **Sandbox** — select document KBs, ask representative customer questions,
+   and review the retrieved sources before connecting an inbox.
 3. **Users** — create accounts for the support team (`admin` / `editor` / `viewer`).
 4. **Settings** — tune thresholds and prompts, use the global `bot_enabled` kill
    switch, and run the LLM health check.
 5. **Bindings** — map Chatwoot inboxes to knowledge bases. Enable the global
    bot switch only after validating the configuration and a staging inbox.
+
+### Connect Chatwoot
+
+The integration uses an Agent Bot webhook. Set these values in the repo-root
+`.env` used by Docker Compose; never commit real tokens or secrets:
+
+```dotenv
+CHATWOOT_BASE_URL=https://chatwoot.example.com
+CHATWOOT_ACCOUNT_ID=1
+CHATWOOT_BOT_TOKEN=<Agent Bot API token>
+CHATWOOT_WEBHOOK_SECRET=<random URL secret>
+CHATWOOT_WEBHOOK_SIGNING_SECRET=<Agent Bot signing secret>
+# Optional: a Chatwoot user API token for inbox-name discovery in the dashboard.
+CHATWOOT_ACCOUNT_API_TOKEN=
+```
+
+`CHATWOOT_BOT_TOKEN` is the Agent Bot API token used to send replies, notes,
+and labels. `CHATWOOT_WEBHOOK_SIGNING_SECRET` is the signing secret shown in
+Chatwoot's Agent Bot settings. `CHATWOOT_WEBHOOK_SECRET` is a separate secret
+generated for this app's callback URL. Generate it with
+`openssl rand -hex 32`; do not reuse the Chatwoot signing secret. The optional
+account API token enables inbox-name discovery; without it, enter the numeric
+inbox ID manually. For older Chatwoot versions that do not sign Agent Bot
+webhooks, leave the signing secret empty; the callback URL secret is still
+checked.
+
+Create an Agent Bot in Chatwoot and set its callback URL to:
+
+```text
+https://<public-api-host>/api/webhooks/chatwoot/<CHATWOOT_WEBHOOK_SECRET>
+```
+
+Chatwoot must be able to reach this API URL. For local development, use a
+reachable HTTPS tunnel instead of `localhost`. Copy the Agent Bot token and
+signing secret into `.env`, then recreate the API container so it reads the
+new values:
+
+```sh
+docker compose --env-file .env -f docker/docker-compose.prod.yml up -d --no-deps api
+```
+
+In Chatwoot, bind the Agent Bot to a **test inbox**. In the dashboard, add an
+inbox binding and select at least one knowledge base whose documents are ready.
+Keep the binding disabled while configuring it. Confirm the global `bot_enabled`
+setting is on, then enable the test inbox binding and send a message from a
+customer/contact. Confirm the reply or handoff in Chatwoot and the conversation
+explorer before connecting other inboxes. The conversation explorer receives
+messages delivered after connection; this integration does not import old
+Chatwoot conversations or message history.
+
+See the [Chatwoot integration guide](docs/integrations/chatwoot.md) for the
+webhook signature, event behavior, and operational limitations. Validate the
+setup against a test inbox and your deployed Chatwoot version before enabling
+production traffic.
 
 Operational extras: [weekly unanswered digest](docs/operations/deployment.md),
 [backups & restore](docs/operations/deployment.md), [security model](docs/operations/security.md),
