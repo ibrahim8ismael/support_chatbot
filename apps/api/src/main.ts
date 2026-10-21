@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 import { API_PREFIX } from '@support-agent/shared';
@@ -12,9 +13,16 @@ import { csrfOriginMiddleware } from './common/middleware/csrf-origin';
 import { resolveChatModel } from './modules/llm/providers/provider.defaults';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+    rawBody: true,
+  });
   const logger = app.get(AppLogger);
   app.useLogger(logger);
+
+  // A 200,000-character written source can exceed Express's 100 KB default.
+  // Nest preserves rawBody here, including for Chatwoot signature validation.
+  app.useBodyParser('json', { limit: '2mb' });
 
   // Session cookie parsing for AuthGuard (docs/operations/security.md § 1).
   app.use(cookieParser());

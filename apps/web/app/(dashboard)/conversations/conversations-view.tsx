@@ -328,7 +328,7 @@ export function ConversationsView() {
                 {total} total
               </span>
             </Card.Header>
-            <Card.Content className="flex flex-col gap-2">
+            <Card.Content className="flex max-h-[min(68vh,760px)] flex-col gap-2 overflow-y-auto">
               {loading && list === null ? (
                 <div className="flex justify-center py-10">
                   <Spinner />
@@ -421,7 +421,7 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
   const { conversation } = detail;
 
   return (
-    <Card>
+    <Card className="max-h-[min(78vh,900px)] overflow-hidden">
       <Card.Header className="flex flex-row items-start justify-between gap-3">
         <div className="min-w-0">
           <Card.Title className="truncate">
@@ -438,42 +438,43 @@ function DetailPanel({ detail }: { detail: ConversationDetail }) {
         </Chip>
       </Card.Header>
 
-      <Card.Content className="flex flex-col gap-6">
+      <Card.Content className="flex max-h-[70vh] flex-col gap-6 overflow-y-auto">
         <section>
           <h3 className="mb-3 text-sm font-semibold">Messages</h3>
           {detail.messages.length === 0 ? (
             <p className="text-sm text-muted">No messages stored for this conversation.</p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex max-h-[48vh] flex-col gap-2 overflow-y-auto pr-1">
               {detail.messages.map((message) => {
                 const bot = message.senderType === 'bot';
                 return (
-                  <div
-                    key={message.id}
-                    className={`rounded-lg border p-3 ${
-                      message.isPrivate
-                        ? 'border-warning/30 bg-warning/5'
-                        : bot
-                          ? 'border-[#e7d8bf] bg-signature-cream'
-                          : 'border-border bg-surface-secondary'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
-                      <span className="flex items-center gap-2 font-medium">
-                        {SENDER_TYPE_LABELS[message.senderType]}
-                        {message.isPrivate ? (
-                          <Chip size="sm" variant="soft" color="warning">
-                            Private note
-                          </Chip>
-                        ) : null}
-                      </span>
-                      <span className="whitespace-nowrap">
-                        {formatTimestamp(message.createdAt)}
-                      </span>
+                  <div key={message.id} className={`flex ${bot ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[90%] rounded-2xl border p-3 ${
+                        message.isPrivate
+                          ? 'border-warning/30 bg-warning/5'
+                          : bot
+                            ? 'rounded-br-md border-[#e7d8bf] bg-signature-cream text-ink'
+                            : 'rounded-bl-md border-border bg-surface-secondary'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+                        <span className="flex items-center gap-2 font-medium">
+                          {SENDER_TYPE_LABELS[message.senderType]}
+                          {message.isPrivate ? (
+                            <Chip size="sm" variant="soft" color="warning">
+                              Private note
+                            </Chip>
+                          ) : null}
+                        </span>
+                        <span className="whitespace-nowrap">
+                          {formatTimestamp(message.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 whitespace-pre-wrap break-words text-sm">
+                        {message.content}
+                      </p>
                     </div>
-                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm">
-                      {message.content}
-                    </p>
                   </div>
                 );
               })}

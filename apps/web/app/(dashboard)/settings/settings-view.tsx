@@ -25,6 +25,7 @@ import {
   SETTINGS_FIELDS,
   buildSettingsPatch,
   settingsToForm,
+  type SettingsField,
   type SettingsForm,
 } from '@/lib/settings';
 
@@ -193,6 +194,65 @@ export function SettingsView() {
   const patchState = settings && form ? buildSettingsPatch(settings, form) : null;
   const noChanges =
     patchState !== null && !patchState.ok && patchState.error === 'no changes to save';
+  const renderSetting = (field: SettingsField) => {
+    if (!form) {
+      return null;
+    }
+    if (field.kind === 'boolean') {
+      const isKillSwitch = field.key === 'bot_enabled';
+      return (
+        <Switch
+          key={field.key}
+          isSelected={form[field.key] === 'true'}
+          isDisabled={saving || !writable}
+          onChange={(enabled) => {
+            if (isKillSwitch) {
+              void toggleBotEnabled(enabled);
+            } else {
+              updateField(field.key, enabled ? 'true' : 'false');
+            }
+          }}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+          <Switch.Content>
+            <Label>{field.label}</Label>
+            {field.hint ? <Description>{field.hint}</Description> : null}
+          </Switch.Content>
+        </Switch>
+      );
+    }
+
+    return (
+      <TextField
+        key={field.key}
+        value={form[field.key]}
+        isReadOnly={field.readOnly === true}
+        isDisabled={field.readOnly !== true && (saving || !writable)}
+        onChange={(value) => {
+          if (field.readOnly !== true) {
+            updateField(field.key, value);
+          }
+        }}
+      >
+        <Label>{field.label}</Label>
+        {field.kind === 'textarea' ? (
+          <TextArea rows={field.key === 'system_prompt' ? 12 : 4} />
+        ) : (
+          <Input
+            type={field.kind === 'number' ? 'number' : 'text'}
+            min={field.min}
+            max={field.max}
+            step={field.step}
+          />
+        )}
+        {field.hint ? <Description>{field.hint}</Description> : null}
+      </TextField>
+    );
+  };
+  const setting = (key: keyof Settings): SettingsField | undefined =>
+    SETTINGS_FIELDS.find((field) => field.key === key);
 
   return (
     <div className="flex flex-col gap-6">
@@ -250,68 +310,77 @@ export function SettingsView() {
         </div>
       ) : settings && form ? (
         <>
-          <Card className="max-w-3xl">
+          <Card className="max-w-5xl">
             <Card.Header>
-              <Card.Title className="text-base">Runtime settings</Card.Title>
+              <Card.Title className="text-base">Agent configuration</Card.Title>
               <Card.Description>
-                Changes apply to new bot answers after saving; values are validated by the API.
+                Saved values apply to new bot answers. The API validates every change, and prompt
+                updates are loaded by the answer engine on the next request.
               </Card.Description>
             </Card.Header>
-            <Card.Content className="flex flex-col gap-5">
-              {SETTINGS_FIELDS.map((field) => {
-                if (field.kind === 'boolean') {
-                  const isKillSwitch = field.key === 'bot_enabled';
-                  return (
-                    <Switch
-                      key={field.key}
-                      isSelected={form[field.key] === 'true'}
-                      isDisabled={saving || !writable}
-                      onChange={(enabled) => {
-                        if (isKillSwitch) {
-                          void toggleBotEnabled(enabled);
-                        } else {
-                          updateField(field.key, enabled ? 'true' : 'false');
-                        }
-                      }}
-                    >
-                      <Switch.Control>
-                        <Switch.Thumb />
-                      </Switch.Control>
-                      <Switch.Content>
-                        <Label>{field.label}</Label>
-                        {field.hint ? <Description>{field.hint}</Description> : null}
-                      </Switch.Content>
-                    </Switch>
-                  );
-                }
+            <Card.Content className="grid gap-4 lg:grid-cols-2">
+              <section className="flex flex-col gap-5 rounded-xl border border-separator p-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Bot behavior</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    Control whether replies are active and what customers see when the agent needs
+                    help.
+                  </p>
+                </div>
+                {setting('bot_enabled') ? renderSetting(setting('bot_enabled')!) : null}
+                {setting('fallback_message') ? renderSetting(setting('fallback_message')!) : null}
+              </section>
 
-                return (
-                  <TextField
-                    key={field.key}
-                    value={form[field.key]}
-                    isReadOnly={field.readOnly === true}
-                    isDisabled={field.readOnly !== true && (saving || !writable)}
-                    onChange={(value) => {
-                      if (field.readOnly !== true) {
-                        updateField(field.key, value);
-                      }
-                    }}
-                  >
-                    <Label>{field.label}</Label>
-                    {field.kind === 'textarea' ? (
-                      <TextArea rows={field.key === 'system_prompt' ? 8 : 3} />
-                    ) : (
-                      <Input
-                        type={field.kind === 'number' ? 'number' : 'text'}
-                        min={field.min}
-                        max={field.max}
-                        step={field.step}
-                      />
-                    )}
-                    {field.hint ? <Description>{field.hint}</Description> : null}
-                  </TextField>
-                );
-              })}
+              <section className="flex flex-col gap-4 rounded-xl border border-separator p-4">
+                <div>
+                  <h3 className="text-sm font-semibold">System prompt</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    This saved template is passed to the answer engine for every new response.
+                    Retrieved document passages are added by the server.
+                  </p>
+                </div>
+                {setting('system_prompt') ? renderSetting(setting('system_prompt')!) : null}
+                <p className="text-right text-xs text-muted">
+                  {form.system_prompt.length.toLocaleString()}/20,000 characters
+                </p>
+              </section>
+
+              <section className="flex flex-col gap-5 rounded-xl border border-separator p-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Retrieval and answer limits</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    Adjust how many passages are searched and included in a reply.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {(
+                    [
+                      'retrieval_top_k',
+                      'retrieval_score_threshold',
+                      'context_chunks',
+                      'max_reply_chars',
+                    ] as const
+                  ).map((key) => {
+                    const field = setting(key);
+                    return field ? <div key={field.key}>{renderSetting(field)}</div> : null;
+                  })}
+                </div>
+              </section>
+
+              <section className="flex flex-col gap-5 rounded-xl border border-separator p-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Active models</h3>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    These model ids are read from the server environment and cannot be changed here.
+                  </p>
+                </div>
+                <div className="grid gap-4">
+                  {(['embedding_model', 'chat_model'] as const).map((key) => {
+                    const field = setting(key);
+                    return field ? <div key={field.key}>{renderSetting(field)}</div> : null;
+                  })}
+                </div>
+              </section>
             </Card.Content>
             <Card.Footer className="flex flex-wrap items-center gap-3">
               <Button
@@ -324,7 +393,7 @@ export function SettingsView() {
               <Button
                 variant="secondary"
                 isPending={healthBusy}
-                isDisabled={user !== null && !canHealth}
+                isDisabled={!canHealth || healthBusy}
                 onPress={() => void runHealthCheck()}
               >
                 <Stethoscope className="size-4" aria-hidden />

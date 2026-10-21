@@ -14,6 +14,14 @@ export const knowledgeBaseInputSchema = z.strictObject({
 
 export type KnowledgeBaseInput = z.infer<typeof knowledgeBaseInputSchema>;
 
+/** Pasted knowledge follows the same indexing pipeline as an uploaded document. */
+export const textDocumentInputSchema = z.strictObject({
+  title: z.string().trim().min(1).max(200),
+  content: z.string().trim().min(1).max(200_000),
+});
+
+export type TextDocumentInput = z.infer<typeof textDocumentInputSchema>;
+
 /** `PATCH /knowledge-bases/:id` — rename, re-describe, archive. */
 export const knowledgeBaseUpdateSchema = z
   .strictObject({

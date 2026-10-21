@@ -25,6 +25,8 @@ pnpm dev                                     # turbo: api on :3001, web on :3000
 
 With no Chatwoot and no provider keys you can still: log into the dashboard, create a KB, upload documents (ingestion uses a deterministic **fake embedding provider** when `LLM_PROVIDER=mock`), ask questions (mock replies echo `I received: …`), and post simulated webhooks with `pnpm simulate:webhook` (see below).
 
+For a populated local UI, create `demo@example.com` with `pnpm seed:admin -- --email demo@example.com`, then run `LLM_PROVIDER=mock pnpm --filter api seed:demo` with `DATABASE_URL` pointing to your local development database. This idempotent command adds three demo knowledge bases, written text and uploaded Markdown/PDF/DOCX sources with mock embeddings, three disabled demo inboxes, and eighteen fictional conversations with analytics. It preserves existing rows and rejects remote databases and production mode. Run the API with `LLM_PROVIDER=mock` when using these sample embeddings. No Chatwoot or paid model is called.
+
 ## Scripts (root)
 
 | Command | What it does |
